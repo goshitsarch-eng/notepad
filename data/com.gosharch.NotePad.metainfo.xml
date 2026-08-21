@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.gosharch.NotePad</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>NotePad</name>
+  <summary>A native GTK4 clone of Microsoft Notepad</summary>
+  <description>
+    <p>
+      NotePad is a lightweight plain-text editor that recreates the classic
+      Microsoft Notepad (Windows XP) experience using GTK4 and libadwaita,
+      with support for light and dark modes.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Open, edit, and save plain text files</li>
+      <li>Cut, copy, paste, undo, and redo</li>
+      <li>Find, replace, and go to a line number</li>
+      <li>Choose an editor font from the Format menu</li>
+      <li>Word wrap toggle and a live line/column status bar</li>
+      <li>Insert the current time and date (F5)</li>
+      <li>Adwaita light and dark themes</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">com.gosharch.NotePad.desktop</launchable>
+  <developer id="app.linear.vaughan-jones">
+    <name>Vaughan Jones</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-08-19">
+      <description>
+        <p>Initial release of the GTK4 NotePad clone.</p>
+      </description>
+    </release>
+  </releases>
+</component>
