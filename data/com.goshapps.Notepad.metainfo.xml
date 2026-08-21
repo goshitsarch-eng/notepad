@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.gosharch.NotePad</id>
+  <id>com.goshapps.Notepad</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>NotePad</name>
@@ -22,9 +22,11 @@
       <li>Adwaita light and dark themes</li>
     </ul>
   </description>
-  <launchable type="desktop-id">com.gosharch.NotePad.desktop</launchable>
-  <developer id="app.linear.vaughan-jones">
-    <name>Vaughan Jones</name>
+  <launchable type="desktop-id">com.goshapps.Notepad.desktop</launchable>
+  <url type="homepage">https://github.com/goshitsarch-eng/notepad</url>
+  <url type="bugtracker">https://github.com/goshitsarch-eng/notepad/issues</url>
+  <developer id="com.goshapps">
+    <name>Gosh Apps</name>
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
