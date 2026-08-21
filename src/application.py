@@ -2,7 +2,7 @@ from gi.repository import Adw, Gio, Gtk
 
 from window import NotepadWindow
 
-APP_ID = "com.gosharch.NotePad"
+APP_ID = "com.goshapps.Notepad"
 
 
 class NotepadApplication(Adw.Application):

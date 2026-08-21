@@ -8,7 +8,7 @@ project(
 python = import('python')
 py_installation = python.find_installation('python3')
 
-app_id = 'com.gosharch.NotePad'
+app_id = 'com.goshapps.Notepad'
 pkgdatadir = get_option('prefix') / get_option('datadir') / 'notepad'
 
 subdir('src')

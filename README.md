@@ -55,19 +55,19 @@ sudo ninja -C _build install  # installs the `notepad` launcher
 
 ### Build the Flatpak
 
-Requires `flatpak` and `flatpak-builder` plus the GNOME 49 runtime/SDK:
+Requires `flatpak` and `flatpak-builder` plus the GNOME 50 runtime/SDK:
 
 ```bash
 flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --user -y flathub org.gnome.Platform//49 org.gnome.Sdk//49
-flatpak-builder --user --install --force-clean build-flatpak com.gosharch.NotePad.json
-flatpak run com.gosharch.NotePad
+flatpak install --user -y flathub org.gnome.Platform//50 org.gnome.Sdk//50
+flatpak-builder --user --install --force-clean build-flatpak com.goshapps.Notepad.json
+flatpak run com.goshapps.Notepad
 ```
 
 ## Project layout
 
 ```
-├── com.gosharch.NotePad.json     # Flatpak manifest
+├── com.goshapps.Notepad.json     # Flatpak manifest
 ├── meson.build                   # top-level build definition
 ├── src/                          # application source (Python/PyGObject)
 │   ├── main.py                   # entry point
