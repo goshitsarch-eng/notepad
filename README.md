@@ -3,6 +3,9 @@
 A native clone of Microsoft Notepad (Windows XP era) built with **GTK4** and
 **libadwaita**, with light/dark mode support and shipped as a **Flatpak**.
 
+NotePad is an independent implementation and is not affiliated with or endorsed
+by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
+
 See the project plan in Linear:
 [Build Native Notepad Clone in GTK4 and Adwaita in Flatpak](https://linear.app/vaughan-jones/project/build-native-notepad-clone-in-gtk4-and-adiwata-in-flatpak-36ecfc173826).
 

@@ -11,6 +11,10 @@
       Microsoft Notepad (Windows XP) experience using GTK4 and libadwaita,
       with support for light and dark modes.
     </p>
+    <p>
+      This is an independent implementation and is not affiliated with or
+      endorsed by Microsoft.
+    </p>
     <p>Features:</p>
     <ul>
       <li>Open, edit, and save plain text files</li>
