@@ -4,6 +4,12 @@ install_data(
 )
 
 install_data(
+  meson.project_source_root() / 'LICENSE',
+  meson.project_source_root() / 'COPYRIGHT',
+  install_dir: get_option('datadir') / 'licenses' / app_id,
+)
+
+install_data(
   '@0@.metainfo.xml'.format(app_id),
   install_dir: get_option('datadir') / 'metainfo',
 )
