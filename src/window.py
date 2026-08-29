@@ -1,644 +1,688 @@
+"""NotePad main window: a classic Notepad menubar over a plain text editor."""
+
 import datetime
 import os
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango
+from PySide6.QtCore import QSize, Qt
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QFontDatabase,
+    QIcon,
+    QKeySequence,
+    QShortcut,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFontDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QSizePolicy,
+    QToolBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 import commands
+import theme
 
 
-class NotepadWindow(Adw.ApplicationWindow):
+def themed_icon(*names):
+    """Return the first icon available from the icon theme."""
+    fallback = QIcon()
+    for name in names:
+        icon = QIcon.fromTheme(name, fallback)
+        if not icon.isNull():
+            return icon
+    return fallback
+
+
+class FindBar(QWidget):
+    """The inline find toolbar, shown by Edit -> Find (Ctrl+F)."""
+
+    def __init__(self, window):
+        super().__init__(window)
+        self.window = window
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(6)
+
+        self.entry = QLineEdit()
+        self.entry.setPlaceholderText("Find")
+        self.entry.setClearButtonEnabled(True)
+        self.match_case_btn = QCheckBox("Match case")
+        self.next_btn = QPushButton("Find Next")
+
+        layout.addWidget(self.entry, 1)
+        layout.addWidget(self.match_case_btn)
+        layout.addWidget(self.next_btn)
+
+        self.entry.returnPressed.connect(window.find_next)
+        self.entry.textChanged.connect(window._on_search_text_changed)
+        self.match_case_btn.toggled.connect(window._set_match_case)
+        self.next_btn.clicked.connect(window.find_next)
+
+        escape = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        escape.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        escape.activated.connect(self.hide)
+
+        self.hide()
+
+    def focus_entry(self):
+        self.entry.setFocus()
+        self.entry.selectAll()
+
+
+class ReplaceDialog(QDialog):
+    """Modeless Replace dialog, mirroring classic Notepad."""
+
+    def __init__(self, window):
+        super().__init__(window)
+        self.window = window
+        self.setWindowTitle("Replace")
+        self.setModal(False)
+
+        outer = QVBoxLayout(self)
+
+        form = QFormLayout()
+        self.find_entry = QLineEdit()
+        self.replace_entry = QLineEdit()
+        form.addRow("Find what:", self.find_entry)
+        form.addRow("Replace with:", self.replace_entry)
+        outer.addLayout(form)
+
+        self.match_case_btn = QCheckBox("Match case")
+        self.match_case_btn.toggled.connect(window._set_match_case)
+        outer.addWidget(self.match_case_btn)
+
+        buttons = QHBoxLayout()
+        buttons.setSpacing(6)
+        self.find_next_btn = QPushButton("Find Next")
+        self.replace_btn = QPushButton("Replace")
+        self.replace_all_btn = QPushButton("Replace All")
+        self.cancel_btn = QPushButton("Cancel")
+        self.find_next_btn.setDefault(True)
+        for button in (
+            self.find_next_btn,
+            self.replace_btn,
+            self.replace_all_btn,
+            self.cancel_btn,
+        ):
+            buttons.addWidget(button)
+        outer.addLayout(buttons)
+
+        self.find_entry.returnPressed.connect(self._on_find)
+        self.replace_entry.returnPressed.connect(self._on_replace_one)
+        self.find_next_btn.clicked.connect(self._on_find)
+        self.replace_btn.clicked.connect(self._on_replace_one)
+        self.replace_all_btn.clicked.connect(self._on_replace_all)
+        self.cancel_btn.clicked.connect(self.close)
+
+        self.resize(QSize(420, self.sizeHint().height()))
+
+    def _sync_fields(self):
+        self.window._search_text = self.find_entry.text()
+        self.window._replace_text = self.replace_entry.text()
+        bar_entry = self.window.find_bar.entry
+        if bar_entry.text() != self.window._search_text:
+            bar_entry.setText(self.window._search_text)
+
+    def _on_find(self):
+        self._sync_fields()
+        self.window.find_next()
+
+    def _on_replace_one(self):
+        self._sync_fields()
+        self.window.replace_one()
+
+    def _on_replace_all(self):
+        self._sync_fields()
+        self.window.replace_every()
+
+    def closeEvent(self, event):
+        self.window._search_text = self.find_entry.text()
+        self.window._replace_text = self.replace_entry.text()
+        super().closeEvent(event)
+
+
+class GoToDialog(QDialog):
+    """Modal Go To Line dialog with Notepad-style validation."""
+
+    def __init__(self, parent, current_line):
+        super().__init__(parent)
+        self.setWindowTitle("Go To Line")
+        self.setModal(True)
+        self.line = None
+
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("Line number:"))
+        self.entry = QLineEdit(str(current_line))
+        layout.addWidget(self.entry)
+
+        buttons = QDialogButtonBox()
+        go_btn = buttons.addButton("Go To", QDialogButtonBox.ButtonRole.AcceptRole)
+        buttons.addButton("Cancel", QDialogButtonBox.ButtonRole.RejectRole)
+        buttons.accepted.connect(self._validate_and_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        go_btn.setDefault(True)
+        self.entry.returnPressed.connect(self._validate_and_accept)
+
+    def _validate_and_accept(self):
+        raw = self.entry.text().strip()
+        try:
+            self.line = int(raw)
+        except ValueError:
+            QMessageBox.warning(self, "NotePad", "Please enter a valid line number.")
+            return
+        self.accept()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.entry.setFocus()
+        self.entry.selectAll()
+
+
+class NotepadWindow(QMainWindow):
     """The document window: a classic Notepad menubar over a plain text editor."""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.set_default_size(820, 600)
-        self.file = None
+    def __init__(self, version="dev"):
+        super().__init__()
+        self.version = version
+        self.file_path = None
         self._search_text = ""
         self._replace_text = ""
         self._match_case = False
-        self._replace_window = None
-        self._font_desc = None
-        self._font_chooser = None
+        self._replace_dialog = None
+        self._font = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont)
 
-        self.buffer = Gtk.TextBuffer()
-        self.buffer.set_enable_undo(True)
-        self.buffer.connect("notify::cursor-position", self._update_status)
-        self.buffer.connect("changed", self._on_changed)
-        self.buffer.connect("modified-changed", self._update_title)
+        self.resize(820, 600)
 
-        self.textview = Gtk.TextView(buffer=self.buffer)
-        self.textview.add_css_class("notepad-text")
-        self.textview.set_monospace(True)
-        self.textview.set_wrap_mode(Gtk.WrapMode.NONE)
-        self.textview.set_left_margin(6)
-        self.textview.set_top_margin(6)
+        self.edit = QPlainTextEdit()
+        self.edit.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.edit.setFont(self._font)
 
-        self._font_css = Gtk.CssProvider()
-        display = self.get_display() or Gdk.Display.get_default()
-        if display is not None:
-            Gtk.StyleContext.add_provider_for_display(
-                display,
-                self._font_css,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-            )
+        document = self.edit.document()
+        document.setModified(False)
+        document.modificationChanged.connect(lambda _changed: self._update_title())
+        self.edit.cursorPositionChanged.connect(self._update_status)
+        document.undoAvailable.connect(self._on_undo_available)
+        document.redoAvailable.connect(self._on_redo_available)
+        self.edit.selectionChanged.connect(self._update_selection_actions)
 
         self._build_actions()
-        self._build_ui()
+        self._build_menus()
+        self._build_find_bar()
+        self._build_theme_toolbar()
+        self._build_status_bar()
+
         self._update_title()
         self._update_status()
 
     # ---------------------------------------------------------------- UI ----
-    def _build_ui(self):
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        header = Adw.HeaderBar()
-        self.window_title = Adw.WindowTitle(title="Untitled", subtitle="NotePad")
-        header.set_title_widget(self.window_title)
-
-        self.theme_button = Gtk.ToggleButton(icon_name="weather-clear-night-symbolic")
-        self.theme_button.set_tooltip_text("Toggle dark mode")
-        self.theme_button.connect("toggled", self._on_theme_toggled)
-        header.pack_end(self.theme_button)
-        root.append(header)
-
-        menubar = Gtk.PopoverMenuBar.new_from_model(self._build_menu_model())
-        root.append(menubar)
-
-        self.search_bar = self._build_search_bar()
-        root.append(self.search_bar)
-
-        scrolled = Gtk.ScrolledWindow(vexpand=True, hexpand=True)
-        scrolled.set_child(self.textview)
-        root.append(scrolled)
-
-        self.status_bar = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=16
-        )
-        self.status_bar.add_css_class("toolbar")
-        self.status_bar.set_margin_start(8)
-        self.status_bar.set_margin_end(8)
-        self.status_bar.set_margin_top(2)
-        self.status_bar.set_margin_bottom(2)
-        self.pos_label = Gtk.Label(label="Ln 1, Col 1", xalign=1.0, hexpand=True)
-        self.wrap_label = Gtk.Label(label="Word Wrap: Off")
-        self.status_bar.append(self.wrap_label)
-        self.status_bar.append(self.pos_label)
-        root.append(self.status_bar)
-
-        self.set_content(root)
-
-    def _build_search_bar(self):
-        search_bar = Gtk.SearchBar()
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.search_entry = Gtk.SearchEntry(placeholder_text="Find")
-        self.search_entry.set_hexpand(True)
-        self.search_entry.connect("activate", lambda *_: self.find_next())
-        self.search_entry.connect("search-changed", self._on_search_changed)
-        next_btn = Gtk.Button(label="Find Next")
-        next_btn.connect("clicked", lambda *_: self.find_next())
-        self.match_case_btn = Gtk.CheckButton(label="Match case")
-        self.match_case_btn.connect("toggled", self._on_match_case_toggled)
-        box.append(self.search_entry)
-        box.append(self.match_case_btn)
-        box.append(next_btn)
-        search_bar.set_child(box)
-        search_bar.connect_entry(self.search_entry)
-        return search_bar
-
-    def _build_menu_model(self):
-        menu = Gio.Menu()
-
-        file_menu = Gio.Menu()
-        file_menu.append("New", "win.new")
-        file_menu.append("Open…", "win.open")
-        file_menu.append("Save", "win.save")
-        file_menu.append("Save As…", "win.save-as")
-        file_menu.append("Exit", "win.close-window")
-        menu.append_submenu("File", file_menu)
-
-        edit_menu = Gio.Menu()
-        section1 = Gio.Menu()
-        section1.append("Undo", "win.undo")
-        section1.append("Redo", "win.redo")
-        edit_menu.append_section(None, section1)
-        section2 = Gio.Menu()
-        section2.append("Cut", "win.cut")
-        section2.append("Copy", "win.copy")
-        section2.append("Paste", "win.paste")
-        section2.append("Delete", "win.delete")
-        edit_menu.append_section(None, section2)
-        section3 = Gio.Menu()
-        section3.append("Find…", "win.find")
-        section3.append("Find Next", "win.find-next")
-        section3.append("Replace…", "win.replace")
-        section3.append("Go To…", "win.go-to")
-        section3.append("Select All", "win.select-all")
-        section3.append("Time/Date", "win.insert-datetime")
-        edit_menu.append_section(None, section3)
-        menu.append_submenu("Edit", edit_menu)
-
-        format_menu = Gio.Menu()
-        format_menu.append("Word Wrap", "win.word-wrap")
-        format_menu.append("Font…", "win.font")
-        menu.append_submenu("Format", format_menu)
-
-        view_menu = Gio.Menu()
-        view_menu.append("Status Bar", "win.status-bar")
-        view_menu.append("Dark Mode", "win.dark-mode")
-        menu.append_submenu("View", view_menu)
-
-        help_menu = Gio.Menu()
-        help_menu.append("About NotePad", "app.about")
-        menu.append_submenu("Help", help_menu)
-
-        return menu
-
     def _build_actions(self):
-        simple = {
-            "new": self.on_new,
-            "open": self.on_open,
-            "save": self.on_save,
-            "save-as": self.on_save_as,
-            "close-window": lambda *_: self.close(),
-            "undo": lambda *_: self.buffer.undo(),
-            "redo": lambda *_: self.buffer.redo(),
-            "cut": self.on_cut,
-            "copy": self.on_copy,
-            "paste": self.on_paste,
-            "delete": self.on_delete,
-            "select-all": self.on_select_all,
-            "find": self.on_find,
-            "find-next": lambda *_: self.find_next(),
-            "replace": self.on_replace,
-            "go-to": self.on_go_to,
-            "font": self.on_font,
-            "insert-datetime": self.on_insert_datetime,
-        }
-        for name, cb in simple.items():
-            action = Gio.SimpleAction.new(name, None)
-            action.connect("activate", cb)
-            self.add_action(action)
+        def action(text, slot=None, shortcut=None, checkable=False, checked=False):
+            act = QAction(text, self)
+            if shortcut is not None:
+                act.setShortcut(shortcut)
+            if checkable:
+                act.setCheckable(True)
+                act.setChecked(checked)
+            if slot is not None:
+                if checkable:
+                    act.toggled.connect(slot)
+                else:
+                    act.triggered.connect(slot)
+            return act
 
-        self.goto_action = self.lookup_action("go-to")
-
-        self.wrap_action = Gio.SimpleAction.new_stateful(
-            "word-wrap", None, GLib.Variant.new_boolean(False)
+        self.new_action = action("&New", self.on_new, QKeySequence("Ctrl+N"))
+        self.open_action = action("&Open…", self.on_open, QKeySequence("Ctrl+O"))
+        self.save_action = action("&Save", self.on_save, QKeySequence("Ctrl+S"))
+        self.save_as_action = action(
+            "Save &As…", self.on_save_as, QKeySequence("Ctrl+Shift+S")
         )
-        self.wrap_action.connect("change-state", self.on_toggle_wrap)
-        self.add_action(self.wrap_action)
+        self.exit_action = action("E&xit", self.close, QKeySequence("Ctrl+Q"))
 
-        self.status_action = Gio.SimpleAction.new_stateful(
-            "status-bar", None, GLib.Variant.new_boolean(True)
+        self.undo_action = action("&Undo", self.edit.undo, QKeySequence("Ctrl+Z"))
+        self.redo_action = action("&Redo", self.edit.redo, QKeySequence("Ctrl+Y"))
+        self.cut_action = action("Cu&t", self.edit.cut, QKeySequence("Ctrl+X"))
+        self.copy_action = action("&Copy", self.edit.copy, QKeySequence("Ctrl+C"))
+        self.paste_action = action("&Paste", self.edit.paste, QKeySequence("Ctrl+V"))
+        self.delete_action = action("&Delete", self.on_delete, QKeySequence(Qt.Key_Delete))
+        self.find_action = action("&Find…", self.on_find, QKeySequence("Ctrl+F"))
+        self.find_next_action = action("Find &Next", self.find_next, QKeySequence(Qt.Key_F3))
+        self.replace_action = action("&Replace…", self.on_replace, QKeySequence("Ctrl+H"))
+        self.goto_action = action("&Go To…", self.on_goto, QKeySequence("Ctrl+G"))
+        self.select_all_action = action(
+            "Select &All", self.edit.selectAll, QKeySequence("Ctrl+A")
         )
-        self.status_action.connect("change-state", self.on_toggle_status_bar)
-        self.add_action(self.status_action)
-
-        self.dark_action = Gio.SimpleAction.new_stateful(
-            "dark-mode", None, GLib.Variant.new_boolean(False)
-        )
-        self.dark_action.connect("change-state", self.on_toggle_dark)
-        self.add_action(self.dark_action)
-
-        app = self.get_application()
-        if app:
-            accels = {
-                "win.new": ["<primary>n"],
-                "win.open": ["<primary>o"],
-                "win.save": ["<primary>s"],
-                "win.save-as": ["<primary><shift>s"],
-                "win.undo": ["<primary>z"],
-                "win.redo": ["<primary>y"],
-                "win.cut": ["<primary>x"],
-                "win.copy": ["<primary>c"],
-                "win.paste": ["<primary>v"],
-                "win.select-all": ["<primary>a"],
-                "win.find": ["<primary>f"],
-                "win.find-next": ["F3"],
-                "win.replace": ["<primary>h"],
-                "win.go-to": ["<primary>g"],
-                "win.insert-datetime": ["F5"],
-            }
-            for name, keys in accels.items():
-                app.set_accels_for_action(name, keys)
-
-    # ------------------------------------------------------------ actions ----
-    def on_cut(self, *_):
-        self.buffer.cut_clipboard(self.get_clipboard(), True)
-
-    def on_copy(self, *_):
-        self.buffer.copy_clipboard(self.get_clipboard())
-
-    def on_paste(self, *_):
-        self.buffer.paste_clipboard(self.get_clipboard(), None, True)
-
-    def on_delete(self, *_):
-        self.buffer.delete_selection(True, True)
-
-    def on_select_all(self, *_):
-        self.buffer.select_range(
-            self.buffer.get_start_iter(), self.buffer.get_end_iter()
+        self.datetime_action = action(
+            "Time/&Date", self.on_insert_datetime, QKeySequence(Qt.Key_F5)
         )
 
-    def on_insert_datetime(self, *_):
+        self.wrap_action = action(
+            "&Word Wrap", self.on_toggle_wrap, checkable=True, checked=False
+        )
+        self.font_action = action("&Font…", self.on_font)
+
+        self.status_bar_action = action(
+            "&Status Bar", self.on_toggle_status_bar, checkable=True, checked=True
+        )
+        self.scheme_actions = {}
+        group = QActionGroup(self)
+        group.setExclusive(True)
+        current = theme.load_scheme()
+        for scheme, label in (
+            (theme.ColorScheme.SYSTEM, "System"),
+            (theme.ColorScheme.LIGHT, "Light"),
+            (theme.ColorScheme.DARK, "Dark"),
+        ):
+            act = QAction(label, self)
+            act.setCheckable(True)
+            act.setChecked(scheme is current)
+            act.triggered.connect(lambda _checked=False, s=scheme: self.on_scheme_changed(s))
+            group.addAction(act)
+            self.scheme_actions[scheme] = act
+
+        self.about_action = action("&About NotePad", self.on_about)
+
+        self.undo_action.setEnabled(self.edit.document().isUndoAvailable())
+        self.redo_action.setEnabled(self.edit.document().isRedoAvailable())
+        self._update_selection_actions()
+
+    def _build_menus(self):
+        menu_bar = self.menuBar()
+
+        file_menu = menu_bar.addMenu("&File")
+        file_menu.addAction(self.new_action)
+        file_menu.addAction(self.open_action)
+        file_menu.addAction(self.save_action)
+        file_menu.addAction(self.save_as_action)
+        file_menu.addAction(self.exit_action)
+
+        edit_menu = menu_bar.addMenu("&Edit")
+        edit_menu.addAction(self.undo_action)
+        edit_menu.addAction(self.redo_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.cut_action)
+        edit_menu.addAction(self.copy_action)
+        edit_menu.addAction(self.paste_action)
+        edit_menu.addAction(self.delete_action)
+        edit_menu.addSeparator()
+        edit_menu.addAction(self.find_action)
+        edit_menu.addAction(self.find_next_action)
+        edit_menu.addAction(self.replace_action)
+        edit_menu.addAction(self.goto_action)
+        edit_menu.addAction(self.select_all_action)
+        edit_menu.addAction(self.datetime_action)
+
+        format_menu = menu_bar.addMenu("F&ormat")
+        format_menu.addAction(self.wrap_action)
+        format_menu.addAction(self.font_action)
+
+        view_menu = menu_bar.addMenu("&View")
+        view_menu.addAction(self.status_bar_action)
+        scheme_menu = view_menu.addMenu("&Color Scheme")
+        for scheme in (
+            theme.ColorScheme.SYSTEM,
+            theme.ColorScheme.LIGHT,
+            theme.ColorScheme.DARK,
+        ):
+            scheme_menu.addAction(self.scheme_actions[scheme])
+
+        help_menu = menu_bar.addMenu("&Help")
+        help_menu.addAction(self.about_action)
+
+    def _build_find_bar(self):
+        self.find_bar = FindBar(self)
+        # Central column: the (hidden by default) find bar over the editor,
+        # mirroring the GTK SearchBar placement.
+        center = QWidget()
+        layout = QVBoxLayout(center)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(self.find_bar)
+        layout.addWidget(self.edit, 1)
+        self.setCentralWidget(center)
+
+    def _build_theme_toolbar(self):
+        bar = QToolBar(self)
+        bar.setMovable(False)
+        bar.setFloatable(False)
+        bar.setIconSize(QSize(16, 16))
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        bar.addWidget(spacer)
+
+        self.theme_button = QToolButton()
+        self.theme_button.setAutoRaise(True)
+        self.theme_button.clicked.connect(self.on_theme_button_clicked)
+        bar.addWidget(self.theme_button)
+        self.addToolBar(bar)
+        self._update_scheme_ui()
+
+    def _build_status_bar(self):
+        self.wrap_label = QLabel("Word Wrap: Off")
+        self.pos_label = QLabel("Ln 1, Col 1")
+        self.statusBar().addWidget(self.wrap_label)
+        self.statusBar().addPermanentWidget(self.pos_label)
+
+    # ------------------------------------------------------ state syncing ----
+    def _on_undo_available(self, available):
+        self.undo_action.setEnabled(available)
+
+    def _on_redo_available(self, available):
+        self.redo_action.setEnabled(available)
+
+    def _update_selection_actions(self):
+        has_selection = self.edit.textCursor().hasSelection()
+        self.cut_action.setEnabled(has_selection)
+        self.copy_action.setEnabled(has_selection)
+        self.delete_action.setEnabled(has_selection)
+
+    def _update_title(self):
+        name = os.path.basename(self.file_path) if self.file_path else "Untitled"
+        marker = "•  " if self.edit.document().isModified() else ""
+        self.setWindowTitle(f"{marker}{name} — NotePad")
+
+    def _update_status(self):
+        cursor = self.edit.textCursor()
+        line = cursor.blockNumber() + 1
+        col = cursor.columnNumber() + 1
+        self.pos_label.setText(f"Ln {line}, Col {col}")
+
+    # -------------------------------------------------------------- edit ----
+    def on_delete(self):
+        self.edit.textCursor().removeSelectedText()
+
+    def on_insert_datetime(self):
         # WinXP Notepad F5 format, e.g. "3:04 PM 8/19/2026".
         now = datetime.datetime.now()
         stamp = now.strftime("%-I:%M %p %-m/%-d/%Y")
-        self.buffer.insert_at_cursor(stamp)
+        self.edit.insertPlainText(stamp)
 
-    def on_toggle_wrap(self, action, value):
-        action.set_state(value)
-        on = value.get_boolean()
-        self.textview.set_wrap_mode(
-            Gtk.WrapMode.WORD_CHAR if on else Gtk.WrapMode.NONE
+    def on_toggle_wrap(self, on):
+        self.edit.setLineWrapMode(
+            QPlainTextEdit.LineWrapMode.WidgetWidth
+            if on
+            else QPlainTextEdit.LineWrapMode.NoWrap
         )
-        self.wrap_label.set_label(f"Word Wrap: {'On' if on else 'Off'}")
+        self.wrap_label.setText(f"Word Wrap: {'On' if on else 'Off'}")
         # Classic Notepad disables Go To while word wrap is on.
-        if self.goto_action:
-            self.goto_action.set_enabled(not on)
+        self.goto_action.setEnabled(not on)
 
-    def on_toggle_status_bar(self, action, value):
-        action.set_state(value)
-        self.status_bar.set_visible(value.get_boolean())
+    def on_toggle_status_bar(self, visible):
+        self.statusBar().setVisible(visible)
 
-    def on_toggle_dark(self, action, value):
-        action.set_state(value)
-        self._apply_theme(value.get_boolean())
+    def on_font(self):
+        ok, font = QFontDialog.getFont(self._font, self, "Font")
+        if ok:
+            self._font = font
+            self.edit.setFont(font)
 
-    def _on_theme_toggled(self, button):
-        self.dark_action.change_state(GLib.Variant.new_boolean(button.get_active()))
-
-    def _apply_theme(self, dark):
-        mgr = Adw.StyleManager.get_default()
-        mgr.set_color_scheme(
-            Adw.ColorScheme.FORCE_DARK if dark else Adw.ColorScheme.FORCE_LIGHT
+    def on_about(self):
+        QMessageBox.about(
+            self,
+            "About NotePad",
+            "<h3>NotePad {}</h3>"
+            "<p>A native Qt 6 clone of Microsoft Notepad.</p>"
+            "<p>Light and dark theming follows the Kirigami color guidelines.</p>"
+            "<p>© 2026 Vaughan Jones — GPL-3.0-or-later</p>".format(self.version),
         )
-        if self.theme_button.get_active() != dark:
-            self.theme_button.set_active(dark)
+
+    # ------------------------------------------------------------ theming ----
+    def on_scheme_changed(self, scheme):
+        theme.apply(QApplication.instance(), scheme)
+        theme.save_scheme(scheme)
+        self._update_scheme_ui()
+
+    def on_theme_button_clicked(self):
+        current = theme.load_scheme()
+        target = (
+            theme.ColorScheme.LIGHT
+            if theme.effective_is_dark(current)
+            else theme.ColorScheme.DARK
+        )
+        self.scheme_actions[target].setChecked(True)
+        self.on_scheme_changed(target)
+
+    def _update_scheme_ui(self):
+        current = theme.load_scheme()
+        for scheme, act in self.scheme_actions.items():
+            act.setChecked(scheme is current)
+        dark = theme.effective_is_dark(current)
+        if dark:
+            self.theme_button.setIcon(
+                themed_icon(
+                    "weather-clear-day-symbolic",
+                    "weather-clear-day",
+                    "daytime-sunrise-symbolic",
+                )
+            )
+            self.theme_button.setToolTip("Switch to light mode")
+        else:
+            self.theme_button.setIcon(
+                themed_icon(
+                    "weather-clear-night-symbolic",
+                    "weather-clear-night",
+                    "nighttime-moon-symbolic",
+                )
+            )
+            self.theme_button.setToolTip("Toggle dark mode")
 
     # -------------------------------------------------------------- search ----
-    def on_find(self, *_):
+    def on_find(self):
         self._prefill_search_from_selection()
-        self.search_bar.set_search_mode(True)
-        self.search_entry.grab_focus()
+        self.find_bar.show()
+        self.find_bar.focus_entry()
 
-    def _on_search_changed(self, entry):
-        self._search_text = entry.get_text()
-
-    def _on_match_case_toggled(self, button):
-        self._set_match_case(button.get_active())
+    def _on_search_text_changed(self, text):
+        self._search_text = text
 
     def _set_match_case(self, value):
         self._match_case = value
-        if self.match_case_btn.get_active() != value:
-            self.match_case_btn.set_active(value)
-        if self._replace_window is not None:
-            btn = getattr(self._replace_window, "match_case_btn", None)
-            if btn is not None and btn.get_active() != value:
-                btn.set_active(value)
+        if self.find_bar.match_case_btn.isChecked() != value:
+            self.find_bar.match_case_btn.setChecked(value)
+        if self._replace_dialog is not None and self._replace_dialog.isVisible():
+            if self._replace_dialog.match_case_btn.isChecked() != value:
+                self._replace_dialog.match_case_btn.setChecked(value)
 
     def _prefill_search_from_selection(self):
-        selected = commands.selected_text(self.buffer)
+        selected = commands.selected_text(self.edit)
         if selected and "\n" not in selected:
             self._search_text = selected
-            if self.search_entry.get_text() != selected:
-                self.search_entry.set_text(selected)
-            if self._replace_window is not None:
-                find_entry = getattr(self._replace_window, "find_entry", None)
-                if find_entry is not None and find_entry.get_text() != selected:
-                    find_entry.set_text(selected)
+            if self.find_bar.entry.text() != selected:
+                self.find_bar.entry.setText(selected)
+            if self._replace_dialog is not None:
+                if self._replace_dialog.find_entry.text() != selected:
+                    self._replace_dialog.find_entry.setText(selected)
 
     def _needle(self):
-        return self.search_entry.get_text() or self._search_text
+        return self.find_bar.entry.text() or self._search_text
 
     def find_next(self, show_not_found=True):
         text = self._needle()
         if not text:
             return False
         self._search_text = text
-        if commands.find_next(self.buffer, text, match_case=self._match_case):
-            self.textview.scroll_to_mark(self.buffer.get_insert(), 0.1, False, 0, 0)
+        if commands.find_next(self.edit, text, match_case=self._match_case):
             return True
         if show_not_found:
             self._error_dialog(f'Cannot find "{text}"')
         return False
 
-    def on_replace(self, *_):
+    def on_replace(self):
         self._prefill_search_from_selection()
-        if self._replace_window is not None:
-            self._replace_window.present()
-            self._replace_window.find_entry.grab_focus()
+        if self._replace_dialog is None:
+            self._replace_dialog = ReplaceDialog(self)
+        self._replace_dialog.find_entry.setText(self._needle())
+        self._replace_dialog.replace_entry.setText(self._replace_text)
+        self._replace_dialog.match_case_btn.setChecked(self._match_case)
+        self._replace_dialog.show()
+        self._replace_dialog.raise_()
+        self._replace_dialog.activateWindow()
+        self._replace_dialog.find_entry.setFocus()
+        self._replace_dialog.find_entry.selectAll()
+
+    def replace_one(self):
+        text = self._search_text
+        if not text:
             return
-        self._replace_window = self._build_replace_window()
-        self._replace_window.present()
-        self._replace_window.find_entry.grab_focus()
-
-    def _build_replace_window(self):
-        win = Gtk.Window(
-            title="Replace",
-            transient_for=self,
-            modal=False,
-            resizable=False,
+        result = commands.replace_and_find_next(
+            self.edit, text, self._replace_text, match_case=self._match_case
         )
-        win.set_default_size(420, -1)
+        if result is None:
+            self._error_dialog(f'Cannot find "{text}"')
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        box.set_margin_top(12)
-        box.set_margin_bottom(12)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-
-        grid = Gtk.Grid(column_spacing=8, row_spacing=8)
-        find_label = Gtk.Label(label="Find what:", xalign=0)
-        find_entry = Gtk.Entry()
-        find_entry.set_hexpand(True)
-        find_entry.set_text(self._needle())
-        replace_label = Gtk.Label(label="Replace with:", xalign=0)
-        replace_entry = Gtk.Entry()
-        replace_entry.set_hexpand(True)
-        replace_entry.set_text(self._replace_text)
-        grid.attach(find_label, 0, 0, 1, 1)
-        grid.attach(find_entry, 1, 0, 1, 1)
-        grid.attach(replace_label, 0, 1, 1, 1)
-        grid.attach(replace_entry, 1, 1, 1, 1)
-        box.append(grid)
-
-        match_case_btn = Gtk.CheckButton(label="Match case")
-        match_case_btn.set_active(self._match_case)
-        match_case_btn.connect(
-            "toggled", lambda btn: self._set_match_case(btn.get_active())
-        )
-        box.append(match_case_btn)
-
-        buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        buttons.set_halign(Gtk.Align.END)
-        find_next_btn = Gtk.Button(label="Find Next")
-        find_next_btn.add_css_class("suggested-action")
-        replace_btn = Gtk.Button(label="Replace")
-        replace_all_btn = Gtk.Button(label="Replace All")
-        cancel_btn = Gtk.Button(label="Cancel")
-        buttons.append(find_next_btn)
-        buttons.append(replace_btn)
-        buttons.append(replace_all_btn)
-        buttons.append(cancel_btn)
-        box.append(buttons)
-
-        win.set_child(box)
-        win.set_default_widget(find_next_btn)
-
-        def sync_fields():
-            self._search_text = find_entry.get_text()
-            self._replace_text = replace_entry.get_text()
-            if self.search_entry.get_text() != self._search_text:
-                self.search_entry.set_text(self._search_text)
-
-        def on_find(*_):
-            sync_fields()
-            self.find_next()
-
-        def on_replace_one(*_):
-            sync_fields()
-            text = self._search_text
-            if not text:
-                return
-            result = commands.replace_and_find_next(
-                self.buffer,
-                text,
-                self._replace_text,
-                match_case=self._match_case,
-            )
-            if result is None:
-                self._error_dialog(f'Cannot find "{text}"')
-                return
-            self.textview.scroll_to_mark(self.buffer.get_insert(), 0.1, False, 0, 0)
-
-        def on_replace_all(*_):
-            sync_fields()
-            text = self._search_text
-            if not text:
-                return
-            count = commands.replace_all(
-                self.buffer, text, self._replace_text, match_case=self._match_case
-            )
-            if count == 0:
-                self._error_dialog(f'Cannot find "{text}"')
-
-        def on_cancel(*_):
-            win.close()
-
-        find_entry.connect("activate", on_find)
-        replace_entry.connect("activate", on_replace_one)
-        find_next_btn.connect("clicked", on_find)
-        replace_btn.connect("clicked", on_replace_one)
-        replace_all_btn.connect("clicked", on_replace_all)
-        cancel_btn.connect("clicked", on_cancel)
-        win.connect("close-request", self._on_replace_closed)
-
-        win.find_entry = find_entry
-        win.replace_entry = replace_entry
-        win.match_case_btn = match_case_btn
-        return win
-
-    def _on_replace_closed(self, _window):
-        if self._replace_window is not None:
-            self._search_text = self._replace_window.find_entry.get_text()
-            self._replace_text = self._replace_window.replace_entry.get_text()
-        self._replace_window = None
-        return False
-
-    def on_go_to(self, *_):
-        if self.wrap_action.get_state().get_boolean():
+    def replace_every(self):
+        text = self._search_text
+        if not text:
             return
-
-        dialog = Adw.MessageDialog(
-            transient_for=self,
-            heading="Go To Line",
-            body="Line number:",
+        count = commands.replace_all(
+            self.edit, text, self._replace_text, match_case=self._match_case
         )
-        entry = Gtk.Entry()
-        entry.set_input_purpose(Gtk.InputPurpose.NUMBER)
-        insert = self.buffer.get_iter_at_mark(self.buffer.get_insert())
-        entry.set_text(str(insert.get_line() + 1))
-        entry.set_activates_default(True)
-        dialog.set_extra_child(entry)
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("go", "Go To")
-        dialog.set_response_appearance("go", Adw.ResponseAppearance.SUGGESTED)
-        dialog.set_default_response("go")
+        if count == 0:
+            self._error_dialog(f'Cannot find "{text}"')
 
-        def on_response(_dlg, response):
-            if response != "go":
-                return
-            raw = entry.get_text().strip()
-            try:
-                line = int(raw)
-            except ValueError:
-                self._error_dialog("Please enter a valid line number.")
-                return
-            if not commands.goto_line(self.buffer, line):
-                self._error_dialog(
-                    "The line number is beyond the total number of lines."
-                )
-                return
-            self.textview.scroll_to_mark(
-                self.buffer.get_insert(), 0.25, True, 0.0, 0.5
-            )
-            self.textview.grab_focus()
-
-        entry.connect("activate", lambda *_: dialog.response("go"))
-        dialog.connect("response", on_response)
-        dialog.present()
-        entry.select_region(0, -1)
-        entry.grab_focus()
-
-    def on_font(self, *_):
-        if self._font_chooser is None:
-            self._font_chooser = Gtk.FontDialog(title="Font", modal=True)
-        self._font_chooser.choose_font(
-            self, self._current_font(), None, self._on_font_chosen
-        )
-
-    def _current_font(self):
-        if self._font_desc is not None:
-            return self._font_desc
-        ctx = self.textview.get_pango_context()
-        return ctx.get_font_description()
-
-    def _on_font_chosen(self, dialog, result):
-        try:
-            font_desc = dialog.choose_font_finish(result)
-        except GLib.Error:
+    def on_goto(self):
+        if self.wrap_action.isChecked():
             return
-        if font_desc is None:
+        dialog = GoToDialog(self, self.edit.textCursor().blockNumber() + 1)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        self._apply_font(font_desc)
-
-    def _apply_font(self, font_desc: Pango.FontDescription):
-        self._font_desc = font_desc
-        self.textview.set_monospace(False)
-        self._font_css.load_from_string(commands.font_css(font_desc))
+        if not commands.goto_line(self.edit, dialog.line):
+            self._error_dialog("The line number is beyond the total number of lines.")
+            return
+        self.edit.setFocus()
 
     # ------------------------------------------------------------ file ops ----
-    def on_new(self, *_):
+    def on_new(self):
         self._guard_unsaved(self._reset_document)
 
     def _reset_document(self):
-        self.buffer.set_text("")
-        self.buffer.set_modified(False)
-        self.file = None
+        self.edit.clear()
+        self.edit.document().setModified(False)
+        self.file_path = None
         self._update_title()
 
-    def on_open(self, *_):
+    def on_open(self):
         def do_open():
-            dialog = Gtk.FileDialog(title="Open")
-            dialog.open(self, None, self._open_finish)
+            start_dir = os.path.dirname(self.file_path) if self.file_path else ""
+            path, _filter = QFileDialog.getOpenFileName(
+                self,
+                "Open",
+                start_dir,
+                "Text files (*.txt);;All files (*)",
+            )
+            if path:
+                self.load_path(path)
 
         self._guard_unsaved(do_open)
 
-    def _open_finish(self, dialog, result):
-        try:
-            gfile = dialog.open_finish(result)
-        except GLib.Error:
-            return
-        if gfile:
-            self.load_file(gfile)
-
-    def load_file(self, gfile):
-        path = gfile.get_path()
+    def load_path(self, path):
         try:
             with open(path, "r", encoding="utf-8") as fh:
                 content = fh.read()
         except (OSError, UnicodeDecodeError) as err:
             self._error_dialog(f"Could not open file:\n{err}")
             return
-        self.buffer.set_text(content)
-        self.buffer.set_modified(False)
-        self.file = gfile
+        self.edit.setPlainText(content)
+        self.edit.document().setModified(False)
+        self.file_path = path
         self._update_title()
 
-    def on_save(self, *_):
-        if self.file:
-            self._write_to(self.file)
+    def on_save(self):
+        if self.file_path:
+            self._write_to(self.file_path)
         else:
             self.on_save_as()
 
-    def on_save_as(self, *_):
-        dialog = Gtk.FileDialog(title="Save As")
-        if self.file:
-            dialog.set_initial_name(self.file.get_basename())
-        else:
-            dialog.set_initial_name("Untitled.txt")
-        dialog.save(self, None, self._save_finish)
+    def on_save_as(self):
+        initial = (
+            os.path.basename(self.file_path) if self.file_path else "Untitled.txt"
+        )
+        path, _filter = QFileDialog.getSaveFileName(
+            self,
+            "Save As",
+            initial,
+            "Text files (*.txt);;All files (*)",
+        )
+        if path:
+            self._write_to(path)
 
-    def _save_finish(self, dialog, result):
+    def _write_to(self, path):
+        text = self.edit.toPlainText()
         try:
-            gfile = dialog.save_finish(result)
-        except GLib.Error:
-            return
-        if gfile:
-            self._write_to(gfile)
-
-    def _write_to(self, gfile):
-        start, end = self.buffer.get_bounds()
-        text = self.buffer.get_text(start, end, True)
-        try:
-            with open(gfile.get_path(), "w", encoding="utf-8") as fh:
+            with open(path, "w", encoding="utf-8") as fh:
                 fh.write(text)
         except OSError as err:
             self._error_dialog(f"Could not save file:\n{err}")
             return
-        self.file = gfile
-        self.buffer.set_modified(False)
+        self.file_path = path
+        self.edit.document().setModified(False)
         self._update_title()
 
     # ----------------------------------------------------- unsaved changes ----
     def _guard_unsaved(self, proceed):
-        if not self.buffer.get_modified():
+        if not self.edit.document().isModified():
             proceed()
             return
-        dialog = Adw.MessageDialog(
-            transient_for=self,
-            heading="Save changes?",
-            body="Your changes will be lost if you don't save them.",
-        )
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("discard", "Discard")
-        dialog.add_response("save", "Save")
-        dialog.set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("save", Adw.ResponseAppearance.SUGGESTED)
-        dialog.set_default_response("save")
-
-        def on_response(dlg, response):
-            if response == "discard":
+        box = QMessageBox(self)
+        box.setWindowTitle("Save changes?")
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setText("Save changes?")
+        box.setInformativeText("Your changes will be lost if you don't save them.")
+        save_btn = box.addButton("Save", QMessageBox.ButtonRole.AcceptRole)
+        discard_btn = box.addButton("Discard", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(save_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is save_btn:
+            self.on_save()
+            if not self.edit.document().isModified():
                 proceed()
-            elif response == "save":
-                self.on_save()
-                if not self.buffer.get_modified():
-                    proceed()
-
-        dialog.connect("response", on_response)
-        dialog.present()
+        elif clicked is discard_btn:
+            proceed()
 
     def _error_dialog(self, message):
-        dialog = Adw.MessageDialog(
-            transient_for=self, heading="Error", body=message
-        )
-        dialog.add_response("ok", "OK")
-        dialog.present()
+        QMessageBox.warning(self, "Error", message)
 
-    # ------------------------------------------------------------- display ----
-    def _on_changed(self, *_):
-        self._update_status()
-
-    def _update_title(self, *_):
-        name = self.file.get_basename() if self.file else "Untitled"
-        modified = "•  " if self.buffer.get_modified() else ""
-        self.window_title.set_title(f"{modified}{name}")
-        subtitle = os.path.dirname(self.file.get_path()) if self.file else "NotePad"
-        self.window_title.set_subtitle(subtitle)
-
-    def _update_status(self, *_):
-        insert = self.buffer.get_iter_at_mark(self.buffer.get_insert())
-        line = insert.get_line() + 1
-        col = insert.get_line_offset() + 1
-        self.pos_label.set_label(f"Ln {line}, Col {col}")
+    def closeEvent(self, event):
+        if not self.edit.document().isModified():
+            event.accept()
+            return
+        box = QMessageBox(self)
+        box.setWindowTitle("Save changes?")
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setText("Save changes?")
+        box.setInformativeText("Your changes will be lost if you don't save them.")
+        save_btn = box.addButton("Save", QMessageBox.ButtonRole.AcceptRole)
+        discard_btn = box.addButton("Discard", QMessageBox.ButtonRole.DestructiveRole)
+        box.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(save_btn)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is save_btn:
+            self.on_save()
+            if self.edit.document().isModified():
+                event.ignore()
+            else:
+                event.accept()
+        elif clicked is discard_btn:
+            event.accept()
+        else:
+            event.ignore()

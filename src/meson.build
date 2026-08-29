@@ -3,6 +3,7 @@ sources = [
   'application.py',
   'window.py',
   'commands.py',
+  'theme.py',
 ]
 
 install_data(sources, install_dir: pkgdatadir)

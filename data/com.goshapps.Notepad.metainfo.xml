@@ -4,12 +4,12 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>NotePad</name>
-  <summary>A native GTK4 clone of Microsoft Notepad</summary>
+  <summary>A native Qt 6 clone of Microsoft Notepad</summary>
   <description>
     <p>
       NotePad is a lightweight plain-text editor that recreates the classic
-      Microsoft Notepad (Windows XP) experience using GTK4 and libadwaita,
-      with support for light and dark modes.
+      Microsoft Notepad (Windows XP) experience using Qt 6, with support for
+      light and dark modes following the Kirigami color guidelines.
     </p>
     <p>
       This is an independent implementation and is not affiliated with or
@@ -23,7 +23,7 @@
       <li>Choose an editor font from the Format menu</li>
       <li>Word wrap toggle and a live line/column status bar</li>
       <li>Insert the current time and date (F5)</li>
-      <li>Adwaita light and dark themes</li>
+      <li>System, light, and dark color schemes</li>
     </ul>
   </description>
   <launchable type="desktop-id">com.goshapps.Notepad.desktop</launchable>
@@ -34,6 +34,15 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.0.0" date="2026-08-29">
+      <description>
+        <p>
+          Rewritten on Qt 6. Light and dark theming now follows the Kirigami
+          color guidelines: the app honors the system color scheme by default
+          and can be pinned to a light or dark scheme from the View menu.
+        </p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-08-19">
       <description>
         <p>Initial release of the GTK4 NotePad clone.</p>

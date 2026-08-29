@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
-"""Unit tests for NotePad Find / Replace / Go To helpers."""
+"""Unit tests for NotePad Find / Replace / Go To helpers (Qt 6)."""
 
 import os
 import sys
 import unittest
 
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-import gi
-
-gi.require_version("Gtk", "4.0")
-gi.require_version("Pango", "1.0")
-
-from gi.repository import Gtk, Pango  # noqa: E402
+from PySide6.QtGui import QTextCursor  # noqa: E402
+from PySide6.QtWidgets import QApplication, QPlainTextEdit  # noqa: E402
 
 from commands import (  # noqa: E402
     find_next,
-    font_css,
     goto_line,
     replace_all,
     replace_and_find_next,
@@ -24,116 +20,130 @@ from commands import (  # noqa: E402
     selection_matches,
 )
 
+_app = QApplication.instance() or QApplication([])
 
-def _buffer(text):
-    buf = Gtk.TextBuffer()
-    buf.set_text(text)
-    buf.place_cursor(buf.get_start_iter())
-    return buf
+
+def _edit(text):
+    edit = QPlainTextEdit()
+    edit.setPlainText(text)
+    cursor = edit.textCursor()
+    cursor.movePosition(QTextCursor.MoveOperation.Start)
+    edit.setTextCursor(cursor)
+    return edit
+
+
+def _document_text(edit):
+    return edit.toPlainText()
 
 
 class FindNextTests(unittest.TestCase):
     def test_finds_first_match_from_start(self):
-        buf = _buffer("one two one")
-        self.assertTrue(find_next(buf, "one"))
-        self.assertEqual(selected_text(buf), "one")
-        self.assertEqual(buf.get_iter_at_mark(buf.get_insert()).get_offset(), 0)
+        edit = _edit("one two one")
+        self.assertTrue(find_next(edit, "one"))
+        self.assertEqual(selected_text(edit), "one")
+        self.assertEqual(edit.textCursor().selectionStart(), 0)
 
     def test_skips_current_selection_to_next_match(self):
-        buf = _buffer("one two one")
-        self.assertTrue(find_next(buf, "one"))
-        self.assertTrue(find_next(buf, "one"))
-        start, end = buf.get_selection_bounds()
-        self.assertEqual(start.get_offset(), 8)
-        self.assertEqual(end.get_offset(), 11)
+        edit = _edit("one two one")
+        self.assertTrue(find_next(edit, "one"))
+        self.assertTrue(find_next(edit, "one"))
+        cursor = edit.textCursor()
+        self.assertEqual(cursor.selectionStart(), 8)
+        self.assertEqual(cursor.selectionEnd(), 11)
 
     def test_wraps_around_to_first_match(self):
-        buf = _buffer("one two one")
-        find_next(buf, "one")
-        find_next(buf, "one")
-        self.assertTrue(find_next(buf, "one"))
-        self.assertEqual(buf.get_iter_at_mark(buf.get_insert()).get_offset(), 0)
+        edit = _edit("one two one")
+        find_next(edit, "one")
+        find_next(edit, "one")
+        self.assertTrue(find_next(edit, "one"))
+        self.assertEqual(edit.textCursor().selectionStart(), 0)
 
     def test_case_insensitive_by_default(self):
-        buf = _buffer("Hello HELLO")
-        self.assertTrue(find_next(buf, "hello"))
-        self.assertEqual(selected_text(buf), "Hello")
+        edit = _edit("Hello HELLO")
+        self.assertTrue(find_next(edit, "hello"))
+        self.assertEqual(selected_text(edit), "Hello")
 
     def test_match_case(self):
-        buf = _buffer("Hello hello")
-        self.assertTrue(find_next(buf, "hello", match_case=True))
-        self.assertEqual(selected_text(buf), "hello")
+        edit = _edit("Hello hello")
+        self.assertTrue(find_next(edit, "hello", match_case=True))
+        self.assertEqual(selected_text(edit), "hello")
 
     def test_missing_text_returns_false(self):
-        buf = _buffer("hello")
-        self.assertFalse(find_next(buf, "xyz"))
-        self.assertFalse(find_next(buf, ""))
+        edit = _edit("hello")
+        self.assertFalse(find_next(edit, "xyz"))
+        self.assertFalse(find_next(edit, ""))
 
 
 class ReplaceTests(unittest.TestCase):
     def test_replace_current_then_find_next(self):
-        buf = _buffer("one two one")
-        self.assertTrue(find_next(buf, "one"))
-        result = replace_and_find_next(buf, "one", "ONE")
+        edit = _edit("one two one")
+        self.assertTrue(find_next(edit, "one"))
+        result = replace_and_find_next(edit, "one", "ONE")
         self.assertEqual(result, "replaced")
-        start, end = buf.get_bounds()
-        self.assertEqual(buf.get_text(start, end, True), "ONE two one")
-        self.assertEqual(selected_text(buf), "one")
+        self.assertEqual(_document_text(edit), "ONE two one")
+        self.assertEqual(selected_text(edit), "one")
 
     def test_replace_finds_first_if_nothing_selected(self):
-        buf = _buffer("one two one")
-        result = replace_and_find_next(buf, "one", "ONE")
+        edit = _edit("one two one")
+        result = replace_and_find_next(edit, "one", "ONE")
         self.assertEqual(result, "found")
-        self.assertEqual(selected_text(buf), "one")
+        self.assertEqual(selected_text(edit), "one")
 
     def test_replace_all(self):
-        buf = _buffer("one two one two one")
-        count = replace_all(buf, "one", "ONE")
+        edit = _edit("one two one two one")
+        count = replace_all(edit, "one", "ONE")
         self.assertEqual(count, 3)
-        start, end = buf.get_bounds()
-        self.assertEqual(buf.get_text(start, end, True), "ONE two ONE two ONE")
+        self.assertEqual(_document_text(edit), "ONE two ONE two ONE")
 
     def test_replace_all_is_case_sensitive_when_asked(self):
-        buf = _buffer("One one ONE")
-        count = replace_all(buf, "one", "x", match_case=True)
+        edit = _edit("One one ONE")
+        count = replace_all(edit, "one", "x", match_case=True)
         self.assertEqual(count, 1)
-        start, end = buf.get_bounds()
-        self.assertEqual(buf.get_text(start, end, True), "One x ONE")
+        self.assertEqual(_document_text(edit), "One x ONE")
 
     def test_replace_all_empty_needle_is_noop(self):
-        buf = _buffer("abc")
-        self.assertEqual(replace_all(buf, "", "x"), 0)
+        edit = _edit("abc")
+        self.assertEqual(replace_all(edit, "", "x"), 0)
+
+    def test_replace_all_is_a_single_undo_step(self):
+        edit = _edit("one two one")
+        replace_all(edit, "one", "ONE")
+        edit.undo()
+        self.assertEqual(_document_text(edit), "one two one")
 
     def test_selection_matches_ignores_case_by_default(self):
-        buf = _buffer("Hello")
-        buf.select_range(buf.get_start_iter(), buf.get_end_iter())
-        self.assertTrue(selection_matches(buf, "hello"))
-        self.assertFalse(selection_matches(buf, "hello", match_case=True))
+        edit = _edit("Hello")
+        cursor = edit.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        edit.setTextCursor(cursor)
+        self.assertTrue(selection_matches(edit, "hello"))
+        self.assertFalse(selection_matches(edit, "hello", match_case=True))
+
+    def test_selected_text_normalizes_paragraph_separators(self):
+        edit = _edit("a\nb")
+        cursor = edit.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        edit.setTextCursor(cursor)
+        self.assertEqual(selected_text(edit), "a\nb")
 
 
 class GoToLineTests(unittest.TestCase):
     def test_goes_to_requested_line(self):
-        buf = _buffer("a\nb\nc")
-        self.assertTrue(goto_line(buf, 2))
-        insert = buf.get_iter_at_mark(buf.get_insert())
-        self.assertEqual(insert.get_line(), 1)
-        self.assertEqual(insert.get_line_offset(), 0)
+        edit = _edit("a\nb\nc")
+        self.assertTrue(goto_line(edit, 2))
+        cursor = edit.textCursor()
+        self.assertEqual(cursor.blockNumber(), 1)
+        self.assertEqual(cursor.columnNumber(), 0)
 
     def test_rejects_out_of_range(self):
-        buf = _buffer("a\nb")
-        self.assertFalse(goto_line(buf, 0))
-        self.assertFalse(goto_line(buf, 3))
-        self.assertTrue(goto_line(buf, 2))
+        edit = _edit("a\nb")
+        self.assertFalse(goto_line(edit, 0))
+        self.assertFalse(goto_line(edit, 3))
+        self.assertTrue(goto_line(edit, 2))
 
-
-class FontCssTests(unittest.TestCase):
-    def test_emits_family_size_weight_and_style(self):
-        desc = Pango.FontDescription.from_string("Serif Italic 14")
-        css = font_css(desc)
-        self.assertIn('font-family: "Serif"', css)
-        self.assertIn("font-size: 14pt", css)
-        self.assertIn("font-style: italic", css)
-        self.assertIn("notepad-text", css)
+    def test_rejects_far_out_of_range(self):
+        edit = _edit("a\nb")
+        self.assertFalse(goto_line(edit, 100))
 
 
 if __name__ == "__main__":
