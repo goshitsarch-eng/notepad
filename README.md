@@ -5,11 +5,12 @@ with light/dark mode support following the
 [Kirigami color guidelines](https://develop.kde.org/docs/getting-started/kirigami/style-colors/),
 and shipped as a **Flatpak**.
 
+Current release: **2.0.1**. The 2.0.1 release aligns the Flatpak's Qt/PySide
+stack with KDE 6.10, makes the public maker identity **Gosh**, and adds
+version, identity, and runtime-consistency regression tests.
+
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
-
-See the project plan in Linear:
-[Build Native Notepad Clone in GTK4 and Adwaita in Flatpak](https://linear.app/vaughan-jones/project/build-native-notepad-clone-in-gtk4-and-adiwata-in-flatpak-36ecfc173826).
 
 ## Features
 
@@ -41,7 +42,7 @@ Light and dark mode support follows the Kirigami color guidelines:
 
 - Python 3 + [PySide6](https://pypi.org/project/PySide6/) (Qt 6)
 - [Meson](https://mesonbuild.com/) build system
-- Flatpak (`org.kde.Platform`) for distribution
+- Flatpak (`org.kde.Platform` 6.10 plus `io.qt.PySide.BaseApp` 6.10) for distribution
 
 ## Development
 
@@ -55,7 +56,9 @@ sudo apt-get install -y python3-pyside6.qtwidgets meson ninja-build desktop-file
 sudo dnf install -y meson ninja-build desktop-file-utils && pip3 install --user PySide6
 ```
 
-Any PySide6 6.x install works (`pip3 install PySide6`).
+Use a PySide6 build matching the system Qt minor version when loading native
+KDE/Qt plugins. The Flatpak pins both Qt and PySide to 6.10 to prevent ABI and
+QPA-plugin mismatches.
 
 ### Run from source
 
@@ -70,7 +73,7 @@ python3 src/main.py
 ```bash
 meson setup _build --prefix=/usr
 ninja -C _build
-meson test -C _build          # unit tests + desktop entry validation
+meson test -C _build          # editor, theme, packaging, identity, and desktop validation
 sudo ninja -C _build install  # installs the `notepad` launcher
 ```
 
@@ -80,8 +83,8 @@ Requires `flatpak` and `flatpak-builder` plus the KDE 6 runtime/SDK:
 
 ```bash
 flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --user -y flathub org.kde.Platform//6.9 org.kde.Sdk//6.9
-flatpak-builder --user --install --force-clean build-flatpak com.goshapps.Notepad.json
+flatpak install --user -y flathub org.kde.Platform//6.10 org.kde.Sdk//6.10 io.qt.PySide.BaseApp//6.10
+flatpak-builder --user --install-deps-from=flathub --install --force-clean build-flatpak com.goshapps.Notepad.json
 flatpak run com.goshapps.Notepad
 ```
 
