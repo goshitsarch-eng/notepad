@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication  # noqa: E402
 
 import theme  # noqa: E402
 from theme import ColorScheme  # noqa: E402
+from window import NotepadWindow  # noqa: E402
 
 _app = QApplication.instance() or QApplication([])
 
@@ -24,6 +25,12 @@ _TEXT = QPalette.ColorRole.Text
 
 
 class PaletteTests(unittest.TestCase):
+    def test_theme_button_has_visible_text_without_theme_icons(self):
+        window = NotepadWindow(version="test")
+        self.assertIn(window.theme_button.text(), {"Light", "Dark"})
+        self.assertEqual(window.theme_button.accessibleName(), "Color scheme")
+        window.close()
+
     def test_light_base_is_light_and_dark_base_is_dark(self):
         light = theme.palette_for(ColorScheme.LIGHT)
         dark = theme.palette_for(ColorScheme.DARK)

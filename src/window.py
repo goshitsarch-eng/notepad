@@ -369,6 +369,8 @@ class NotepadWindow(QMainWindow):
 
         self.theme_button = QToolButton()
         self.theme_button.setAutoRaise(True)
+        self.theme_button.setAccessibleName("Color scheme")
+        self.theme_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.theme_button.clicked.connect(self.on_theme_button_clicked)
         bar.addWidget(self.theme_button)
         self.addToolBar(bar)
@@ -440,7 +442,8 @@ class NotepadWindow(QMainWindow):
             "<h3>NotePad {}</h3>"
             "<p>A native Qt 6 clone of Microsoft Notepad.</p>"
             "<p>Light and dark theming follows the Kirigami color guidelines.</p>"
-            "<p>© 2026 Vaughan Jones — GPL-3.0-or-later</p>".format(self.version),
+            "<p>Made by Gosh.</p>"
+            "<p>© 2026 Gosh — GPL-3.0-or-later</p>".format(self.version),
         )
 
     # ------------------------------------------------------------ theming ----
@@ -465,6 +468,7 @@ class NotepadWindow(QMainWindow):
             act.setChecked(scheme is current)
         dark = theme.effective_is_dark(current)
         if dark:
+            self.theme_button.setText("Light")
             self.theme_button.setIcon(
                 themed_icon(
                     "weather-clear-day-symbolic",
@@ -474,6 +478,7 @@ class NotepadWindow(QMainWindow):
             )
             self.theme_button.setToolTip("Switch to light mode")
         else:
+            self.theme_button.setText("Dark")
             self.theme_button.setIcon(
                 themed_icon(
                     "weather-clear-night-symbolic",
