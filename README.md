@@ -5,9 +5,10 @@ with light/dark mode support following the
 [Kirigami color guidelines](https://develop.kde.org/docs/getting-started/kirigami/style-colors/),
 and shipped as a **Flatpak**.
 
-Current release: **2.0.1**. The 2.0.1 release aligns the Flatpak's Qt/PySide
-stack with KDE 6.10, makes the public maker identity **Gosh**, and adds
-version, identity, and runtime-consistency regression tests.
+Current release: **2.0.2**. This release protects unsaved editor content when
+a file-open request arrives from a secondary instance or desktop launcher. It
+retains the KDE/PySide 6.10 alignment, public maker identity **Gosh**, and
+release-contract coverage introduced in 2.0.1.
 
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.

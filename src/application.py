@@ -166,7 +166,7 @@ class NotepadApplication(QApplication):
     def open_paths(self, files, present=False):
         window = self.ensure_window()
         if files:
-            window.load_path(files[0])
+            window.open_path(files[0])
         if present:
             window.show()
             window.raise_()
