@@ -1,6 +1,6 @@
 project(
   'notepad',
-  version: '2.0.2',
+  version: '2.0.3',
   license: 'GPL-3.0-or-later',
   meson_version: '>= 0.62.0',
 )
@@ -30,6 +30,14 @@ test(
   'theme',
   py_installation,
   args: [meson.project_source_root() / 'tests' / 'test_theme.py'],
+  env: test_env,
+  workdir: meson.project_source_root(),
+)
+
+test(
+  'window',
+  py_installation,
+  args: [meson.project_source_root() / 'tests' / 'test_window.py'],
   env: test_env,
   workdir: meson.project_source_root(),
 )

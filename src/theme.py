@@ -21,6 +21,7 @@ from PySide6.QtGui import QColor, QGuiApplication, QPalette
 _SETTINGS_ORG = "goshapps"
 _SETTINGS_APP = "notepad"
 _SCHEME_KEY = "color_scheme"
+_MENU_WIDGET_CLASSES = ("QMenu", "QMenuBar")
 
 
 class ColorScheme(Enum):
@@ -132,6 +133,11 @@ def apply(app, scheme):
         app.setPalette(app.style().standardPalette())
     else:
         app.setPalette(palette)
+        # KDE can provide class-specific menu palettes which take precedence
+        # over the application palette. Override those with the active scheme
+        # so popup and menu-bar text cannot retain the opposite scheme.
+        for class_name in _MENU_WIDGET_CLASSES:
+            app.setPalette(palette, class_name)
 
 
 def system_is_dark():

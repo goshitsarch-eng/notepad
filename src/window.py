@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSizePolicy,
+    QStyle,
     QToolBar,
     QToolButton,
     QVBoxLayout,
@@ -59,30 +60,43 @@ class FindBar(QWidget):
         layout.setContentsMargins(8, 4, 8, 4)
         layout.setSpacing(6)
 
+        self.close_btn = QToolButton()
+        self.close_btn.setAutoRaise(True)
+        self.close_btn.setIcon(
+            self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton)
+        )
+        self.close_btn.setAccessibleName("Close Find")
+        self.close_btn.setToolTip("Close Find (Esc)")
         self.entry = QLineEdit()
         self.entry.setPlaceholderText("Find")
         self.entry.setClearButtonEnabled(True)
         self.match_case_btn = QCheckBox("Match case")
         self.next_btn = QPushButton("Find Next")
 
+        layout.addWidget(self.close_btn)
         layout.addWidget(self.entry, 1)
         layout.addWidget(self.match_case_btn)
         layout.addWidget(self.next_btn)
 
+        self.close_btn.clicked.connect(self.close_bar)
         self.entry.returnPressed.connect(window.find_next)
         self.entry.textChanged.connect(window._on_search_text_changed)
         self.match_case_btn.toggled.connect(window._set_match_case)
         self.next_btn.clicked.connect(window.find_next)
 
-        escape = QShortcut(QKeySequence(Qt.Key_Escape), self)
-        escape.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        escape.activated.connect(self.hide)
+        self.escape_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self.escape_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.escape_shortcut.activated.connect(self.close_bar)
 
         self.hide()
 
     def focus_entry(self):
         self.entry.setFocus()
         self.entry.selectAll()
+
+    def close_bar(self):
+        self.hide()
+        self.window.edit.setFocus()
 
 
 class ReplaceDialog(QDialog):

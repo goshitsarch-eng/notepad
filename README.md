@@ -5,10 +5,10 @@ with light/dark mode support following the
 [Kirigami color guidelines](https://develop.kde.org/docs/getting-started/kirigami/style-colors/),
 and shipped as a **Flatpak**.
 
-Current release: **2.0.2**. This release protects unsaved editor content when
-a file-open request arrives from a secondary instance or desktop launcher. It
-retains the KDE/PySide 6.10 alignment, public maker identity **Gosh**, and
-release-contract coverage introduced in 2.0.1.
+Current release: **2.0.3**. This release keeps menu text readable when Light
+Mode is selected on KDE and adds a visible, accessible close button to the Find
+bar alongside Escape-to-close behavior. It retains the unsaved-content
+protection introduced in 2.0.2.
 
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
@@ -18,7 +18,8 @@ by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of com
 - Classic **File / Edit / Format / View / Help** menu bar
 - Open, edit, and save plain-text files (`New`, `Open`, `Save`, `Save As`)
 - Editing commands: `Undo`, `Redo`, `Cut`, `Copy`, `Paste`, `Delete`, `Select All`
-- `Find` with `Find Next` (F3), plus `Replace` (Ctrl+H) and `Go To` (Ctrl+G)
+- Closable `Find` bar (close button or Escape) with `Find Next` (F3), plus
+  `Replace` (Ctrl+H) and `Go To` (Ctrl+G)
 - **Font** selection from the Format menu
 - Insert the current **Time/Date** (F5), Windows-style
 - **Word Wrap** toggle and a live **Ln/Col** status bar
@@ -35,6 +36,8 @@ Light and dark mode support follows the Kirigami color guidelines:
 - widgets use **semantic palette roles** (Window, Base, Text, Highlight, ...)
   rather than hardcoded colors, so contrast stays correct when the scheme
   switches
+- menu and menu-bar class palettes are synchronized with explicit Light and
+  Dark schemes so KDE platform palette overrides cannot leave stale text colors
 - the custom light and dark palettes are defined in one place
   ([`src/theme.py`](src/theme.py)), modeled on the KDE Breeze light/dark
   color schemes

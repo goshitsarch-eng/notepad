@@ -34,6 +34,14 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.0.3" date="2026-08-31">
+      <description>
+        <p>
+          Keep menu text readable in Light Mode on KDE, and make the Find bar
+          closable with a visible accessible button or the Escape key.
+        </p>
+      </description>
+    </release>
     <release version="2.0.2" date="2026-08-30">
       <description>
         <p>
