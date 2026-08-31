@@ -597,6 +597,10 @@ class NotepadWindow(QMainWindow):
 
         self._guard_unsaved(do_open)
 
+    def open_path(self, path):
+        """Open an externally requested path without discarding unsaved edits."""
+        self._guard_unsaved(lambda: self.load_path(path))
+
     def load_path(self, path):
         try:
             with open(path, "r", encoding="utf-8") as fh:
