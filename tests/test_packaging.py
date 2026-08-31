@@ -33,10 +33,11 @@ def test_release_version_is_consistent() -> None:
     readme = (ROOT / "README.md").read_text()
     match = re.search(r"version: '([^']+)'", meson)
     assert match is not None
-    assert match.group(1) == "2.0.2"
+    assert match.group(1) == "2.0.3"
+    assert '<release version="2.0.3"' in metainfo
     assert '<release version="2.0.2"' in metainfo
     assert '<release version="2.0.1"' in metainfo
-    assert "Current release: **2.0.2**" in readme
+    assert "Current release: **2.0.3**" in readme
 
 
 def test_flatpak_uses_matching_kde_and_pyside_610_runtimes() -> None:

@@ -25,6 +25,47 @@ _TEXT = QPalette.ColorRole.Text
 
 
 class PaletteTests(unittest.TestCase):
+    def test_explicit_schemes_override_kde_menu_class_palettes(self):
+        class RecordingApplication:
+            def __init__(self):
+                self.calls = []
+
+            def setPalette(self, palette, class_name=None):
+                self.calls.append((QPalette(palette), class_name))
+
+        for scheme in (ColorScheme.LIGHT, ColorScheme.DARK):
+            app = RecordingApplication()
+            theme.apply(app, scheme)
+
+            self.assertEqual(
+                [class_name for _palette, class_name in app.calls],
+                [None, "QMenu", "QMenuBar"],
+            )
+            expected = theme.palette_for(scheme).color(_TEXT)
+            for palette, _class_name in app.calls:
+                self.assertEqual(palette.color(_TEXT), expected)
+
+    def test_system_palette_uses_only_the_platform_global_palette(self):
+        class RecordingStyle:
+            def standardPalette(self):
+                return QPalette()
+
+        class RecordingApplication:
+            def __init__(self):
+                self.calls = []
+
+            def style(self):
+                return RecordingStyle()
+
+            def setPalette(self, palette, class_name=None):
+                self.calls.append((QPalette(palette), class_name))
+
+        app = RecordingApplication()
+        theme.apply(app, ColorScheme.SYSTEM)
+
+        self.assertEqual(len(app.calls), 1)
+        self.assertIsNone(app.calls[0][1])
+
     def test_theme_button_has_visible_text_without_theme_icons(self):
         window = NotepadWindow(version="test")
         self.assertIn(window.theme_button.text(), {"Light", "Dark"})
