@@ -33,11 +33,12 @@ def test_release_version_is_consistent() -> None:
     readme = (ROOT / "README.md").read_text()
     match = re.search(r"version: '([^']+)'", meson)
     assert match is not None
-    assert match.group(1) == "2.0.3"
+    assert match.group(1) == "2.0.4"
+    assert '<release version="2.0.4"' in metainfo
     assert '<release version="2.0.3"' in metainfo
     assert '<release version="2.0.2"' in metainfo
     assert '<release version="2.0.1"' in metainfo
-    assert "Current release: **2.0.3**" in readme
+    assert "Current release: **2.0.4**" in readme
 
 
 def test_flatpak_uses_matching_kde_and_pyside_610_runtimes() -> None:
@@ -61,3 +62,11 @@ def test_user_facing_identity_is_gosh_without_real_name() -> None:
     text = "\n".join(path.read_text() for path in paths)
     assert "Vaughan" not in text
     assert "© 2026 Gosh" in text
+
+
+if __name__ == "__main__":
+    test_full_gpl_and_correct_attribution_are_present()
+    test_license_material_is_installed_with_the_application()
+    test_release_version_is_consistent()
+    test_flatpak_uses_matching_kde_and_pyside_610_runtimes()
+    test_user_facing_identity_is_gosh_without_real_name()

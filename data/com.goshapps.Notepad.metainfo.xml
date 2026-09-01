@@ -34,6 +34,15 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2.0.4" date="2026-09-01">
+      <description>
+        <p>
+          Make explicit Light Mode foregrounds deterministic across menus,
+          popups, dialogs, editor chrome, and disabled or selected states when
+          the host Plasma session uses a dark color scheme.
+        </p>
+      </description>
+    </release>
     <release version="2.0.3" date="2026-08-31">
       <description>
         <p>
