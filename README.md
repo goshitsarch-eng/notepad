@@ -5,10 +5,10 @@ with light/dark mode support following the
 [Kirigami color guidelines](https://develop.kde.org/docs/getting-started/kirigami/style-colors/),
 and shipped as a **Flatpak**.
 
-Current release: **2.0.3**. This release keeps menu text readable when Light
-Mode is selected on KDE and adds a visible, accessible close button to the Find
-bar alongside Escape-to-close behavior. It retains the unsaved-content
-protection introduced in 2.0.2.
+Current release: **2.0.4**. This release makes explicit Light Mode foregrounds
+deterministic across menus, popups, dialogs, editor chrome, and disabled or
+selected states even when the host Plasma session is dark. It preserves the
+visible Find close button and Escape-to-close behavior introduced in 2.0.3.
 
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
@@ -36,8 +36,9 @@ Light and dark mode support follows the Kirigami color guidelines:
 - widgets use **semantic palette roles** (Window, Base, Text, Highlight, ...)
   rather than hardcoded colors, so contrast stays correct when the scheme
   switches
-- menu and menu-bar class palettes are synchronized with explicit Light and
-  Dark schemes so KDE platform palette overrides cannot leave stale text colors
+- explicit Light and Dark modes use Qt's palette-driven Fusion widget style so
+  KDE widget-local palette overrides cannot leave stale host foreground colors;
+  System mode restores the native platform style and live platform palette
 - the custom light and dark palettes are defined in one place
   ([`src/theme.py`](src/theme.py)), modeled on the KDE Breeze light/dark
   color schemes

@@ -17,11 +17,13 @@ from enum import Enum
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QColor, QGuiApplication, QPalette
+from PySide6.QtWidgets import QStyleFactory
 
 _SETTINGS_ORG = "goshapps"
 _SETTINGS_APP = "notepad"
 _SCHEME_KEY = "color_scheme"
-_MENU_WIDGET_CLASSES = ("QMenu", "QMenuBar")
+_EXPLICIT_STYLE = "Fusion"
+_SYSTEM_STYLE_ATTRIBUTE = "_notepad_system_style"
 
 
 class ColorScheme(Enum):
@@ -41,9 +43,15 @@ _LIGHT = {
     "text": "#232629",
     "button": "#eff0f1",
     "button_text": "#232629",
+    "light": "#ffffff",
+    "midlight": "#f7f8f8",
+    "dark": "#8b9297",
+    "mid": "#b7bcc0",
+    "shadow": "#474b4f",
+    "bright_text": "#ffffff",
     "highlight": "#3daee9",
-    "highlighted_text": "#ffffff",
-    "link": "#1d99f3",
+    "highlighted_text": "#17242b",
+    "link": "#006eaa",
     "tooltip_base": "#232629",
     "tooltip_text": "#fcfcfc",
 }
@@ -55,7 +63,13 @@ _DARK = {
     "text": "#fcfcfc",
     "button": "#2a2e32",
     "button_text": "#fcfcfc",
-    "highlight": "#3daee9",
+    "light": "#555c63",
+    "midlight": "#3c4248",
+    "dark": "#121416",
+    "mid": "#202428",
+    "shadow": "#000000",
+    "bright_text": "#ffffff",
+    "highlight": "#1676a3",
     "highlighted_text": "#fcfcfc",
     "link": "#1d99f3",
     "tooltip_base": "#2a2e32",
@@ -76,26 +90,41 @@ def _mix(a, b, t):
 def _build(colors):
     palette = QPalette()
     window = QColor(colors["window"])
+    base = QColor(colors["base"])
+    button = QColor(colors["button"])
     text = QColor(colors["text"])
-    disabled_text = _mix(text, window, 0.5)
-    placeholder_text = _mix(text, window, 0.65)
+    window_text = QColor(colors["window_text"])
+    button_text = QColor(colors["button_text"])
+    highlight = QColor(colors["highlight"])
+    highlighted_text = QColor(colors["highlighted_text"])
+    placeholder_text = _mix(text, base, 0.65)
 
     roles = {
-        QPalette.ColorRole.Window: QColor(colors["window"]),
-        QPalette.ColorRole.WindowText: QColor(colors["window_text"]),
-        QPalette.ColorRole.Base: QColor(colors["base"]),
+        QPalette.ColorRole.Window: window,
+        QPalette.ColorRole.WindowText: window_text,
+        QPalette.ColorRole.Base: base,
         QPalette.ColorRole.AlternateBase: QColor(colors["alternate_base"]),
         QPalette.ColorRole.Text: text,
-        QPalette.ColorRole.Button: QColor(colors["button"]),
-        QPalette.ColorRole.ButtonText: QColor(colors["button_text"]),
-        QPalette.ColorRole.Highlight: QColor(colors["highlight"]),
-        QPalette.ColorRole.HighlightedText: QColor(colors["highlighted_text"]),
+        QPalette.ColorRole.Button: button,
+        QPalette.ColorRole.ButtonText: button_text,
+        QPalette.ColorRole.Light: QColor(colors["light"]),
+        QPalette.ColorRole.Midlight: QColor(colors["midlight"]),
+        QPalette.ColorRole.Dark: QColor(colors["dark"]),
+        QPalette.ColorRole.Mid: QColor(colors["mid"]),
+        QPalette.ColorRole.Shadow: QColor(colors["shadow"]),
+        QPalette.ColorRole.BrightText: QColor(colors["bright_text"]),
+        QPalette.ColorRole.Highlight: highlight,
+        QPalette.ColorRole.HighlightedText: highlighted_text,
         QPalette.ColorRole.Link: QColor(colors["link"]),
         QPalette.ColorRole.LinkVisited: QColor(colors["link"]),
         QPalette.ColorRole.ToolTipBase: QColor(colors["tooltip_base"]),
         QPalette.ColorRole.ToolTipText: QColor(colors["tooltip_text"]),
         QPalette.ColorRole.PlaceholderText: placeholder_text,
     }
+    accent_role = getattr(QPalette.ColorRole, "Accent", None)
+    if accent_role is not None:
+        roles[accent_role] = highlight
+
     for group in (
         QPalette.ColorGroup.Active,
         QPalette.ColorGroup.Inactive,
@@ -103,9 +132,25 @@ def _build(colors):
     ):
         for role, color in roles.items():
             palette.setColor(group, role, color)
-        palette.setColor(group, QPalette.ColorRole.Text, disabled_text if group == QPalette.ColorGroup.Disabled else text)
-        palette.setColor(group, QPalette.ColorRole.WindowText, disabled_text if group == QPalette.ColorGroup.Disabled else QColor(colors["window_text"]))
-        palette.setColor(group, QPalette.ColorRole.ButtonText, disabled_text if group == QPalette.ColorGroup.Disabled else QColor(colors["button_text"]))
+        if group == QPalette.ColorGroup.Disabled:
+            disabled_highlight = _mix(highlight, window, 0.5)
+            palette.setColor(group, QPalette.ColorRole.Text, _mix(text, base, 0.5))
+            palette.setColor(
+                group,
+                QPalette.ColorRole.WindowText,
+                _mix(window_text, window, 0.5),
+            )
+            palette.setColor(
+                group,
+                QPalette.ColorRole.ButtonText,
+                _mix(button_text, button, 0.5),
+            )
+            palette.setColor(group, QPalette.ColorRole.Highlight, disabled_highlight)
+            palette.setColor(
+                group,
+                QPalette.ColorRole.HighlightedText,
+                _mix(highlighted_text, disabled_highlight, 0.25),
+            )
     return palette
 
 
@@ -122,22 +167,52 @@ def palette_for(scheme):
     return None
 
 
+def _remember_system_style(app):
+    style_name = getattr(app, _SYSTEM_STYLE_ATTRIBUTE, None)
+    if style_name is not None:
+        return style_name
+
+    object_name = app.style().objectName()
+    style_name = next(
+        (
+            key
+            for key in QStyleFactory.keys()
+            if key.casefold() == object_name.casefold()
+        ),
+        object_name,
+    )
+    setattr(app, _SYSTEM_STYLE_ATTRIBUTE, style_name)
+    return style_name
+
+
+def _set_style(app, style_name):
+    if app.style().objectName().casefold() == style_name.casefold():
+        return
+    style = QStyleFactory.create(style_name)
+    if style is None:
+        raise RuntimeError(f'Qt style "{style_name}" is unavailable')
+    app.setStyle(style)
+
+
 def apply(app, scheme):
     """Apply ``scheme`` to the application.
 
-    SYSTEM restores the style's standard palette, which follows the platform
-    color scheme (e.g. Plasma light/dark preferences).
+    KDE platform styles can polish individual widgets with class- or
+    widget-specific palettes. Those local brushes outrank an application
+    palette and can leave dark host foregrounds on explicit light backgrounds.
+    Explicit modes therefore use Qt's palette-driven Fusion style and apply one
+    complete semantic palette after the style switch. SYSTEM restores the
+    original platform style and an unresolved palette, allowing Qt to resolve
+    the live platform theme again.
     """
+    system_style = _remember_system_style(app)
     palette = palette_for(scheme)
     if palette is None:
-        app.setPalette(app.style().standardPalette())
+        _set_style(app, system_style)
+        app.setPalette(QPalette())
     else:
+        _set_style(app, _EXPLICIT_STYLE)
         app.setPalette(palette)
-        # KDE can provide class-specific menu palettes which take precedence
-        # over the application palette. Override those with the active scheme
-        # so popup and menu-bar text cannot retain the opposite scheme.
-        for class_name in _MENU_WIDGET_CLASSES:
-            app.setPalette(palette, class_name)
 
 
 def system_is_dark():
