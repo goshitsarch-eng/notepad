@@ -7,13 +7,15 @@
 //! newline-separated paths, then a one-byte ack.
 
 use std::io::{Read, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
-use std::{env, fs, thread, time::Duration};
+use std::{env, fs, time::Duration};
 
 use cosmic::iced::Subscription;
 use cosmic::iced::futures::SinkExt;
 use cosmic::iced::stream;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::UnixListener;
 
 const APP_ID: &str = "com.goshapps.Notepad";
 
@@ -33,7 +35,19 @@ pub fn forward(files: &[PathBuf]) -> bool {
     if !path.exists() {
         return false;
     }
-    match UnixStream::connect(&path) {
+    forward_to(&path, files)
+}
+
+fn parse_payload(buf: &[u8]) -> Vec<PathBuf> {
+    String::from_utf8_lossy(buf)
+        .split('\n')
+        .filter(|s| !s.is_empty())
+        .map(PathBuf::from)
+        .collect()
+}
+
+fn forward_to(path: &Path, files: &[PathBuf]) -> bool {
+    match UnixStream::connect(path) {
         Ok(mut client) => {
             let _ = client.set_read_timeout(Some(Duration::from_secs(2)));
             let _ = client.set_write_timeout(Some(Duration::from_secs(2)));
@@ -66,41 +80,38 @@ pub fn unlink_if_stale(path: &Path) {
     }
 }
 
+struct SocketGuard(PathBuf);
+
+impl Drop for SocketGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
 /// Subscription that accepts connections and yields forwarded file lists.
+///
+/// An empty payload (second launch with no files) still yields an empty
+/// `Vec` so the running window can present itself.
 pub fn subscription() -> Subscription<Vec<PathBuf>> {
     Subscription::run(|| {
         stream::channel(4, async |mut output| {
             let path = socket_path();
             unlink_if_stale(&path);
 
-            let listener = match UnixListener::bind(&path) {
-                Ok(listener) => listener,
-                Err(_) => return,
+            let Ok(listener) = UnixListener::bind(&path) else {
+                return;
             };
-            let _ = listener.set_nonblocking(true);
+            let _guard = SocketGuard(path);
 
             loop {
-                match listener.accept() {
-                    Ok((mut connection, _)) => {
-                        let mut buf = Vec::new();
-                        if connection.read_to_end(&mut buf).is_ok() {
-                            let _ = connection.write_all(&[0]);
-                            let payload = String::from_utf8_lossy(&buf);
-                            let files: Vec<PathBuf> = payload
-                                .split('\n')
-                                .filter(|s| !s.is_empty())
-                                .map(PathBuf::from)
-                                .collect();
-                            let _ = output.send(files).await;
-                        }
-                    }
-                    Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {
-                        tokio::time::sleep(Duration::from_millis(100)).await;
-                    }
-                    Err(_) => {
-                        thread::sleep(Duration::from_millis(100));
-                    }
-                }
+                let Ok((mut connection, _)) = listener.accept().await else {
+                    continue;
+                };
+                let mut buf = Vec::new();
+                let _ = connection.read_to_end(&mut buf).await;
+                let _ = connection.write_all(&[0]).await;
+                let files = parse_payload(&buf);
+                let _ = output.send(files).await;
             }
         })
     })
@@ -118,5 +129,55 @@ mod tests {
                 .and_then(|n| n.to_str())
                 .is_some_and(|n| n.contains("com.goshapps.Notepad"))
         );
+    }
+
+    #[test]
+    fn parse_payload_splits_paths_and_drops_empties() {
+        assert!(parse_payload(b"").is_empty());
+        assert!(parse_payload(b"\n").is_empty());
+        assert_eq!(
+            parse_payload(b"/tmp/a.txt\n/tmp/b.txt\n"),
+            vec![PathBuf::from("/tmp/a.txt"), PathBuf::from("/tmp/b.txt")]
+        );
+    }
+
+    #[test]
+    fn forward_round_trips_paths_and_empty_payload() {
+        use std::os::unix::net::UnixListener;
+        use std::sync::mpsc;
+        use std::thread;
+
+        let dir = std::env::temp_dir().join(format!(
+            "notepad-si-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let sock = dir.join("notepad.sock");
+        let _ = fs::remove_file(&sock);
+        let listener = UnixListener::bind(&sock).unwrap();
+
+        let (tx, rx) = mpsc::channel::<Vec<PathBuf>>();
+        let server = thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut connection, _) = listener.accept().unwrap();
+                let mut buf = Vec::new();
+                connection.read_to_end(&mut buf).unwrap();
+                connection.write_all(&[0]).unwrap();
+                tx.send(parse_payload(&buf)).unwrap();
+            }
+        });
+
+        assert!(forward_to(&sock, &[PathBuf::from("/tmp/note.txt")]));
+        assert_eq!(rx.recv().unwrap(), vec![PathBuf::from("/tmp/note.txt")]);
+        assert!(forward_to(&sock, &[]));
+        assert!(rx.recv().unwrap().is_empty());
+
+        server.join().unwrap();
+        let _ = fs::remove_file(&sock);
+        let _ = fs::remove_dir(&dir);
     }
 }

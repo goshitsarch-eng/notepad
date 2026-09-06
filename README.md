@@ -6,25 +6,33 @@ with system/light/dark color schemes, and shipped as a **Flatpak**.
 
 Current release: **3.0.0**. This release rewrites the application on libcosmic
 and the COSMIC design language while keeping the classic Notepad menus,
-shortcuts, and document workflow.
+shortcuts, and document workflow. Every dropdown shares a leading check
+column, so Format and View labels line up with File, Edit, and Help.
 
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
 
 ## Features
 
-- Classic **File / Edit / Format / View / Help** menu bar
+- Classic **File / Edit / Format / View / Help** menu bar. Toggles, commands,
+  and submenus share a leading check column so labels line up
 - Open, edit, and save plain-text files (`New`, `Open`, `Save`, `Save As`)
 - Editing commands: `Undo`, `Redo`, `Cut`, `Copy`, `Paste`, `Delete`, `Select All`
+  (Delete removes the selection or the next character)
 - Closable `Find` bar (close button or Escape) with `Find Next` (F3), plus
-  `Replace` (Ctrl+H) and `Go To` (Ctrl+G)
+  `Replace` (Ctrl+H) and `Go To` (Ctrl+G). Find, Go To, and Ln/Col stay on
+  the intended character in UTF-8 text
 - **Font** selection from the Format menu
 - Insert the current **Time/Date** (F5), Windows-style
 - **Word Wrap** toggle and a live **Ln/Col** status bar
 - **Color scheme** choice: System (follows COSMIC), Light, and Dark
   (View menu or the scheme button in the header)
-- Unsaved-changes protection when creating/opening files or closing the window
-- Single-instance Unix socket: a second launch forwards its file to the running window
+- Unsaved-changes protection on New, Open, Exit, and the window close button.
+  Save from that dialog continues the original action after Save As
+- Single-instance Unix socket: a second `notepad path.txt` forwards the file
+  to the running window; a second `notepad` with no args focuses that window
+- Word wrap, font, status bar, and color scheme persist across restarts,
+  including inside the Flatpak
 
 ## Theming
 

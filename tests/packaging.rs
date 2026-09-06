@@ -36,11 +36,16 @@ fn release_version_is_consistent() {
     let readme = read("README.md");
     assert!(cargo.contains("version = \"3.0.0\""));
     assert!(metainfo.contains("<release version=\"3.0.0\""));
+    assert!(metainfo.contains("<release version=\"3.0.0\" date=\"2026-09-06\""));
     assert!(metainfo.contains("<release version=\"2.0.4\""));
     assert!(metainfo.contains("<release version=\"2.0.3\""));
     assert!(metainfo.contains("<release version=\"2.0.2\""));
     assert!(metainfo.contains("<release version=\"2.0.1\""));
     assert!(readme.contains("Current release: **3.0.0**"));
+    let readme_flat = readme.split_whitespace().collect::<Vec<_>>().join(" ");
+    let metainfo_flat = metainfo.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(readme_flat.contains("leading check column"));
+    assert!(metainfo_flat.contains("leading check column"));
 }
 
 #[test]
@@ -53,6 +58,17 @@ fn flatpak_uses_cosmic_baseapp() {
     assert_eq!(value["base"], "com.system76.Cosmic.BaseApp");
     assert_eq!(value["base-version"], "stable");
     assert_eq!(value["command"], "notepad");
+    let finish = value["finish-args"]
+        .as_array()
+        .expect("finish-args")
+        .iter()
+        .filter_map(|v| v.as_str())
+        .collect::<Vec<_>>();
+    assert!(
+        finish.contains(&"--filesystem=xdg-config/cosmic:rw"),
+        "config must be writable in the Flatpak sandbox: {finish:?}"
+    );
+    assert!(!finish.contains(&"--filesystem=xdg-config/cosmic:ro"));
 }
 
 #[test]

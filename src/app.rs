@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::commands::{self, ReplaceResult};
-use crate::config::{theme_for, ColorScheme, Config};
+use crate::config::{ColorScheme, Config, theme_for};
 use crate::fl;
 use crate::key_bind;
 use crate::single_instance;
@@ -18,13 +18,14 @@ use cosmic::iced::window;
 use cosmic::iced::{Alignment, Font, Length, Subscription};
 use cosmic::prelude::*;
 use cosmic::widget::about::About;
-use cosmic::widget::menu;
+use cosmic::widget::menu::{self, ItemHeight, ItemWidth};
 use cosmic::widget::text_editor::{self, Action, Binding, Content, Edit, KeyPress};
 use cosmic::widget::{self, icon};
 use cosmic::{command, iced};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
 use url::Url;
 
 const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
@@ -102,8 +103,9 @@ pub struct App {
     font_family_input: String,
     font_size_index: usize,
     pending: Option<PendingDialog>,
-    undo_stack: Vec<String>,
-    redo_stack: Vec<String>,
+    pending_after: Option<AfterSave>,
+    undo_stack: Vec<(String, text_editor::Cursor)>,
+    redo_stack: Vec<(String, text_editor::Cursor)>,
     font_family_labels: Vec<String>,
     font_size_labels: Vec<String>,
 }
@@ -224,6 +226,63 @@ impl menu::action::MenuAction for MenuAction {
     }
 }
 
+/// libcosmic only reserves a leading check column on `Item::CheckBox`.
+/// Command and folder rows get the same gutter so labels line up across menus.
+const MENU_CHECK_COL: f32 = 16.0;
+
+fn menu_shortcut(action: MenuAction, key_binds: &HashMap<menu::KeyBind, MenuAction>) -> String {
+    key_binds
+        .iter()
+        .find_map(|(bind, bound)| (*bound == action).then(|| bind.to_string()))
+        .unwrap_or_default()
+}
+
+fn menu_check_gutter() -> [Element<'static, Message>; 2] {
+    let spacing = cosmic::theme::spacing();
+    [
+        widget::space::horizontal()
+            .width(Length::Fixed(MENU_CHECK_COL))
+            .into(),
+        widget::space::horizontal().width(spacing.space_xxs).into(),
+    ]
+}
+
+fn aligned_disabled_item(
+    label: impl Into<Cow<'static, str>>,
+    shortcut: impl Into<Cow<'static, str>>,
+) -> menu::Tree<Message> {
+    let [gutter, gap] = menu_check_gutter();
+    menu::Tree::from(Element::from(menu::menu_button(vec![
+        gutter,
+        gap,
+        widget::text(label.into()).into(),
+        widget::space::horizontal().into(),
+        widget::text(shortcut.into()).into(),
+    ])))
+}
+
+fn aligned_folder(
+    label: impl Into<Cow<'static, str>>,
+    children: Vec<menu::Tree<Message>>,
+) -> menu::Tree<Message> {
+    let [gutter, gap] = menu_check_gutter();
+    menu::Tree::with_children(
+        menu::menu_button(vec![
+            gutter,
+            gap,
+            widget::text(label.into()).align_x(Alignment::Start).into(),
+            widget::space::horizontal().into(),
+            widget::icon::from_name("pan-end-symbolic")
+                .size(16)
+                .icon()
+                .into(),
+        ])
+        .class(cosmic::theme::Button::MenuFolder)
+        .apply(Element::from),
+        children,
+    )
+}
+
 impl cosmic::Application for App {
     type Executor = cosmic::executor::Default;
     type Flags = Flags;
@@ -271,6 +330,7 @@ impl cosmic::Application for App {
             content: Content::new(),
             file_path: None,
             saved_text: String::new(),
+            pending_after: None,
             find_visible: false,
             replace_visible: false,
             find_text: String::new(),
@@ -283,6 +343,7 @@ impl cosmic::Application for App {
             font_family_labels: FONT_FAMILIES.iter().map(|s| (*s).to_string()).collect(),
             font_size_labels: FONT_SIZES.iter().map(ToString::to_string).collect(),
         };
+        app.saved_text = app.content.text();
 
         let mut tasks = vec![
             app.update_title(),
@@ -298,47 +359,26 @@ impl cosmic::Application for App {
 
     fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
         let wrap = self.config.word_wrap;
-        let scheme = self.config.color_scheme;
 
+        // CheckBox(false) keeps the leading check column on command rows so
+        // labels line up with Word Wrap / Status Bar / color-scheme checks.
         let menu_bar = menu::bar(vec![
             menu::Tree::with_children(
                 menu::root(fl!("file")).apply(Element::from),
                 menu::items(
                     &self.key_binds,
                     vec![
-                        menu::Item::Button(fl!("new"), None, MenuAction::New),
-                        menu::Item::Button(fl!("open"), None, MenuAction::Open),
-                        menu::Item::Button(fl!("save"), None, MenuAction::Save),
-                        menu::Item::Button(fl!("save-as"), None, MenuAction::SaveAs),
-                        menu::Item::Button(fl!("exit"), None, MenuAction::Exit),
+                        menu::Item::CheckBox(fl!("new"), None, false, MenuAction::New),
+                        menu::Item::CheckBox(fl!("open"), None, false, MenuAction::Open),
+                        menu::Item::CheckBox(fl!("save"), None, false, MenuAction::Save),
+                        menu::Item::CheckBox(fl!("save-as"), None, false, MenuAction::SaveAs),
+                        menu::Item::CheckBox(fl!("exit"), None, false, MenuAction::Exit),
                     ],
                 ),
             ),
             menu::Tree::with_children(
                 menu::root(fl!("edit")).apply(Element::from),
-                menu::items(
-                    &self.key_binds,
-                    vec![
-                        menu::Item::Button(fl!("undo"), None, MenuAction::Undo),
-                        menu::Item::Button(fl!("redo"), None, MenuAction::Redo),
-                        menu::Item::Divider,
-                        menu::Item::Button(fl!("cut"), None, MenuAction::Cut),
-                        menu::Item::Button(fl!("copy"), None, MenuAction::Copy),
-                        menu::Item::Button(fl!("paste"), None, MenuAction::Paste),
-                        menu::Item::Button(fl!("delete"), None, MenuAction::Delete),
-                        menu::Item::Divider,
-                        menu::Item::Button(fl!("find"), None, MenuAction::Find),
-                        menu::Item::Button(fl!("find-next"), None, MenuAction::FindNext),
-                        menu::Item::Button(fl!("replace"), None, MenuAction::Replace),
-                        if wrap {
-                            menu::Item::ButtonDisabled(fl!("go-to"), None, MenuAction::GoTo)
-                        } else {
-                            menu::Item::Button(fl!("go-to"), None, MenuAction::GoTo)
-                        },
-                        menu::Item::Button(fl!("select-all"), None, MenuAction::SelectAll),
-                        menu::Item::Button(fl!("time-date"), None, MenuAction::InsertDateTime),
-                    ],
-                ),
+                self.edit_menu_items(),
             ),
             menu::Tree::with_children(
                 menu::root(fl!("format")).apply(Element::from),
@@ -346,55 +386,30 @@ impl cosmic::Application for App {
                     &self.key_binds,
                     vec![
                         menu::Item::CheckBox(fl!("word-wrap"), None, wrap, MenuAction::ToggleWrap),
-                        menu::Item::Button(fl!("font"), None, MenuAction::Font),
+                        menu::Item::CheckBox(fl!("font"), None, false, MenuAction::Font),
                     ],
                 ),
             ),
             menu::Tree::with_children(
                 menu::root(fl!("view")).apply(Element::from),
-                menu::items(
-                    &self.key_binds,
-                    vec![
-                        menu::Item::CheckBox(
-                            fl!("status-bar"),
-                            None,
-                            self.config.show_status_bar,
-                            MenuAction::ToggleStatusBar,
-                        ),
-                        menu::Item::Folder(
-                            fl!("color-scheme"),
-                            vec![
-                                menu::Item::CheckBox(
-                                    fl!("system"),
-                                    None,
-                                    scheme == ColorScheme::System,
-                                    MenuAction::Scheme(ColorScheme::System),
-                                ),
-                                menu::Item::CheckBox(
-                                    fl!("light"),
-                                    None,
-                                    scheme == ColorScheme::Light,
-                                    MenuAction::Scheme(ColorScheme::Light),
-                                ),
-                                menu::Item::CheckBox(
-                                    fl!("dark"),
-                                    None,
-                                    scheme == ColorScheme::Dark,
-                                    MenuAction::Scheme(ColorScheme::Dark),
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
+                self.view_menu_items(),
             ),
             menu::Tree::with_children(
                 menu::root(fl!("help")).apply(Element::from),
                 menu::items(
                     &self.key_binds,
-                    vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
+                    vec![menu::Item::CheckBox(
+                        fl!("about"),
+                        None,
+                        false,
+                        MenuAction::About,
+                    )],
                 ),
             ),
-        ]);
+        ])
+        .item_height(ItemHeight::Dynamic(40))
+        .item_width(ItemWidth::Uniform(280))
+        .spacing(4.0);
 
         vec![menu_bar.into()]
     }
@@ -588,18 +603,21 @@ impl cosmic::Application for App {
                 .watch_config::<Config>(Self::APP_ID)
                 .map(|update| Message::UpdateConfig(update.config)),
             single_instance::subscription().map(Message::OpenExternal),
+            window::close_requests().map(|_| Message::Exit),
         ])
     }
 
+    #[allow(clippy::too_many_lines)]
     fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
         match message {
             Message::Editor(action) => {
                 if action.is_edit() {
                     let before = self.content.text();
+                    let cursor = self.content.cursor();
                     self.content.perform(action);
                     let after = self.content.text();
                     if before != after {
-                        self.undo_stack.push(before);
+                        self.undo_stack.push((before, cursor));
                         self.redo_stack.clear();
                     }
                 } else {
@@ -618,9 +636,17 @@ impl cosmic::Application for App {
                 }
             },
             Message::OpenExternal(files) => {
-                if let Some(path) = files.into_iter().next() {
-                    return self.guard_unsaved(AfterSave::OpenPath(path));
-                }
+                let focus = self.core.main_window_id().map(window::gain_focus);
+                let open = files
+                    .into_iter()
+                    .next()
+                    .map(|path| self.guard_unsaved(AfterSave::OpenPath(path)));
+                return match (focus, open) {
+                    (Some(focus), Some(open)) => Task::batch([focus, open]),
+                    (Some(focus), None) => focus,
+                    (None, Some(open)) => open,
+                    (None, None) => Task::none(),
+                };
             }
             Message::Save => return self.save(false),
             Message::SaveAs => return self.save_as_dialog(),
@@ -632,18 +658,28 @@ impl cosmic::Application for App {
                     });
                 }
             },
-            Message::Exit => return self.guard_unsaved(AfterSave::Close),
+            Message::Exit => {
+                if let Some(PendingDialog::SaveChanges { after }) = &mut self.pending {
+                    *after = AfterSave::Close;
+                    return Task::none();
+                }
+                return self.guard_unsaved(AfterSave::Close);
+            }
             Message::Undo => {
-                if let Some(prev) = self.undo_stack.pop() {
-                    self.redo_stack.push(self.content.text());
+                if let Some((prev, cursor)) = self.undo_stack.pop() {
+                    self.redo_stack
+                        .push((self.content.text(), self.content.cursor()));
                     self.content = Content::with_text(&prev);
+                    self.content.move_to(cursor);
                     return self.update_title();
                 }
             }
             Message::Redo => {
-                if let Some(next) = self.redo_stack.pop() {
-                    self.undo_stack.push(self.content.text());
+                if let Some((next, cursor)) = self.redo_stack.pop() {
+                    self.undo_stack
+                        .push((self.content.text(), self.content.cursor()));
                     self.content = Content::with_text(&next);
+                    self.content.move_to(cursor);
                     return self.update_title();
                 }
             }
@@ -672,11 +708,9 @@ impl cosmic::Application for App {
                 }
             }
             Message::Delete => {
-                if self.content.selection().is_some() {
-                    self.push_undo();
-                    self.content.perform(Action::Edit(Edit::Delete));
-                    return self.update_title();
-                }
+                self.push_undo();
+                self.content.perform(Action::Edit(Edit::Delete));
+                return self.update_title();
             }
             Message::Find => {
                 self.prefill_search_from_selection();
@@ -716,7 +750,7 @@ impl cosmic::Application for App {
                 }
             }
             Message::GoToInput(input) => {
-                self.goto_input = input.clone();
+                self.goto_input.clone_from(&input);
                 if let Some(PendingDialog::GoTo {
                     input: stored,
                     error,
@@ -788,32 +822,42 @@ impl cosmic::Application for App {
             }
             Message::DialogCancel => {
                 self.pending = None;
+                self.pending_after = None;
             }
             Message::DialogSave => {
                 if let Some(PendingDialog::SaveChanges { after }) = self.pending.take() {
-                    let task = self.save(false);
-                    if !self.is_dirty() {
-                        return Task::batch([task, self.proceed(after)]);
-                    }
-                    self.pending = Some(PendingDialog::SaveChanges { after });
-                    return task;
+                    self.pending_after = Some(after);
+                    return self.save(false);
                 }
             }
             Message::DialogDiscard => {
                 if let Some(PendingDialog::SaveChanges { after }) = self.pending.take() {
+                    self.pending_after = None;
                     self.saved_text = self.content.text();
                     return self.proceed(after);
                 }
             }
-            Message::CloseError => self.pending = None,
+            Message::CloseError => {
+                if let Some(after) = self.pending_after.clone() {
+                    self.pending = Some(PendingDialog::SaveChanges { after });
+                } else {
+                    self.pending = None;
+                }
+            }
             Message::UpdateConfig(config) => {
+                let scheme_changed = self.config.color_scheme != config.color_scheme;
                 self.config = config;
                 self.editor_font = font_from_family(&self.config.font_family);
+                if scheme_changed {
+                    return command::set_theme(theme_for(self.config.color_scheme));
+                }
             }
             Message::Error(message) => {
                 self.pending = Some(PendingDialog::Error { message });
             }
-            Message::Cancelled => {}
+            Message::Cancelled => {
+                self.pending_after = None;
+            }
         }
 
         Task::none()
@@ -822,6 +866,7 @@ impl cosmic::Application for App {
     fn on_escape(&mut self) -> Task<Self::Message> {
         if self.pending.is_some() {
             self.pending = None;
+            self.pending_after = None;
             return Task::none();
         }
         if self.core.window.show_context {
@@ -835,7 +880,14 @@ impl cosmic::Application for App {
         Task::none()
     }
 
+    fn on_app_exit(&mut self) -> Option<Self::Message> {
+        Some(Message::Exit)
+    }
+
     fn on_close_requested(&self, _id: window::Id) -> Option<Self::Message> {
+        if matches!(self.pending, Some(PendingDialog::SaveChanges { .. })) {
+            return Some(Message::Exit);
+        }
         if self.is_dirty() {
             Some(Message::Exit)
         } else {
@@ -857,6 +909,89 @@ impl cosmic::Application for App {
 }
 
 impl App {
+    fn edit_menu_items(&self) -> Vec<menu::Tree<Message>> {
+        let mut items = menu::items(
+            &self.key_binds,
+            vec![
+                menu::Item::CheckBox(fl!("undo"), None, false, MenuAction::Undo),
+                menu::Item::CheckBox(fl!("redo"), None, false, MenuAction::Redo),
+                menu::Item::Divider,
+                menu::Item::CheckBox(fl!("cut"), None, false, MenuAction::Cut),
+                menu::Item::CheckBox(fl!("copy"), None, false, MenuAction::Copy),
+                menu::Item::CheckBox(fl!("paste"), None, false, MenuAction::Paste),
+                menu::Item::CheckBox(fl!("delete"), None, false, MenuAction::Delete),
+                menu::Item::Divider,
+                menu::Item::CheckBox(fl!("find"), None, false, MenuAction::Find),
+                menu::Item::CheckBox(fl!("find-next"), None, false, MenuAction::FindNext),
+                menu::Item::CheckBox(fl!("replace"), None, false, MenuAction::Replace),
+            ],
+        );
+        if self.config.word_wrap {
+            items.push(aligned_disabled_item(
+                fl!("go-to"),
+                menu_shortcut(MenuAction::GoTo, &self.key_binds),
+            ));
+        } else {
+            items.extend(menu::items(
+                &self.key_binds,
+                vec![menu::Item::CheckBox(
+                    fl!("go-to"),
+                    None,
+                    false,
+                    MenuAction::GoTo,
+                )],
+            ));
+        }
+        items.extend(menu::items(
+            &self.key_binds,
+            vec![
+                menu::Item::CheckBox(fl!("select-all"), None, false, MenuAction::SelectAll),
+                menu::Item::CheckBox(fl!("time-date"), None, false, MenuAction::InsertDateTime),
+            ],
+        ));
+        items
+    }
+
+    fn view_menu_items(&self) -> Vec<menu::Tree<Message>> {
+        let scheme = self.config.color_scheme;
+        let mut items = menu::items(
+            &self.key_binds,
+            vec![menu::Item::CheckBox(
+                fl!("status-bar"),
+                None,
+                self.config.show_status_bar,
+                MenuAction::ToggleStatusBar,
+            )],
+        );
+        items.push(aligned_folder(
+            fl!("color-scheme"),
+            menu::items(
+                &self.key_binds,
+                vec![
+                    menu::Item::CheckBox(
+                        fl!("system"),
+                        None,
+                        scheme == ColorScheme::System,
+                        MenuAction::Scheme(ColorScheme::System),
+                    ),
+                    menu::Item::CheckBox(
+                        fl!("light"),
+                        None,
+                        scheme == ColorScheme::Light,
+                        MenuAction::Scheme(ColorScheme::Light),
+                    ),
+                    menu::Item::CheckBox(
+                        fl!("dark"),
+                        None,
+                        scheme == ColorScheme::Dark,
+                        MenuAction::Scheme(ColorScheme::Dark),
+                    ),
+                ],
+            ),
+        ));
+        items
+    }
+
     fn is_dirty(&self) -> bool {
         self.content.text() != self.saved_text
     }
@@ -900,7 +1035,8 @@ impl App {
     }
 
     fn push_undo(&mut self) {
-        self.undo_stack.push(self.content.text());
+        self.undo_stack
+            .push((self.content.text(), self.content.cursor()));
         self.redo_stack.clear();
     }
 
@@ -1078,9 +1214,14 @@ impl App {
                 });
             }
             None => {
-                self.pending = Some(PendingDialog::Error {
-                    message: fl!("line-beyond-end"),
-                });
+                if let Some(PendingDialog::GoTo { error, .. }) = &mut self.pending {
+                    *error = Some(fl!("line-beyond-end"));
+                } else {
+                    self.pending = Some(PendingDialog::GoTo {
+                        input: self.goto_input.clone(),
+                        error: Some(fl!("line-beyond-end")),
+                    });
+                }
             }
         }
         Task::none()
@@ -1106,7 +1247,7 @@ impl App {
 
     fn reset_document(&mut self) -> Task<Message> {
         self.content = Content::new();
-        self.saved_text.clear();
+        self.saved_text = self.content.text();
         self.file_path = None;
         self.undo_stack.clear();
         self.redo_stack.clear();
@@ -1117,7 +1258,7 @@ impl App {
         match std::fs::read_to_string(&path) {
             Ok(text) => {
                 self.content = Content::with_text(&text);
-                self.saved_text = text;
+                self.saved_text = self.content.text();
                 self.file_path = Some(path);
                 self.undo_stack.clear();
                 self.redo_stack.clear();
@@ -1145,7 +1286,12 @@ impl App {
             Ok(()) => {
                 self.file_path = Some(path);
                 self.saved_text = text;
-                self.update_title()
+                let title = self.update_title();
+                if let Some(after) = self.pending_after.take() {
+                    Task::batch([title, self.proceed(after)])
+                } else {
+                    title
+                }
             }
             Err(err) => {
                 self.pending = Some(PendingDialog::Error {
@@ -1178,12 +1324,13 @@ impl App {
     }
 
     fn save_as_dialog(&self) -> Task<Message> {
+        let untitled = format!("{}.txt", fl!("untitled"));
         let name = self
             .file_path
             .as_ref()
             .and_then(|p| p.file_name())
             .and_then(|n| n.to_str())
-            .unwrap_or("Untitled.txt")
+            .unwrap_or(&untitled)
             .to_string();
         let directory = self
             .file_path
@@ -1210,10 +1357,11 @@ impl App {
     }
 
     fn close_window(&self) -> Task<Message> {
+        let exit = iced::exit();
         if let Some(id) = self.core.main_window_id() {
-            iced::window::close(id)
+            Task::batch([iced::window::close(id), exit])
         } else {
-            Task::none()
+            exit
         }
     }
 }
@@ -1240,12 +1388,26 @@ fn editor_key_binding(press: KeyPress, word_wrap: bool) -> Option<Binding<Messag
     }
 }
 
+fn intern_family(name: &str) -> &'static str {
+    static FAMILIES: OnceLock<Mutex<HashMap<String, &'static str>>> = OnceLock::new();
+    let mut map = FAMILIES
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(existing) = map.get(name) {
+        return existing;
+    }
+    let leaked: &'static str = Box::leak(name.to_string().into_boxed_str());
+    map.insert(name.to_string(), leaked);
+    leaked
+}
+
 fn font_from_family(family: &str) -> Font {
     let family = match family {
         "monospace" | "Monospace" => Family::Monospace,
         "sans-serif" | "Sans Serif" | "sans" => Family::SansSerif,
         "serif" | "Serif" => Family::Serif,
-        other => Family::Name(Box::leak(other.to_string().into_boxed_str())),
+        other => Family::Name(intern_family(other)),
     };
     Font {
         family,
@@ -1302,4 +1464,38 @@ fn cursor_selection(text: &str, cursor: text_editor::Cursor) -> Option<(usize, u
             (other, caret)
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn intern_family_reuses_the_same_pointer() {
+        let first = intern_family("JetBrains Mono");
+        let second = intern_family("JetBrains Mono");
+        assert!(std::ptr::eq(first, second));
+        assert_eq!(first, "JetBrains Mono");
+    }
+
+    #[test]
+    fn offset_to_position_snaps_mid_utf8() {
+        let text = "é\n日本語";
+        let at_mid = offset_to_position(text, 1);
+        assert_eq!(at_mid.line, 0);
+        assert_eq!(at_mid.column, 0);
+        let second_line = offset_to_position(text, "é\n".len());
+        assert_eq!(second_line.line, 1);
+        assert_eq!(second_line.column, 0);
+    }
+
+    #[test]
+    fn cursor_end_uses_the_end_of_the_selection() {
+        let text = "abc";
+        let cursor = text_editor::Cursor {
+            position: text_editor::Position { line: 0, column: 1 },
+            selection: Some(text_editor::Position { line: 0, column: 3 }),
+        };
+        assert_eq!(cursor_end(text, cursor), 3);
+    }
 }

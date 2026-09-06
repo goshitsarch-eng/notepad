@@ -40,12 +40,23 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="3.0.0" date="2026-04-13">
+    <release version="3.0.0" date="2026-09-06">
       <description>
         <p>
           Rewritten on libcosmic. NotePad is now a native COSMIC application
           with portal file dialogs, cosmic-config persistence, and system,
           light, and dark themes from the COSMIC desktop.
+        </p>
+        <p>
+          The File, Edit, Format, View, and Help menus share a leading check
+          column so command, toggle, and submenu labels line up.
+        </p>
+        <p>
+          Closing the window prompts to save, and Save from that dialog
+          continues New, Open, or Exit after Save As. A second launch focuses
+          the existing window and forwards file paths. Find, Go To, and the
+          status bar handle UTF-8 text. Undo and Redo restore the caret.
+          Word wrap, font, status bar, and color scheme persist in Flatpak.
         </p>
       </description>
     </release>

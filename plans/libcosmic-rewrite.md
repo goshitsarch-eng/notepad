@@ -108,24 +108,24 @@ libcosmic APIs: `Application`, `menu::bar`, `text_editor`, `dialog::file_chooser
 
 ## Implementation checklist
 
-- [ ] Add Cargo/just/i18n/toolchain scaffold modeled on cosmic-app-template (`APP_ID = "com.goshapps.Notepad"`, crate/bin `notepad`, libcosmic git + `tokio`, `winit`, `wgpu`, `xdg-portal`, `dbus-config`)
-- [ ] Implement `commands` (document text, find-next wrap, match-case, replace one/all, go-to) with `cargo test` ports of `test_commands.py`
-- [ ] Implement `App` model: `Content`, path, dirty/saved text, wrap, font, scheme, find/replace UI state, pending dialog enum
-- [ ] Wire File/Edit/Format/View/Help menus, keybinds, and `header_end` scheme button
-- [ ] Editor view: optional find/replace bar, `text_editor` with wrap/font, `footer` Ln/Col + wrap label
-- [ ] File tasks: portal open/save, UTF-8 load/save errors, New/Open/close unsaved guard, CLI path via `Flags`
-- [ ] Unix-socket single-instance (forward paths, ack, stale-socket unlink) + guarded `open_path`
-- [ ] Dialogs: Go To validation, Font, errors, Save changes; About context drawer
-- [ ] Persist config; apply System/Light/Dark through libcosmic theme
-- [ ] Fluent strings; desktop/metainfo/README/Flatpak 3.0.0; `just install` copies bin, desktop, metainfo, icon, LICENSE, COPYRIGHT
-- [ ] Packaging tests (Rust tests or `just test-packaging`) for license, identity, version, Cosmic BaseApp manifest
+- [x] Add Cargo/just/i18n/toolchain scaffold modeled on cosmic-app-template (`APP_ID = "com.goshapps.Notepad"`, crate/bin `notepad`, libcosmic git + `tokio`, `winit`, `wgpu`, `xdg-portal`, `dbus-config`)
+- [x] Implement `commands` (document text, find-next wrap, match-case, replace one/all, go-to) with `cargo test` ports of `test_commands.py`
+- [x] Implement `App` model: `Content`, path, dirty/saved text, wrap, font, scheme, find/replace UI state, pending dialog enum
+- [x] Wire File/Edit/Format/View/Help menus, keybinds, and `header_end` scheme button. Every dropdown item reserves libcosmic’s check column so Format/View labels line up with File/Edit/Help
+- [x] Editor view: optional find/replace bar, `text_editor` with wrap/font, `footer` Ln/Col + wrap label
+- [x] File tasks: portal open/save, UTF-8 load/save errors, New/Open/close unsaved guard, CLI path via `Flags`
+- [x] Unix-socket single-instance (forward paths, ack, stale-socket unlink) + guarded `open_path`
+- [x] Dialogs: Go To validation, Font, errors, Save changes; About context drawer
+- [x] Persist config; apply System/Light/Dark through libcosmic theme
+- [x] Fluent strings; desktop/metainfo/README/Flatpak 3.0.0; `just install` copies bin, desktop, metainfo, icon, LICENSE, COPYRIGHT
+- [x] Packaging tests (Rust tests or `just test-packaging`) for license, identity, version, Cosmic BaseApp manifest
 
 ## Verification
 
 - `cargo test` — command helpers (find wrap, case, replace counts, go-to range)
 - `cargo clippy` / `just check` — no warnings on new code
 - `just run` — empty Untitled window; type; Ln/Col; wrap; F5; undo/redo; find/replace/go-to; font
-- Manual: New/Open/Save/Save As, unsaved close, Light/Dark/System, About, Esc closes find
+- Manual: New/Open/Save/Save As, unsaved close, Light/Dark/System, About, Esc closes find; Format/View menu labels line up with File/Edit/Help
 - Second process with a file argument focuses the first window and offers the unsaved guard
 - `desktop-file-validate` + AppStream on metainfo
 - `flatpak-builder` with Cosmic BaseApp; `flatpak run com.goshapps.Notepad`

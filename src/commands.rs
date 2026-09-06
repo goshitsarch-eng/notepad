@@ -39,11 +39,18 @@ fn match_prefix_ci(hay: &str, needle: &str) -> Option<usize> {
 fn find_from(
     haystack: &str,
     needle: &str,
-    start: usize,
+    mut start: usize,
     match_case: bool,
 ) -> Option<(usize, usize)> {
-    if needle.is_empty() || start > haystack.len() || !haystack.is_char_boundary(start) {
+    if needle.is_empty() || start > haystack.len() {
         return None;
+    }
+    if !haystack.is_char_boundary(start) {
+        start = haystack
+            .char_indices()
+            .map(|(i, _)| i)
+            .find(|&i| i > start)
+            .unwrap_or(haystack.len());
     }
     let hay = &haystack[start..];
     if match_case {
@@ -192,13 +199,12 @@ pub fn goto_line(text: &str, line_number: usize) -> Option<usize> {
 
 /// 1-based line and column of a byte offset.
 #[must_use]
-pub fn line_col_at(text: &str, offset: usize) -> (usize, usize) {
-    let offset = offset.min(text.len());
-    let prefix = if text.is_char_boundary(offset) {
-        &text[..offset]
-    } else {
-        text
-    };
+pub fn line_col_at(text: &str, mut offset: usize) -> (usize, usize) {
+    offset = offset.min(text.len());
+    while offset > 0 && !text.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    let prefix = &text[..offset];
     let line = prefix.bytes().filter(|&b| b == b'\n').count() + 1;
     let col = prefix
         .rsplit('\n')
@@ -208,6 +214,9 @@ pub fn line_col_at(text: &str, offset: usize) -> (usize, usize) {
 }
 
 /// Convert a 0-based line/column to a byte offset.
+///
+/// If `column` is past the end of `line`, the offset of that line's newline
+/// (or EOF on the last line) is returned rather than walking into later lines.
 #[must_use]
 pub fn offset_at_line_col(text: &str, line: usize, column: usize) -> usize {
     let mut current_line = 0usize;
@@ -217,6 +226,9 @@ pub fn offset_at_line_col(text: &str, line: usize, column: usize) -> usize {
             return i;
         }
         if ch == '\n' {
+            if current_line == line {
+                return i;
+            }
             current_line += 1;
             current_col = 0;
         } else {
@@ -341,5 +353,59 @@ mod tests {
     #[test]
     fn rejects_far_out_of_range() {
         assert!(goto_line("a\nb", 100).is_none());
+    }
+
+    #[test]
+    fn line_col_at_snaps_mid_utf8_to_previous_boundary() {
+        let text = "é\nx";
+        assert_eq!(text.as_bytes()[0], 0xc3);
+        assert_eq!(line_col_at(text, 1), (1, 1));
+        assert_eq!(line_col_at(text, 2), (1, 2));
+        assert_eq!(line_col_at(text, 3), (2, 1));
+    }
+
+    #[test]
+    fn offset_at_line_col_stays_on_requested_line() {
+        let text = "ab\ncd";
+        assert_eq!(offset_at_line_col(text, 0, 0), 0);
+        assert_eq!(offset_at_line_col(text, 0, 2), 2);
+        assert_eq!(offset_at_line_col(text, 0, 99), 2);
+        assert_eq!(offset_at_line_col(text, 1, 0), 3);
+        assert_eq!(offset_at_line_col(text, 1, 99), 5);
+    }
+
+    #[test]
+    fn find_from_snaps_forward_from_mid_utf8_start() {
+        let text = "éabc";
+        assert_eq!(find_from(text, "abc", 1, true), Some((2, 5)));
+        assert!(find_from(text, "abc", text.len() + 1, true).is_none());
+    }
+
+    #[test]
+    fn line_col_and_find_handle_cjk() {
+        let text = "日本語\nnext";
+        assert_eq!(line_col_at(text, 0), (1, 1));
+        assert_eq!(line_col_at(text, "日".len()), (1, 2));
+        assert_eq!(line_col_at(text, "日本語".len()), (1, 4));
+        let mid = 1;
+        assert!(!text.is_char_boundary(mid));
+        assert_eq!(line_col_at(text, mid), (1, 1));
+        assert_eq!(
+            find_next(text, mid, "next", true, true),
+            Some(("日本語\n".len(), text.len()))
+        );
+        assert_eq!(offset_at_line_col(text, 0, 99), "日本語".len());
+        assert_eq!(offset_at_line_col(text, 1, 0), "日本語\n".len());
+    }
+
+    #[test]
+    fn find_next_wraps_after_last_match() {
+        let text = "日本語 one 日本語";
+        let first = find_next(text, 0, "日本語", true, true).unwrap();
+        assert_eq!(first, (0, "日本語".len()));
+        let second = find_next(text, first.1, "日本語", true, true).unwrap();
+        assert_eq!(&text[second.0..second.1], "日本語");
+        let wrapped = find_next(text, second.1, "日本語", true, true).unwrap();
+        assert_eq!(wrapped, first);
     }
 }

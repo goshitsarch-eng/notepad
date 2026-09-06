@@ -8,11 +8,11 @@ mod key_bind;
 mod single_instance;
 
 use crate::app::{App, Flags};
-use crate::config::{theme_for, Config};
+use crate::config::{Config, theme_for};
+use cosmic::Application;
 use cosmic::app::Settings;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::{Limits, Size};
-use cosmic::Application;
 use std::path::PathBuf;
 
 fn abs_path(arg: String) -> PathBuf {
@@ -48,7 +48,8 @@ fn main() -> cosmic::iced::Result {
         .size(Size::new(820.0, 600.0))
         .size_limits(Limits::NONE.min_width(360.0).min_height(180.0))
         .theme(theme_for(startup_theme.color_scheme))
-        .transparent(false);
+        .transparent(false)
+        .exit_on_close(false);
 
     cosmic::app::run::<App>(settings, Flags { files })
 }
