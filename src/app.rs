@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use crate::commands::{self, ReplaceResult};
-use crate::config::{ColorScheme, Config};
+use crate::config::{theme_for, ColorScheme, Config};
 use crate::fl;
 use crate::key_bind;
 use crate::single_instance;
@@ -1237,14 +1237,6 @@ fn editor_key_binding(press: KeyPress, word_wrap: bool) -> Option<Binding<Messag
             _ => Binding::from_key_press(press),
         },
         _ => Binding::from_key_press(press),
-    }
-}
-
-fn theme_for(scheme: ColorScheme) -> cosmic::Theme {
-    match scheme {
-        ColorScheme::System => cosmic::theme::system_preference(),
-        ColorScheme::Light => cosmic::theme::system_light(),
-        ColorScheme::Dark => cosmic::theme::system_dark(),
     }
 }
 
