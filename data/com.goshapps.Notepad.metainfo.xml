@@ -4,12 +4,12 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>NotePad</name>
-  <summary>A native Qt 6 clone of Microsoft Notepad</summary>
+  <summary>A native COSMIC clone of Microsoft Notepad</summary>
   <description>
     <p>
       NotePad is a lightweight plain-text editor that recreates the classic
-      Microsoft Notepad (Windows XP) experience using Qt 6, with support for
-      light and dark modes following the Kirigami color guidelines.
+      Microsoft Notepad (Windows XP) experience using libcosmic, with support
+      for system, light, and dark color schemes on the COSMIC desktop.
     </p>
     <p>
       This is an independent implementation and is not affiliated with or
@@ -32,8 +32,23 @@
   <developer id="com.goshapps">
     <name>Gosh</name>
   </developer>
+  <provides>
+    <id>com.system76.CosmicApplication</id>
+    <binaries>
+      <binary>notepad</binary>
+    </binaries>
+  </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="3.0.0" date="2026-04-13">
+      <description>
+        <p>
+          Rewritten on libcosmic. NotePad is now a native COSMIC application
+          with portal file dialogs, cosmic-config persistence, and system,
+          light, and dark themes from the COSMIC desktop.
+        </p>
+      </description>
+    </release>
     <release version="2.0.4" date="2026-09-01">
       <description>
         <p>

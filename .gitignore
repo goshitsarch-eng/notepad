@@ -1,6 +1,12 @@
 .flatpak-builder/
 build-flatpak*/
 _build*/
+target/
+.cargo/
+vendor/
+vendor.tar
 __pycache__/
 *.pyc
 .pytest_cache/
+*.pdb
+**/*.rs.bk

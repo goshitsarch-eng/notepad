@@ -1,8 +1,0 @@
-#!@PYTHON@
-import sys
-
-sys.path.insert(0, '@PKGDATADIR@')
-
-from main import main
-
-sys.exit(main('@VERSION@'))

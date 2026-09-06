@@ -1,0 +1,1313 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+use crate::commands::{self, ReplaceResult};
+use crate::config::{ColorScheme, Config};
+use crate::fl;
+use crate::key_bind;
+use crate::single_instance;
+use chrono::Datelike;
+use cosmic::app::Task;
+use cosmic::app::context_drawer::{self, ContextDrawer};
+use cosmic::cosmic_config::{self, CosmicConfigEntry};
+use cosmic::dialog::file_chooser::{self, FileFilter};
+use cosmic::iced::clipboard;
+use cosmic::iced::core::text::Wrapping;
+use cosmic::iced::font::{Family, Stretch, Style as FontStyle, Weight};
+use cosmic::iced::keyboard::{Key, key::Named};
+use cosmic::iced::window;
+use cosmic::iced::{Alignment, Font, Length, Subscription};
+use cosmic::prelude::*;
+use cosmic::widget::about::About;
+use cosmic::widget::menu;
+use cosmic::widget::text_editor::{self, Action, Binding, Content, Edit, KeyPress};
+use cosmic::widget::{self, icon};
+use cosmic::{command, iced};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use url::Url;
+
+const REPOSITORY: &str = env!("CARGO_PKG_REPOSITORY");
+const APP_ICON: &[u8] =
+    include_bytes!("../data/icons/hicolor/scalable/apps/com.goshapps.Notepad.svg");
+
+const FONT_FAMILIES: &[&str] = &[
+    "monospace",
+    "sans-serif",
+    "serif",
+    "Noto Sans Mono",
+    "Open Sans",
+    "DejaVu Sans Mono",
+    "Liberation Mono",
+    "FreeMono",
+    "Ubuntu Mono",
+    "Source Code Pro",
+    "Fira Code",
+    "JetBrains Mono",
+    "Noto Sans",
+    "Noto Serif",
+];
+
+const FONT_SIZES: &[u16] = &[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36];
+
+/// Data passed into [`App::init`].
+#[derive(Clone, Debug, Default)]
+pub struct Flags {
+    pub files: Vec<PathBuf>,
+}
+
+/// What to do after the unsaved-changes dialog is resolved.
+#[derive(Clone, Debug)]
+pub enum AfterSave {
+    New,
+    Open,
+    OpenPath(PathBuf),
+    Close,
+}
+
+/// Modal dialog currently shown in the window.
+#[derive(Clone, Debug)]
+pub enum PendingDialog {
+    SaveChanges {
+        after: AfterSave,
+    },
+    GoTo {
+        input: String,
+        error: Option<String>,
+    },
+    Font,
+    Error {
+        message: String,
+    },
+}
+
+/// The application model.
+pub struct App {
+    core: cosmic::Core,
+    about: About,
+    context_page: ContextPage,
+    key_binds: HashMap<menu::KeyBind, MenuAction>,
+    config: Config,
+    config_handler: Option<cosmic_config::Config>,
+    content: Content,
+    file_path: Option<PathBuf>,
+    saved_text: String,
+    editor_font: Font,
+    find_visible: bool,
+    replace_visible: bool,
+    find_text: String,
+    replace_text: String,
+    match_case: bool,
+    goto_input: String,
+    font_family_input: String,
+    font_size_index: usize,
+    pending: Option<PendingDialog>,
+    undo_stack: Vec<String>,
+    redo_stack: Vec<String>,
+    font_family_labels: Vec<String>,
+    font_size_labels: Vec<String>,
+}
+
+/// Messages emitted by the application and its widgets.
+#[derive(Clone, Debug)]
+pub enum Message {
+    Editor(Action),
+    New,
+    Open,
+    OpenSelected(Url),
+    OpenExternal(Vec<PathBuf>),
+    Save,
+    SaveAs,
+    SaveSelected(Url),
+    Exit,
+    Undo,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    ClipboardPaste(Option<String>),
+    Delete,
+    Find,
+    FindNext,
+    Replace,
+    ReplaceOne,
+    ReplaceAll,
+    CloseFind,
+    FindText(String),
+    ReplaceText(String),
+    MatchCase(bool),
+    GoTo,
+    GoToInput(String),
+    GoToConfirm,
+    SelectAll,
+    InsertDateTime,
+    ToggleWrap,
+    ToggleStatusBar,
+    Font,
+    FontFamily(usize),
+    FontSize(usize),
+    FontFamilyInput(String),
+    ApplyFont,
+    Scheme(ColorScheme),
+    ToggleScheme,
+    LaunchUrl(String),
+    ToggleContextPage(ContextPage),
+    DialogCancel,
+    DialogSave,
+    DialogDiscard,
+    CloseError,
+    UpdateConfig(Config),
+    Error(String),
+    Cancelled,
+}
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+pub enum ContextPage {
+    #[default]
+    About,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum MenuAction {
+    New,
+    Open,
+    Save,
+    SaveAs,
+    Exit,
+    Undo,
+    Redo,
+    Cut,
+    Copy,
+    Paste,
+    Delete,
+    Find,
+    FindNext,
+    Replace,
+    GoTo,
+    SelectAll,
+    InsertDateTime,
+    ToggleWrap,
+    Font,
+    ToggleStatusBar,
+    Scheme(ColorScheme),
+    About,
+}
+
+impl menu::action::MenuAction for MenuAction {
+    type Message = Message;
+
+    fn message(&self) -> Self::Message {
+        match self {
+            MenuAction::New => Message::New,
+            MenuAction::Open => Message::Open,
+            MenuAction::Save => Message::Save,
+            MenuAction::SaveAs => Message::SaveAs,
+            MenuAction::Exit => Message::Exit,
+            MenuAction::Undo => Message::Undo,
+            MenuAction::Redo => Message::Redo,
+            MenuAction::Cut => Message::Cut,
+            MenuAction::Copy => Message::Copy,
+            MenuAction::Paste => Message::Paste,
+            MenuAction::Delete => Message::Delete,
+            MenuAction::Find => Message::Find,
+            MenuAction::FindNext => Message::FindNext,
+            MenuAction::Replace => Message::Replace,
+            MenuAction::GoTo => Message::GoTo,
+            MenuAction::SelectAll => Message::SelectAll,
+            MenuAction::InsertDateTime => Message::InsertDateTime,
+            MenuAction::ToggleWrap => Message::ToggleWrap,
+            MenuAction::Font => Message::Font,
+            MenuAction::ToggleStatusBar => Message::ToggleStatusBar,
+            MenuAction::Scheme(scheme) => Message::Scheme(*scheme),
+            MenuAction::About => Message::ToggleContextPage(ContextPage::About),
+        }
+    }
+}
+
+impl cosmic::Application for App {
+    type Executor = cosmic::executor::Default;
+    type Flags = Flags;
+    type Message = Message;
+    const APP_ID: &'static str = "com.goshapps.Notepad";
+
+    fn core(&self) -> &cosmic::Core {
+        &self.core
+    }
+
+    fn core_mut(&mut self) -> &mut cosmic::Core {
+        &mut self.core
+    }
+
+    fn init(core: cosmic::Core, flags: Self::Flags) -> (Self, Task<Self::Message>) {
+        let (config_handler, config) =
+            match cosmic_config::Config::new(Self::APP_ID, Config::VERSION) {
+                Ok(handler) => {
+                    let config = Config::get_entry(&handler).unwrap_or_else(|(_, config)| config);
+                    (Some(handler), config)
+                }
+                Err(_) => (None, Config::default()),
+            };
+
+        let about = About::default()
+            .name(fl!("app-title"))
+            .icon(widget::icon::from_svg_bytes(APP_ICON))
+            .version(env!("CARGO_PKG_VERSION"))
+            .links([(fl!("repository"), REPOSITORY)])
+            .license(env!("CARGO_PKG_LICENSE"));
+
+        let mut app = App {
+            core,
+            about,
+            context_page: ContextPage::About,
+            key_binds: key_bind::key_binds(),
+            editor_font: font_from_family(&config.font_family),
+            font_family_input: config.font_family.clone(),
+            font_size_index: FONT_SIZES
+                .iter()
+                .position(|s| *s == config.font_size)
+                .unwrap_or(5),
+            config,
+            config_handler,
+            content: Content::new(),
+            file_path: None,
+            saved_text: String::new(),
+            find_visible: false,
+            replace_visible: false,
+            find_text: String::new(),
+            replace_text: String::new(),
+            match_case: false,
+            goto_input: String::from("1"),
+            pending: None,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            font_family_labels: FONT_FAMILIES.iter().map(|s| (*s).to_string()).collect(),
+            font_size_labels: FONT_SIZES.iter().map(ToString::to_string).collect(),
+        };
+
+        let mut tasks = vec![
+            app.update_title(),
+            command::set_theme(theme_for(app.config.color_scheme)),
+        ];
+
+        if let Some(path) = flags.files.first() {
+            tasks.push(app.load_path(path.clone()));
+        }
+
+        (app, Task::batch(tasks))
+    }
+
+    fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
+        let wrap = self.config.word_wrap;
+        let scheme = self.config.color_scheme;
+
+        let menu_bar = menu::bar(vec![
+            menu::Tree::with_children(
+                menu::root(fl!("file")).apply(Element::from),
+                menu::items(
+                    &self.key_binds,
+                    vec![
+                        menu::Item::Button(fl!("new"), None, MenuAction::New),
+                        menu::Item::Button(fl!("open"), None, MenuAction::Open),
+                        menu::Item::Button(fl!("save"), None, MenuAction::Save),
+                        menu::Item::Button(fl!("save-as"), None, MenuAction::SaveAs),
+                        menu::Item::Button(fl!("exit"), None, MenuAction::Exit),
+                    ],
+                ),
+            ),
+            menu::Tree::with_children(
+                menu::root(fl!("edit")).apply(Element::from),
+                menu::items(
+                    &self.key_binds,
+                    vec![
+                        menu::Item::Button(fl!("undo"), None, MenuAction::Undo),
+                        menu::Item::Button(fl!("redo"), None, MenuAction::Redo),
+                        menu::Item::Divider,
+                        menu::Item::Button(fl!("cut"), None, MenuAction::Cut),
+                        menu::Item::Button(fl!("copy"), None, MenuAction::Copy),
+                        menu::Item::Button(fl!("paste"), None, MenuAction::Paste),
+                        menu::Item::Button(fl!("delete"), None, MenuAction::Delete),
+                        menu::Item::Divider,
+                        menu::Item::Button(fl!("find"), None, MenuAction::Find),
+                        menu::Item::Button(fl!("find-next"), None, MenuAction::FindNext),
+                        menu::Item::Button(fl!("replace"), None, MenuAction::Replace),
+                        if wrap {
+                            menu::Item::ButtonDisabled(fl!("go-to"), None, MenuAction::GoTo)
+                        } else {
+                            menu::Item::Button(fl!("go-to"), None, MenuAction::GoTo)
+                        },
+                        menu::Item::Button(fl!("select-all"), None, MenuAction::SelectAll),
+                        menu::Item::Button(fl!("time-date"), None, MenuAction::InsertDateTime),
+                    ],
+                ),
+            ),
+            menu::Tree::with_children(
+                menu::root(fl!("format")).apply(Element::from),
+                menu::items(
+                    &self.key_binds,
+                    vec![
+                        menu::Item::CheckBox(fl!("word-wrap"), None, wrap, MenuAction::ToggleWrap),
+                        menu::Item::Button(fl!("font"), None, MenuAction::Font),
+                    ],
+                ),
+            ),
+            menu::Tree::with_children(
+                menu::root(fl!("view")).apply(Element::from),
+                menu::items(
+                    &self.key_binds,
+                    vec![
+                        menu::Item::CheckBox(
+                            fl!("status-bar"),
+                            None,
+                            self.config.show_status_bar,
+                            MenuAction::ToggleStatusBar,
+                        ),
+                        menu::Item::Folder(
+                            fl!("color-scheme"),
+                            vec![
+                                menu::Item::CheckBox(
+                                    fl!("system"),
+                                    None,
+                                    scheme == ColorScheme::System,
+                                    MenuAction::Scheme(ColorScheme::System),
+                                ),
+                                menu::Item::CheckBox(
+                                    fl!("light"),
+                                    None,
+                                    scheme == ColorScheme::Light,
+                                    MenuAction::Scheme(ColorScheme::Light),
+                                ),
+                                menu::Item::CheckBox(
+                                    fl!("dark"),
+                                    None,
+                                    scheme == ColorScheme::Dark,
+                                    MenuAction::Scheme(ColorScheme::Dark),
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+            ),
+            menu::Tree::with_children(
+                menu::root(fl!("help")).apply(Element::from),
+                menu::items(
+                    &self.key_binds,
+                    vec![menu::Item::Button(fl!("about"), None, MenuAction::About)],
+                ),
+            ),
+        ]);
+
+        vec![menu_bar.into()]
+    }
+
+    fn header_end(&self) -> Vec<Element<'_, Self::Message>> {
+        let dark = self.effective_is_dark();
+        let (label, icon_name, tooltip) = if dark {
+            (
+                fl!("light"),
+                "weather-clear-day-symbolic",
+                fl!("switch-to-light"),
+            )
+        } else {
+            (
+                fl!("dark"),
+                "weather-clear-night-symbolic",
+                fl!("toggle-dark"),
+            )
+        };
+
+        vec![
+            widget::button::standard(label)
+                .leading_icon(icon::from_name(icon_name))
+                .on_press(Message::ToggleScheme)
+                .tooltip(tooltip)
+                .into(),
+        ]
+    }
+
+    fn context_drawer(&self) -> Option<ContextDrawer<'_, Self::Message>> {
+        if !self.core.window.show_context {
+            return None;
+        }
+
+        Some(match self.context_page {
+            ContextPage::About => context_drawer::about(
+                &self.about,
+                |url: &str| Message::LaunchUrl(url.to_string()),
+                Message::ToggleContextPage(ContextPage::About),
+            ),
+        })
+    }
+
+    fn dialog(&self) -> Option<Element<'_, Self::Message>> {
+        match &self.pending {
+            None => None,
+            Some(PendingDialog::SaveChanges { .. }) => Some(
+                widget::dialog()
+                    .title(fl!("save-changes"))
+                    .body(fl!("save-changes-body"))
+                    .primary_action(
+                        widget::button::suggested(fl!("save")).on_press(Message::DialogSave),
+                    )
+                    .secondary_action(
+                        widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
+                    )
+                    .tertiary_action(
+                        widget::button::destructive(fl!("discard"))
+                            .on_press(Message::DialogDiscard),
+                    )
+                    .into(),
+            ),
+            Some(PendingDialog::GoTo { input, error }) => {
+                let mut dialog = widget::dialog()
+                    .title(fl!("go-to-line"))
+                    .control(
+                        widget::column::with_capacity(2)
+                            .spacing(8)
+                            .push(widget::text::body(fl!("line-number")))
+                            .push(
+                                widget::text_input("", input)
+                                    .on_input(Message::GoToInput)
+                                    .on_submit(|_| Message::GoToConfirm),
+                            ),
+                    )
+                    .primary_action(
+                        widget::button::suggested(fl!("go-to-button"))
+                            .on_press(Message::GoToConfirm),
+                    )
+                    .secondary_action(
+                        widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
+                    );
+                if let Some(error) = error {
+                    dialog = dialog.body(error.clone());
+                }
+                Some(dialog.into())
+            }
+            Some(PendingDialog::Font) => {
+                let family_idx = FONT_FAMILIES
+                    .iter()
+                    .position(|f| *f == self.font_family_input)
+                    .unwrap_or(0);
+                let size_idx = self.font_size_index.min(FONT_SIZES.len() - 1);
+                Some(
+                    widget::dialog()
+                        .title(fl!("font-title"))
+                        .control(
+                            widget::column::with_capacity(4)
+                                .spacing(8)
+                                .push(widget::text::body(fl!("font-family")))
+                                .push(widget::dropdown(
+                                    &self.font_family_labels,
+                                    Some(family_idx),
+                                    Message::FontFamily,
+                                ))
+                                .push(
+                                    widget::text_input("", &self.font_family_input)
+                                        .on_input(Message::FontFamilyInput),
+                                )
+                                .push(widget::text::body(fl!("font-size")))
+                                .push(widget::dropdown(
+                                    &self.font_size_labels,
+                                    Some(size_idx),
+                                    Message::FontSize,
+                                )),
+                        )
+                        .primary_action(
+                            widget::button::suggested(fl!("ok")).on_press(Message::ApplyFont),
+                        )
+                        .secondary_action(
+                            widget::button::standard(fl!("cancel")).on_press(Message::DialogCancel),
+                        )
+                        .into(),
+                )
+            }
+            Some(PendingDialog::Error { message }) => Some(
+                widget::dialog()
+                    .title(fl!("error"))
+                    .body(message.clone())
+                    .primary_action(
+                        widget::button::suggested(fl!("ok")).on_press(Message::CloseError),
+                    )
+                    .into(),
+            ),
+        }
+    }
+
+    fn footer(&self) -> Option<Element<'_, Self::Message>> {
+        if !self.config.show_status_bar {
+            return None;
+        }
+        let text = self.content.text();
+        let cursor = self.content.cursor();
+        let offset =
+            commands::offset_at_line_col(&text, cursor.position.line, cursor.position.column);
+        let (line, col) = commands::line_col_at(&text, offset);
+        let wrap = if self.config.word_wrap {
+            fl!("word-wrap-on")
+        } else {
+            fl!("word-wrap-off")
+        };
+        Some(
+            widget::row::with_capacity(3)
+                .push(widget::text::body(wrap))
+                .push(widget::space::horizontal())
+                .push(widget::text::body(fl!("ln-col", line = line, col = col)))
+                .padding(8)
+                .align_y(Alignment::Center)
+                .into(),
+        )
+    }
+
+    fn view(&self) -> Element<'_, Self::Message> {
+        let mut column = widget::column::with_capacity(2).width(Length::Fill);
+
+        if self.find_visible {
+            column = column.push(self.find_bar());
+        }
+
+        let wrapping = if self.config.word_wrap {
+            Wrapping::Word
+        } else {
+            Wrapping::None
+        };
+
+        let word_wrap = self.config.word_wrap;
+        let editor = widget::text_editor::text_editor(&self.content)
+            .on_action(Message::Editor)
+            .font(self.editor_font)
+            .size(f32::from(self.config.font_size))
+            .wrapping(wrapping)
+            .height(Length::Fill)
+            .key_binding(move |press| editor_key_binding(press, word_wrap));
+
+        column.push(editor).into()
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        Subscription::batch(vec![
+            self.core()
+                .watch_config::<Config>(Self::APP_ID)
+                .map(|update| Message::UpdateConfig(update.config)),
+            single_instance::subscription().map(Message::OpenExternal),
+        ])
+    }
+
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+        match message {
+            Message::Editor(action) => {
+                if action.is_edit() {
+                    let before = self.content.text();
+                    self.content.perform(action);
+                    let after = self.content.text();
+                    if before != after {
+                        self.undo_stack.push(before);
+                        self.redo_stack.clear();
+                    }
+                } else {
+                    self.content.perform(action);
+                }
+                return self.update_title();
+            }
+            Message::New => return self.guard_unsaved(AfterSave::New),
+            Message::Open => return self.guard_unsaved(AfterSave::Open),
+            Message::OpenSelected(url) => match url.to_file_path() {
+                Ok(path) => return self.guard_unsaved(AfterSave::OpenPath(path)),
+                Err(()) => {
+                    self.pending = Some(PendingDialog::Error {
+                        message: format!("{}\n{url}", fl!("could-not-open")),
+                    });
+                }
+            },
+            Message::OpenExternal(files) => {
+                if let Some(path) = files.into_iter().next() {
+                    return self.guard_unsaved(AfterSave::OpenPath(path));
+                }
+            }
+            Message::Save => return self.save(false),
+            Message::SaveAs => return self.save_as_dialog(),
+            Message::SaveSelected(url) => match url.to_file_path() {
+                Ok(path) => return self.write_to(path),
+                Err(()) => {
+                    self.pending = Some(PendingDialog::Error {
+                        message: format!("{}\n{url}", fl!("could-not-save")),
+                    });
+                }
+            },
+            Message::Exit => return self.guard_unsaved(AfterSave::Close),
+            Message::Undo => {
+                if let Some(prev) = self.undo_stack.pop() {
+                    self.redo_stack.push(self.content.text());
+                    self.content = Content::with_text(&prev);
+                    return self.update_title();
+                }
+            }
+            Message::Redo => {
+                if let Some(next) = self.redo_stack.pop() {
+                    self.undo_stack.push(self.content.text());
+                    self.content = Content::with_text(&next);
+                    return self.update_title();
+                }
+            }
+            Message::Cut => {
+                if let Some(selected) = self.content.selection() {
+                    self.push_undo();
+                    self.content.perform(Action::Edit(Edit::Delete));
+                    return clipboard::write(selected);
+                }
+            }
+            Message::Copy => {
+                if let Some(selected) = self.content.selection() {
+                    return clipboard::write(selected);
+                }
+            }
+            Message::Paste => {
+                return clipboard::read()
+                    .map(|value| cosmic::Action::App(Message::ClipboardPaste(value)));
+            }
+            Message::ClipboardPaste(text) => {
+                if let Some(text) = text {
+                    self.push_undo();
+                    self.content
+                        .perform(Action::Edit(Edit::Paste(Arc::new(text))));
+                    return self.update_title();
+                }
+            }
+            Message::Delete => {
+                if self.content.selection().is_some() {
+                    self.push_undo();
+                    self.content.perform(Action::Edit(Edit::Delete));
+                    return self.update_title();
+                }
+            }
+            Message::Find => {
+                self.prefill_search_from_selection();
+                self.find_visible = true;
+                self.replace_visible = false;
+            }
+            Message::FindNext => return self.find_next(true),
+            Message::Replace => {
+                self.prefill_search_from_selection();
+                self.find_visible = true;
+                self.replace_visible = true;
+            }
+            Message::ReplaceOne => return self.replace_one(),
+            Message::ReplaceAll => return self.replace_all(),
+            Message::CloseFind => {
+                self.find_visible = false;
+                self.replace_visible = false;
+            }
+            Message::FindText(text) => self.find_text = text,
+            Message::ReplaceText(text) => self.replace_text = text,
+            Message::MatchCase(value) => self.match_case = value,
+            Message::GoTo => {
+                if !self.config.word_wrap {
+                    let text = self.content.text();
+                    let cursor = self.content.cursor();
+                    let offset = commands::offset_at_line_col(
+                        &text,
+                        cursor.position.line,
+                        cursor.position.column,
+                    );
+                    let (line, _) = commands::line_col_at(&text, offset);
+                    self.goto_input = line.to_string();
+                    self.pending = Some(PendingDialog::GoTo {
+                        input: self.goto_input.clone(),
+                        error: None,
+                    });
+                }
+            }
+            Message::GoToInput(input) => {
+                self.goto_input = input.clone();
+                if let Some(PendingDialog::GoTo {
+                    input: stored,
+                    error,
+                }) = &mut self.pending
+                {
+                    *stored = input;
+                    *error = None;
+                }
+            }
+            Message::GoToConfirm => return self.confirm_goto(),
+            Message::SelectAll => self.content.perform(Action::SelectAll),
+            Message::InsertDateTime => {
+                self.push_undo();
+                self.content
+                    .perform(Action::Edit(Edit::Paste(Arc::new(datetime_stamp()))));
+                return self.update_title();
+            }
+            Message::ToggleWrap => {
+                self.config.word_wrap = !self.config.word_wrap;
+                self.persist_config();
+            }
+            Message::ToggleStatusBar => {
+                self.config.show_status_bar = !self.config.show_status_bar;
+                self.persist_config();
+            }
+            Message::Font => {
+                self.font_family_input = self.config.font_family.clone();
+                self.font_size_index = FONT_SIZES
+                    .iter()
+                    .position(|s| *s == self.config.font_size)
+                    .unwrap_or(5);
+                self.pending = Some(PendingDialog::Font);
+            }
+            Message::FontFamily(index) => {
+                if let Some(family) = FONT_FAMILIES.get(index) {
+                    self.font_family_input = (*family).to_string();
+                }
+            }
+            Message::FontSize(index) => self.font_size_index = index.min(FONT_SIZES.len() - 1),
+            Message::FontFamilyInput(input) => self.font_family_input = input,
+            Message::ApplyFont => {
+                self.config.font_family = self.font_family_input.clone();
+                self.config.font_size = FONT_SIZES[self.font_size_index.min(FONT_SIZES.len() - 1)];
+                self.editor_font = font_from_family(&self.config.font_family);
+                self.pending = None;
+                self.persist_config();
+            }
+            Message::Scheme(scheme) => return self.apply_scheme(scheme),
+            Message::ToggleScheme => {
+                let target = if self.effective_is_dark() {
+                    ColorScheme::Light
+                } else {
+                    ColorScheme::Dark
+                };
+                return self.apply_scheme(target);
+            }
+            Message::ToggleContextPage(ContextPage::About) => {
+                if self.context_page == ContextPage::About {
+                    self.core.window.show_context = !self.core.window.show_context;
+                } else {
+                    self.context_page = ContextPage::About;
+                    self.core.window.show_context = true;
+                }
+            }
+            Message::LaunchUrl(url) => {
+                if let Err(err) = open::that_detached(&url) {
+                    eprintln!("failed to open {url:?}: {err}");
+                }
+            }
+            Message::DialogCancel => {
+                self.pending = None;
+            }
+            Message::DialogSave => {
+                if let Some(PendingDialog::SaveChanges { after }) = self.pending.take() {
+                    let task = self.save(false);
+                    if !self.is_dirty() {
+                        return Task::batch([task, self.proceed(after)]);
+                    }
+                    self.pending = Some(PendingDialog::SaveChanges { after });
+                    return task;
+                }
+            }
+            Message::DialogDiscard => {
+                if let Some(PendingDialog::SaveChanges { after }) = self.pending.take() {
+                    self.saved_text = self.content.text();
+                    return self.proceed(after);
+                }
+            }
+            Message::CloseError => self.pending = None,
+            Message::UpdateConfig(config) => {
+                self.config = config;
+                self.editor_font = font_from_family(&self.config.font_family);
+            }
+            Message::Error(message) => {
+                self.pending = Some(PendingDialog::Error { message });
+            }
+            Message::Cancelled => {}
+        }
+
+        Task::none()
+    }
+
+    fn on_escape(&mut self) -> Task<Self::Message> {
+        if self.pending.is_some() {
+            self.pending = None;
+            return Task::none();
+        }
+        if self.core.window.show_context {
+            self.core.window.show_context = false;
+            return Task::none();
+        }
+        if self.find_visible {
+            self.find_visible = false;
+            self.replace_visible = false;
+        }
+        Task::none()
+    }
+
+    fn on_close_requested(&self, _id: window::Id) -> Option<Self::Message> {
+        if self.is_dirty() {
+            Some(Message::Exit)
+        } else {
+            None
+        }
+    }
+
+    fn system_theme_update(
+        &mut self,
+        _keys: &[&'static str],
+        _new_theme: &cosmic::cosmic_theme::Theme,
+    ) -> Task<Self::Message> {
+        if self.config.color_scheme == ColorScheme::System {
+            command::set_theme(cosmic::theme::system_preference())
+        } else {
+            Task::none()
+        }
+    }
+}
+
+impl App {
+    fn is_dirty(&self) -> bool {
+        self.content.text() != self.saved_text
+    }
+
+    fn effective_is_dark(&self) -> bool {
+        match self.config.color_scheme {
+            ColorScheme::Dark => true,
+            ColorScheme::Light => false,
+            ColorScheme::System => cosmic::theme::is_dark(),
+        }
+    }
+
+    fn persist_config(&self) {
+        if let Some(handler) = &self.config_handler {
+            let _ = self.config.write_entry(handler);
+        }
+    }
+
+    fn apply_scheme(&mut self, scheme: ColorScheme) -> Task<Message> {
+        self.config.color_scheme = scheme;
+        self.persist_config();
+        command::set_theme(theme_for(scheme))
+    }
+
+    fn update_title(&mut self) -> Task<Message> {
+        let untitled = fl!("untitled");
+        let name = self
+            .file_path
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or(&untitled);
+        let marker = if self.is_dirty() { "•  " } else { "" };
+        let title = format!("{marker}{name} — {}", fl!("app-title"));
+        self.set_header_title(title.clone());
+        if let Some(id) = self.core.main_window_id() {
+            self.set_window_title(title, id)
+        } else {
+            Task::none()
+        }
+    }
+
+    fn push_undo(&mut self) {
+        self.undo_stack.push(self.content.text());
+        self.redo_stack.clear();
+    }
+
+    fn find_bar(&self) -> Element<'_, Message> {
+        let close = widget::button::icon(icon::from_name("window-close-symbolic"))
+            .on_press(Message::CloseFind)
+            .tooltip(fl!("close-find-tooltip"));
+
+        let find_row = widget::row::with_capacity(4)
+            .spacing(6)
+            .padding(8)
+            .align_y(Alignment::Center)
+            .push(close)
+            .push(
+                widget::text_input(fl!("find-placeholder"), &self.find_text)
+                    .on_input(Message::FindText)
+                    .on_submit(|_| Message::FindNext)
+                    .apply(widget::container)
+                    .width(Length::Fill),
+            )
+            .push(
+                widget::checkbox(self.match_case)
+                    .label(fl!("match-case"))
+                    .on_toggle(Message::MatchCase),
+            )
+            .push(widget::button::standard(fl!("find-next")).on_press(Message::FindNext));
+
+        if self.replace_visible {
+            widget::column::with_capacity(2)
+                .push(find_row)
+                .push(
+                    widget::row::with_capacity(3)
+                        .spacing(6)
+                        .padding([0, 8, 8, 8])
+                        .align_y(Alignment::Center)
+                        .push(
+                            widget::text_input(fl!("replace-placeholder"), &self.replace_text)
+                                .on_input(Message::ReplaceText)
+                                .on_submit(|_| Message::ReplaceOne)
+                                .apply(widget::container)
+                                .width(Length::Fill),
+                        )
+                        .push(
+                            widget::button::standard(fl!("replace-one"))
+                                .on_press(Message::ReplaceOne),
+                        )
+                        .push(
+                            widget::button::standard(fl!("replace-all"))
+                                .on_press(Message::ReplaceAll),
+                        ),
+                )
+                .into()
+        } else {
+            find_row.into()
+        }
+    }
+
+    fn prefill_search_from_selection(&mut self) {
+        if let Some(selected) = self.content.selection()
+            && !selected.is_empty()
+            && !selected.contains('\n')
+        {
+            self.find_text = selected;
+        }
+    }
+
+    fn needle(&self) -> String {
+        self.find_text.clone()
+    }
+
+    fn find_next(&mut self, show_not_found: bool) -> Task<Message> {
+        let needle = self.needle();
+        if needle.is_empty() {
+            return Task::none();
+        }
+        let text = self.content.text();
+        let cursor = self.content.cursor();
+        let start = cursor_end(&text, cursor);
+        if let Some((from, to)) = commands::find_next(&text, start, &needle, self.match_case, true)
+        {
+            self.select_range(&text, from, to);
+        } else if show_not_found {
+            self.pending = Some(PendingDialog::Error {
+                message: fl!("cannot-find", text = needle.as_str()),
+            });
+        }
+        Task::none()
+    }
+
+    fn replace_one(&mut self) -> Task<Message> {
+        let needle = self.needle();
+        if needle.is_empty() {
+            return Task::none();
+        }
+        let text = self.content.text();
+        let cursor = self.content.cursor();
+        let selection = cursor_selection(&text, cursor);
+        match commands::replace_and_find_next(
+            &text,
+            selection,
+            &needle,
+            &self.replace_text,
+            self.match_case,
+            true,
+        ) {
+            None => {
+                self.pending = Some(PendingDialog::Error {
+                    message: fl!("cannot-find", text = needle.as_str()),
+                });
+            }
+            Some(ReplaceResult::Found { range }) => {
+                self.select_range(&text, range.0, range.1);
+            }
+            Some(ReplaceResult::Replaced {
+                text: new_text,
+                next,
+            }) => {
+                self.push_undo();
+                self.content = Content::with_text(&new_text);
+                if let Some((from, to)) = next {
+                    self.select_range(&new_text, from, to);
+                }
+                return self.update_title();
+            }
+        }
+        Task::none()
+    }
+
+    fn replace_all(&mut self) -> Task<Message> {
+        let needle = self.needle();
+        if needle.is_empty() {
+            return Task::none();
+        }
+        let text = self.content.text();
+        let (new_text, count) =
+            commands::replace_all(&text, &needle, &self.replace_text, self.match_case);
+        if count == 0 {
+            self.pending = Some(PendingDialog::Error {
+                message: fl!("cannot-find", text = needle.as_str()),
+            });
+            Task::none()
+        } else {
+            self.push_undo();
+            self.content = Content::with_text(&new_text);
+            self.update_title()
+        }
+    }
+
+    fn select_range(&mut self, text: &str, from: usize, to: usize) {
+        self.content.move_to(text_editor::Cursor {
+            position: offset_to_position(text, to),
+            selection: Some(offset_to_position(text, from)),
+        });
+    }
+
+    fn confirm_goto(&mut self) -> Task<Message> {
+        let raw = self.goto_input.trim();
+        let Ok(line) = raw.parse::<usize>() else {
+            if let Some(PendingDialog::GoTo { error, .. }) = &mut self.pending {
+                *error = Some(fl!("invalid-line-number"));
+            } else {
+                self.pending = Some(PendingDialog::Error {
+                    message: fl!("invalid-line-number"),
+                });
+            }
+            return Task::none();
+        };
+        let text = self.content.text();
+        match commands::goto_line(&text, line) {
+            Some(offset) => {
+                self.pending = None;
+                self.content.move_to(text_editor::Cursor {
+                    position: offset_to_position(&text, offset),
+                    selection: None,
+                });
+            }
+            None => {
+                self.pending = Some(PendingDialog::Error {
+                    message: fl!("line-beyond-end"),
+                });
+            }
+        }
+        Task::none()
+    }
+
+    fn guard_unsaved(&mut self, after: AfterSave) -> Task<Message> {
+        if self.is_dirty() {
+            self.pending = Some(PendingDialog::SaveChanges { after });
+            Task::none()
+        } else {
+            self.proceed(after)
+        }
+    }
+
+    fn proceed(&mut self, after: AfterSave) -> Task<Message> {
+        match after {
+            AfterSave::New => self.reset_document(),
+            AfterSave::Open => self.open_dialog(),
+            AfterSave::OpenPath(path) => self.load_path(path),
+            AfterSave::Close => self.close_window(),
+        }
+    }
+
+    fn reset_document(&mut self) -> Task<Message> {
+        self.content = Content::new();
+        self.saved_text.clear();
+        self.file_path = None;
+        self.undo_stack.clear();
+        self.redo_stack.clear();
+        self.update_title()
+    }
+
+    fn load_path(&mut self, path: PathBuf) -> Task<Message> {
+        match std::fs::read_to_string(&path) {
+            Ok(text) => {
+                self.content = Content::with_text(&text);
+                self.saved_text = text;
+                self.file_path = Some(path);
+                self.undo_stack.clear();
+                self.redo_stack.clear();
+                self.update_title()
+            }
+            Err(err) => {
+                self.pending = Some(PendingDialog::Error {
+                    message: format!("{}\n{err}", fl!("could-not-open")),
+                });
+                Task::none()
+            }
+        }
+    }
+
+    fn save(&mut self, force_as: bool) -> Task<Message> {
+        if !force_as && let Some(path) = self.file_path.clone() {
+            return self.write_to(path);
+        }
+        self.save_as_dialog()
+    }
+
+    fn write_to(&mut self, path: PathBuf) -> Task<Message> {
+        let text = self.content.text();
+        match std::fs::write(&path, &text) {
+            Ok(()) => {
+                self.file_path = Some(path);
+                self.saved_text = text;
+                self.update_title()
+            }
+            Err(err) => {
+                self.pending = Some(PendingDialog::Error {
+                    message: format!("{}\n{err}", fl!("could-not-save")),
+                });
+                Task::none()
+            }
+        }
+    }
+
+    fn open_dialog(&self) -> Task<Message> {
+        let directory = self
+            .file_path
+            .as_ref()
+            .and_then(|p| p.parent().map(Path::to_path_buf));
+        cosmic::task::future(async move {
+            let mut dialog = file_chooser::open::Dialog::new()
+                .title(fl!("open-title"))
+                .filter(FileFilter::new(&fl!("text-files")).glob("*.txt"))
+                .filter(FileFilter::new(&fl!("all-files")).glob("*"));
+            if let Some(directory) = directory {
+                dialog = dialog.directory(directory);
+            }
+            match dialog.open_file().await {
+                Ok(response) => Message::OpenSelected(response.url().clone()),
+                Err(file_chooser::Error::Cancelled) => Message::Cancelled,
+                Err(why) => Message::Error(why.to_string()),
+            }
+        })
+    }
+
+    fn save_as_dialog(&self) -> Task<Message> {
+        let name = self
+            .file_path
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("Untitled.txt")
+            .to_string();
+        let directory = self
+            .file_path
+            .as_ref()
+            .and_then(|p| p.parent().map(Path::to_path_buf));
+        cosmic::task::future(async move {
+            let mut dialog = file_chooser::save::Dialog::new()
+                .title(fl!("save-as-title"))
+                .file_name(name)
+                .filter(FileFilter::new(&fl!("text-files")).glob("*.txt"))
+                .filter(FileFilter::new(&fl!("all-files")).glob("*"));
+            if let Some(directory) = directory {
+                dialog = dialog.directory(directory);
+            }
+            match dialog.save_file().await {
+                Ok(response) => match response.url() {
+                    Some(url) => Message::SaveSelected(url.clone()),
+                    None => Message::Cancelled,
+                },
+                Err(file_chooser::Error::Cancelled) => Message::Cancelled,
+                Err(why) => Message::Error(why.to_string()),
+            }
+        })
+    }
+
+    fn close_window(&self) -> Task<Message> {
+        if let Some(id) = self.core.main_window_id() {
+            iced::window::close(id)
+        } else {
+            Task::none()
+        }
+    }
+}
+
+fn editor_key_binding(press: KeyPress, word_wrap: bool) -> Option<Binding<Message>> {
+    match &press.key {
+        Key::Named(Named::F5) => Some(Binding::Custom(Message::InsertDateTime)),
+        Key::Named(Named::F3) => Some(Binding::Custom(Message::FindNext)),
+        Key::Character(c) if press.modifiers.control() => match c.as_str() {
+            "f" => Some(Binding::Custom(Message::Find)),
+            "h" => Some(Binding::Custom(Message::Replace)),
+            "g" if !word_wrap => Some(Binding::Custom(Message::GoTo)),
+            "n" => Some(Binding::Custom(Message::New)),
+            "o" => Some(Binding::Custom(Message::Open)),
+            "s" if press.modifiers.shift() => Some(Binding::Custom(Message::SaveAs)),
+            "s" => Some(Binding::Custom(Message::Save)),
+            "q" => Some(Binding::Custom(Message::Exit)),
+            "z" if press.modifiers.shift() => Some(Binding::Custom(Message::Redo)),
+            "z" => Some(Binding::Custom(Message::Undo)),
+            "y" => Some(Binding::Custom(Message::Redo)),
+            _ => Binding::from_key_press(press),
+        },
+        _ => Binding::from_key_press(press),
+    }
+}
+
+fn theme_for(scheme: ColorScheme) -> cosmic::Theme {
+    match scheme {
+        ColorScheme::System => cosmic::theme::system_preference(),
+        ColorScheme::Light => cosmic::theme::system_light(),
+        ColorScheme::Dark => cosmic::theme::system_dark(),
+    }
+}
+
+fn font_from_family(family: &str) -> Font {
+    let family = match family {
+        "monospace" | "Monospace" => Family::Monospace,
+        "sans-serif" | "Sans Serif" | "sans" => Family::SansSerif,
+        "serif" | "Serif" => Family::Serif,
+        other => Family::Name(Box::leak(other.to_string().into_boxed_str())),
+    };
+    Font {
+        family,
+        weight: Weight::Normal,
+        stretch: Stretch::Normal,
+        style: FontStyle::Normal,
+    }
+}
+
+fn datetime_stamp() -> String {
+    let now = chrono::Local::now();
+    let hour = now.format("%I").to_string();
+    let hour = hour.trim_start_matches('0');
+    let hour = if hour.is_empty() { "12" } else { hour };
+    format!(
+        "{hour}:{} {} {}/{}/{}",
+        now.format("%M"),
+        now.format("%p"),
+        now.month(),
+        now.day(),
+        now.year()
+    )
+}
+
+fn offset_to_position(text: &str, mut offset: usize) -> text_editor::Position {
+    offset = offset.min(text.len());
+    while offset > 0 && !text.is_char_boundary(offset) {
+        offset -= 1;
+    }
+    let prefix = &text[..offset];
+    let line = prefix.bytes().filter(|&b| b == b'\n').count();
+    let start = prefix.rfind('\n').map_or(0, |i| i + 1);
+    let column = text[start..offset].chars().count();
+    text_editor::Position { line, column }
+}
+
+fn cursor_end(text: &str, cursor: text_editor::Cursor) -> usize {
+    let caret = commands::offset_at_line_col(text, cursor.position.line, cursor.position.column);
+    if let Some(sel) = cursor.selection {
+        let other = commands::offset_at_line_col(text, sel.line, sel.column);
+        caret.max(other)
+    } else {
+        caret
+    }
+}
+
+fn cursor_selection(text: &str, cursor: text_editor::Cursor) -> Option<(usize, usize)> {
+    let caret = commands::offset_at_line_col(text, cursor.position.line, cursor.position.column);
+    cursor.selection.map(|sel| {
+        let other = commands::offset_at_line_col(text, sel.line, sel.column);
+        if caret <= other {
+            (caret, other)
+        } else {
+            (other, caret)
+        }
+    })
+}

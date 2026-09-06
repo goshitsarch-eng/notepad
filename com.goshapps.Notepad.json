@@ -1,18 +1,33 @@
 {
   "app-id": "com.goshapps.Notepad",
-  "runtime": "org.kde.Platform",
-  "runtime-version": "6.10",
-  "sdk": "org.kde.Sdk",
-  "base": "io.qt.PySide.BaseApp",
-  "base-version": "6.10",
-  "branch": "stable",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "25.08",
+  "sdk": "org.freedesktop.Sdk",
+  "base": "com.system76.Cosmic.BaseApp",
+  "base-version": "stable",
+  "sdk-extensions": [
+    "org.freedesktop.Sdk.Extension.rust-stable",
+    "org.freedesktop.Sdk.Extension.llvm21"
+  ],
   "command": "notepad",
   "finish-args": [
     "--share=ipc",
     "--socket=fallback-x11",
     "--socket=wayland",
-    "--device=dri"
+    "--device=dri",
+    "--talk-name=org.freedesktop.portal.Desktop",
+    "--filesystem=xdg-config/cosmic:ro"
   ],
+  "build-options": {
+    "append-path": "/usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm21/bin",
+    "env": {
+      "CARGO_HOME": "/run/build/notepad/cargo",
+      "RUSTFLAGS": "-C link-arg=-fuse-ld=lld"
+    },
+    "build-args": [
+      "--share=network"
+    ]
+  },
   "cleanup": [
     "/include",
     "/lib/pkgconfig",
@@ -24,7 +39,16 @@
   "modules": [
     {
       "name": "notepad",
-      "buildsystem": "meson",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cargo build --release",
+        "install -Dm0755 target/release/notepad /app/bin/notepad",
+        "install -Dm0644 data/com.goshapps.Notepad.desktop /app/share/applications/com.goshapps.Notepad.desktop",
+        "install -Dm0644 data/com.goshapps.Notepad.metainfo.xml /app/share/metainfo/com.goshapps.Notepad.metainfo.xml",
+        "install -Dm0644 data/icons/hicolor/scalable/apps/com.goshapps.Notepad.svg /app/share/icons/hicolor/scalable/apps/com.goshapps.Notepad.svg",
+        "install -Dm0644 LICENSE /app/share/licenses/com.goshapps.Notepad/LICENSE",
+        "install -Dm0644 COPYRIGHT /app/share/licenses/com.goshapps.Notepad/COPYRIGHT"
+      ],
       "sources": [
         {
           "type": "dir",

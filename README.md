@@ -1,14 +1,12 @@
 # NotePad
 
-A native clone of Microsoft Notepad (Windows XP era) built with **Qt 6**,
-with light/dark mode support following the
-[Kirigami color guidelines](https://develop.kde.org/docs/getting-started/kirigami/style-colors/),
-and shipped as a **Flatpak**.
+A native clone of Microsoft Notepad (Windows XP era) built with
+**[libcosmic](https://github.com/pop-os/libcosmic)** for the COSMIC™ desktop,
+with system/light/dark color schemes, and shipped as a **Flatpak**.
 
-Current release: **2.0.4**. This release makes explicit Light Mode foregrounds
-deterministic across menus, popups, dialogs, editor chrome, and disabled or
-selected states even when the host Plasma session is dark. It preserves the
-visible Find close button and Escape-to-close behavior introduced in 2.0.3.
+Current release: **3.0.0**. This release rewrites the application on libcosmic
+and the COSMIC design language while keeping the classic Notepad menus,
+shortcuts, and document workflow.
 
 NotePad is an independent implementation and is not affiliated with or endorsed
 by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of companies.
@@ -23,72 +21,61 @@ by Microsoft. Microsoft and Windows are trademarks of the Microsoft group of com
 - **Font** selection from the Format menu
 - Insert the current **Time/Date** (F5), Windows-style
 - **Word Wrap** toggle and a live **Ln/Col** status bar
-- **Color scheme** choice: System (follows the platform), Light, and Dark
-  (View menu or the scheme button in the toolbar)
+- **Color scheme** choice: System (follows COSMIC), Light, and Dark
+  (View menu or the scheme button in the header)
 - Unsaved-changes protection when creating/opening files or closing the window
+- Single-instance Unix socket: a second launch forwards its file to the running window
 
 ## Theming
 
-Light and dark mode support follows the Kirigami color guidelines:
+Light and dark mode support uses the COSMIC theme:
 
-- the app **follows the system color scheme by default** (e.g. the Plasma
-  light/dark preference) and can be pinned to Light or Dark instead
-- widgets use **semantic palette roles** (Window, Base, Text, Highlight, ...)
-  rather than hardcoded colors, so contrast stays correct when the scheme
-  switches
-- explicit Light and Dark modes use Qt's palette-driven Fusion widget style so
-  KDE widget-local palette overrides cannot leave stale host foreground colors;
-  System mode restores the native platform style and live platform palette
-- the custom light and dark palettes are defined in one place
-  ([`src/theme.py`](src/theme.py)), modeled on the KDE Breeze light/dark
-  color schemes
+- the app **follows the system color scheme by default** and can be pinned to Light or Dark instead
+- widgets use libcosmic semantic theme tokens rather than hardcoded colors
+- System, Light, and Dark map onto `cosmic-theme` palettes via cosmic-config
 
 ## Tech stack
 
-- Python 3 + [PySide6](https://pypi.org/project/PySide6/) (Qt 6)
-- [Meson](https://mesonbuild.com/) build system
-- Flatpak (`org.kde.Platform` 6.10 plus `io.qt.PySide.BaseApp` 6.10) for distribution
+- Rust + [libcosmic](https://github.com/pop-os/libcosmic) (iced)
+- [just](https://github.com/casey/just) for build and install recipes
+- Flatpak (`org.freedesktop.Platform` 25.08 plus `com.system76.Cosmic.BaseApp`) for distribution
 
 ## Development
 
 ### System dependencies
 
-```bash
-# Ubuntu/Debian
-sudo apt-get install -y python3-pyside6.qtwidgets meson ninja-build desktop-file-utils
+On Pop!_OS / Ubuntu:
 
-# Fedora
-sudo dnf install -y meson ninja-build desktop-file-utils && pip3 install --user PySide6
+```bash
+sudo apt install cargo cmake just libexpat1-dev libfontconfig-dev libfreetype-dev libxkbcommon-dev pkgconf
 ```
 
-Use a PySide6 build matching the system Qt minor version when loading native
-KDE/Qt plugins. The Flatpak pins both Qt and PySide to 6.10 to prevent ABI and
-QPA-plugin mismatches.
+A current stable Rust toolchain (1.93+) is required.
 
 ### Run from source
 
-The app runs directly from the checkout without an install step:
-
 ```bash
-python3 src/main.py
+just run
+# or
+cargo run
 ```
 
-### Build and install with Meson
+### Build and install
 
 ```bash
-meson setup _build --prefix=/usr
-ninja -C _build
-meson test -C _build          # editor, theme, packaging, identity, and desktop validation
-sudo ninja -C _build install  # installs the `notepad` launcher
+just build-release
+cargo test --locked
+just install          # installs the `notepad` launcher, desktop file, metainfo, icon, LICENSE, COPYRIGHT
 ```
 
 ### Build the Flatpak
 
-Requires `flatpak` and `flatpak-builder` plus the KDE 6 runtime/SDK:
+Requires `flatpak` and `flatpak-builder` plus the Freedesktop 25.08 runtime/SDK and Cosmic BaseApp:
 
 ```bash
 flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --user -y flathub org.kde.Platform//6.10 org.kde.Sdk//6.10 io.qt.PySide.BaseApp//6.10
+flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08 \
+    org.freedesktop.Sdk.Extension.rust-stable//25.08 com.system76.Cosmic.BaseApp//stable
 flatpak-builder --user --install-deps-from=flathub --install --force-clean build-flatpak com.goshapps.Notepad.json
 flatpak run com.goshapps.Notepad
 ```
@@ -96,14 +83,17 @@ flatpak run com.goshapps.Notepad
 ## Project layout
 
 ```
-├── com.goshapps.Notepad.json     # Flatpak manifest (org.kde.Platform)
-├── meson.build                   # top-level build definition
-├── src/                          # application source (Python/PySide6)
-│   ├── main.py                   # entry point
-│   ├── application.py            # QApplication + single-instance handling
-│   ├── window.py                 # editor window, menus, and commands
-│   ├── commands.py               # find/replace/go-to editor helpers
-│   ├── theme.py                  # Kirigami-style light/dark color schemes
-│   └── notepad.in                # installed launcher template
+├── com.goshapps.Notepad.json     # Flatpak manifest (Cosmic BaseApp)
+├── Cargo.toml                    # crate definition
+├── justfile                      # build, test, and install recipes
+├── src/                          # application source (Rust / libcosmic)
+│   ├── main.rs                   # entry point and CLI paths
+│   ├── app.rs                    # window, menus, dialogs, editor
+│   ├── commands.rs               # find/replace/go-to helpers
+│   ├── config.rs                 # cosmic-config settings
+│   ├── key_bind.rs               # menu shortcuts
+│   ├── single_instance.rs        # Unix-socket instance forwarding
+│   └── i18n.rs                   # Fluent loader
+├── i18n/                         # Fluent translations
 └── data/                         # desktop entry, AppStream metainfo, icon
 ```

@@ -2,11 +2,11 @@
 Type=Application
 Name=NotePad
 GenericName=Text Editor
-Comment=A native Qt 6 clone of Microsoft Notepad
+Comment=A native COSMIC clone of Microsoft Notepad
 Exec=notepad %F
 Icon=com.goshapps.Notepad
 Terminal=false
-Categories=Qt;Utility;TextEditor;
+Categories=COSMIC;Utility;TextEditor;
 MimeType=text/plain;
 Keywords=notepad;text;editor;plaintext;
 StartupNotify=true
