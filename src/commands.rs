@@ -213,6 +213,37 @@ pub fn line_col_at(text: &str, mut offset: usize) -> (usize, usize) {
     (line, col)
 }
 
+/// 1-based line and column of the caret in a single pass.
+///
+/// Exactly equivalent to `line_col_at(text, offset_at_line_col(text, line,
+/// column))` but scans the document once instead of twice, which keeps the
+/// status bar cheap on large files.
+#[must_use]
+pub fn caret_line_col(text: &str, line: usize, column: usize) -> (usize, usize) {
+    let mut current_line = 0usize;
+    let mut current_col = 0usize;
+    let mut display_line = 1usize;
+    let mut display_col = 1usize;
+    for ch in text.chars() {
+        if current_line == line && current_col == column {
+            return (display_line, display_col);
+        }
+        if ch == '\n' {
+            if current_line == line {
+                return (display_line, display_col);
+            }
+            current_line += 1;
+            current_col = 0;
+            display_line += 1;
+            display_col = 1;
+        } else {
+            current_col += 1;
+            display_col += 1;
+        }
+    }
+    (display_line, display_col)
+}
+
 /// Convert a 0-based line/column to a byte offset.
 ///
 /// If `column` is past the end of `line`, the offset of that line's newline
@@ -396,6 +427,36 @@ mod tests {
         );
         assert_eq!(offset_at_line_col(text, 0, 99), "日本語".len());
         assert_eq!(offset_at_line_col(text, 1, 0), "日本語\n".len());
+    }
+
+    #[test]
+    fn caret_line_col_matches_two_step_conversion() {
+        let corpus = [
+            "",
+            "a",
+            "ab\ncd",
+            "ab\ncd\n",
+            "\n\n",
+            "a\n",
+            "日本語\nnext",
+            "é\nx",
+            "a\r\nb",
+            "line1\nline2\nline3",
+            "trailing spaces  \n\tindented",
+        ];
+        for text in corpus {
+            for line in 0..6 {
+                for column in 0..10 {
+                    let offset = offset_at_line_col(text, line, column);
+                    let expected = line_col_at(text, offset);
+                    assert_eq!(
+                        caret_line_col(text, line, column),
+                        expected,
+                        "text={text:?} line={line} column={column}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

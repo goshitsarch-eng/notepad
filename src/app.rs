@@ -226,8 +226,9 @@ impl menu::action::MenuAction for MenuAction {
     }
 }
 
-/// libcosmic only reserves a leading check column on `Item::CheckBox`.
-/// Command and folder rows get the same gutter so labels line up across menus.
+/// Leading check column matching `Item::CheckBox`, which renders a
+/// `Fixed(16.0)` spacer plus a `space_xxs` gap and no icon when none is given.
+/// Command and folder rows replicate that gutter so labels line up across menus.
 const MENU_CHECK_COL: f32 = 16.0;
 
 fn menu_shortcut(action: MenuAction, key_binds: &HashMap<menu::KeyBind, MenuAction>) -> String {
@@ -553,9 +554,8 @@ impl cosmic::Application for App {
         }
         let text = self.content.text();
         let cursor = self.content.cursor();
-        let offset =
-            commands::offset_at_line_col(&text, cursor.position.line, cursor.position.column);
-        let (line, col) = commands::line_col_at(&text, offset);
+        let (line, col) =
+            commands::caret_line_col(&text, cursor.position.line, cursor.position.column);
         let wrap = if self.config.word_wrap {
             fl!("word-wrap-on")
         } else {
@@ -618,6 +618,9 @@ impl cosmic::Application for App {
                     let after = self.content.text();
                     if before != after {
                         self.undo_stack.push((before, cursor));
+                        if self.undo_stack.len() > MAX_UNDO_DEPTH {
+                            self.undo_stack.remove(0);
+                        }
                         self.redo_stack.clear();
                     }
                 } else {
@@ -1037,6 +1040,9 @@ impl App {
     fn push_undo(&mut self) {
         self.undo_stack
             .push((self.content.text(), self.content.cursor()));
+        if self.undo_stack.len() > MAX_UNDO_DEPTH {
+            self.undo_stack.remove(0);
+        }
         self.redo_stack.clear();
     }
 
@@ -1045,48 +1051,54 @@ impl App {
             .on_press(Message::CloseFind)
             .tooltip(fl!("close-find-tooltip"));
 
-        let find_row = widget::row::with_capacity(4)
-            .spacing(6)
-            .padding(8)
-            .align_y(Alignment::Center)
-            .push(close)
-            .push(
-                widget::text_input(fl!("find-placeholder"), &self.find_text)
-                    .on_input(Message::FindText)
-                    .on_submit(|_| Message::FindNext)
-                    .apply(widget::container)
-                    .width(Length::Fill),
-            )
-            .push(
-                widget::checkbox(self.match_case)
-                    .label(fl!("match-case"))
-                    .on_toggle(Message::MatchCase),
-            )
-            .push(widget::button::standard(fl!("find-next")).on_press(Message::FindNext));
+        // FlexRow keeps the desktop single-line look but wraps the search
+        // field onto its own line on narrow windows (360px minimum) instead
+        // of crushing it between the fixed-size controls.
+        let find_row = widget::flex_row(vec![
+            close.into(),
+            widget::text_input(fl!("find-placeholder"), &self.find_text)
+                .on_input(Message::FindText)
+                .on_submit(|_| Message::FindNext)
+                .apply(widget::container)
+                .width(Length::Fill)
+                .into(),
+            widget::checkbox(self.match_case)
+                .label(fl!("match-case"))
+                .on_toggle(Message::MatchCase)
+                .into(),
+            widget::button::standard(fl!("find-next"))
+                .on_press(Message::FindNext)
+                .into(),
+        ])
+        .spacing(6)
+        .padding(8)
+        .justify_items(Alignment::Center)
+        .min_item_width(160.0)
+        .width(Length::Fill);
 
         if self.replace_visible {
             widget::column::with_capacity(2)
                 .push(find_row)
                 .push(
-                    widget::row::with_capacity(3)
-                        .spacing(6)
-                        .padding([0, 8, 8, 8])
-                        .align_y(Alignment::Center)
-                        .push(
-                            widget::text_input(fl!("replace-placeholder"), &self.replace_text)
-                                .on_input(Message::ReplaceText)
-                                .on_submit(|_| Message::ReplaceOne)
-                                .apply(widget::container)
-                                .width(Length::Fill),
-                        )
-                        .push(
-                            widget::button::standard(fl!("replace-one"))
-                                .on_press(Message::ReplaceOne),
-                        )
-                        .push(
-                            widget::button::standard(fl!("replace-all"))
-                                .on_press(Message::ReplaceAll),
-                        ),
+                    widget::flex_row(vec![
+                        widget::text_input(fl!("replace-placeholder"), &self.replace_text)
+                            .on_input(Message::ReplaceText)
+                            .on_submit(|_| Message::ReplaceOne)
+                            .apply(widget::container)
+                            .width(Length::Fill)
+                            .into(),
+                        widget::button::standard(fl!("replace-one"))
+                            .on_press(Message::ReplaceOne)
+                            .into(),
+                        widget::button::standard(fl!("replace-all"))
+                            .on_press(Message::ReplaceAll)
+                            .into(),
+                    ])
+                    .spacing(6)
+                    .padding([0, 8, 8, 8])
+                    .justify_items(Alignment::Center)
+                    .min_item_width(160.0)
+                    .width(Length::Fill),
                 )
                 .into()
         } else {
@@ -1255,8 +1267,12 @@ impl App {
     }
 
     fn load_path(&mut self, path: PathBuf) -> Task<Message> {
-        match std::fs::read_to_string(&path) {
-            Ok(text) => {
+        // `read` + lossy conversion: plain-text files in legacy encodings
+        // (Latin-1, Windows-1252) still open instead of failing outright.
+        // Valid UTF-8 round-trips byte-identically.
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                let text = String::from_utf8_lossy(&bytes).into_owned();
                 self.content = Content::with_text(&text);
                 self.saved_text = self.content.text();
                 self.file_path = Some(path);
@@ -1288,6 +1304,12 @@ impl App {
                 self.saved_text = text;
                 let title = self.update_title();
                 if let Some(after) = self.pending_after.take() {
+                    // A New/Open/Exit requested while the save dialog was in
+                    // flight may have raised a second save prompt. The
+                    // document is saved now, so that prompt is stale.
+                    if matches!(self.pending, Some(PendingDialog::SaveChanges { .. })) {
+                        self.pending = None;
+                    }
                     Task::batch([title, self.proceed(after)])
                 } else {
                     title
@@ -1416,6 +1438,10 @@ fn font_from_family(family: &str) -> Font {
         style: FontStyle::Normal,
     }
 }
+
+/// Maximum undo/redo entries. Snapshots hold the whole document, so an
+/// unbounded stack grows without limit during long editing sessions.
+const MAX_UNDO_DEPTH: usize = 100;
 
 fn datetime_stamp() -> String {
     let now = chrono::Local::now();
