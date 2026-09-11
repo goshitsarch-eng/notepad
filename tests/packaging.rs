@@ -91,3 +91,91 @@ fn metainfo_declares_cosmic_application() {
     assert!(metainfo.contains("<id>com.system76.CosmicApplication</id>"));
     assert!(metainfo.contains("<id>com.goshapps.Notepad</id>"));
 }
+
+#[test]
+fn manifest_builds_offline_from_vendored_sources() {
+    let manifest = read("com.goshapps.Notepad.json");
+    assert!(manifest.contains("cargo build --release --frozen --offline"));
+    assert!(!manifest.contains("\"cargo build --release\","));
+    assert!(!manifest.contains("--share=network"));
+    assert!(!manifest.contains("\"build-args\""));
+    assert!(manifest.contains("\"branch\": \"stable\""));
+    assert!(manifest.contains("\"type\": \"dir\""));
+}
+
+#[test]
+fn finish_args_match_audited_allowlist() {
+    // Deliberate ratchet (reviewer advisory 1; declaration rides T26's record):
+    // exactly the six audited finish-args — any addition or removal fails here
+    // until the audit in docs/migration/packaging.md §1 is updated to match.
+    let manifest = read("com.goshapps.Notepad.json");
+    let expected = [
+        "\"--share=ipc\"",
+        "\"--socket=fallback-x11\"",
+        "\"--socket=wayland\"",
+        "\"--device=dri\"",
+        "\"--talk-name=org.freedesktop.portal.Desktop\"",
+        "\"--filesystem=xdg-config/cosmic:rw\"",
+    ];
+    for arg in expected {
+        assert!(manifest.contains(arg), "missing finish-arg: {arg}");
+    }
+    let block = manifest
+        .split("\"finish-args\": [")
+        .nth(1)
+        .expect("finish-args array present");
+    let block = block.split(']').next().unwrap();
+    assert_eq!(
+        block.matches('"').count() / 2,
+        6,
+        "finish-args count ratchet"
+    );
+}
+
+#[test]
+fn cargo_toml_pins_libcosmic_to_locked_rev() {
+    let toml_text = read("Cargo.toml");
+    let lock = read("Cargo.lock");
+    let dep = toml_text
+        .split("[dependencies.libcosmic]")
+        .nth(1)
+        .expect("libcosmic dependency table present");
+    let dep = dep.split("\n[").next().unwrap();
+    let rev_line = dep
+        .lines()
+        .find(|l| l.trim_start().starts_with("rev ="))
+        .expect("libcosmic rev pin present in Cargo.toml");
+    let rev = rev_line.split('"').nth(1).unwrap();
+    assert_eq!(rev.len(), 40, "rev is a full commit hash");
+    assert!(rev.chars().all(|c| c.is_ascii_hexdigit()));
+    // Lock carries the pinned source ID: ?rev= form with identical # fragment.
+    let pinned =
+        format!("source = \"git+https://github.com/pop-os/libcosmic.git?rev={rev}#{rev}\"");
+    assert!(
+        lock.contains(&pinned),
+        "lock lacks pinned ?rev= source line"
+    );
+    // No bare-form libcosmic source lines remain (post-regen state).
+    let bare = format!("source = \"git+https://github.com/pop-os/libcosmic.git#{rev}\"");
+    assert!(
+        !lock.contains(&bare),
+        "bare-form libcosmic source line survived regen"
+    );
+}
+
+#[test]
+fn manifest_installs_license_material() {
+    // RV-6: enforce the manifest build-command lines the Flatpak actually uses
+    // (L49-50), which license_material_is_installed_with_the_application's
+    // justfile pin does not cover.
+    let manifest = read("com.goshapps.Notepad.json");
+    assert!(
+        manifest
+            .contains("install -Dm0644 LICENSE /app/share/licenses/com.goshapps.Notepad/LICENSE")
+    );
+    assert!(
+        manifest.contains(
+            "install -Dm0644 COPYRIGHT /app/share/licenses/com.goshapps.Notepad/COPYRIGHT"
+        )
+    );
+}

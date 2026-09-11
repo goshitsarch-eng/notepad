@@ -250,6 +250,25 @@ task: `Cargo.toml` is Architecture-owned (D5), packager supplies the exact rev
 string, reviewer verifies `Cargo.toml` ↔ `Cargo.lock` agreement. A
 `tests/packaging.rs` assertion pins the match.
 
+**Addendum (2026-09-11, T05 execution — nuance to "no resolution change").**
+The rev pin does not change *which* commit resolves (d4d71fd5 either way), but
+it changes cargo's *source-ID text*: `git+https://github.com/pop-os/libcosmic.git`
+→ `git+https://github.com/pop-os/libcosmic.git?rev=d4d71fd5…`. That forces a
+one-time mechanical `Cargo.lock` rewrite: every bare-form libcosmic `source =`
+line is replaced by its `?rev=` twin — identical `#d4d71fd5…` fragment, zero
+version/checksum/dependency movement (18 pairs on the lock at execution time;
+the gate is the shape, not the count — census recorded in the T05 evidence).
+`cargo metadata --locked --offline` exits 101 until a one-time
+`cargo metadata --offline` regen; post-regen it and `cargo build --locked` are
+both green. Downstream consequence (the second, independent T06 breakage
+mode): vendor source-replacement stanzas are keyed on source ID, so `vendor/`
+must be materialized *after* the pin + regen (A-before-B ordering) — a vendor
+tree generated from the bare lock carries keys the pinned source ID will not
+match, even though crate contents are identical. Evidence: reviewer objection
+spike + packager independent reproduction; amended Step A adopted in PLAN.md
+rev 9 (`0297eb7`) and executed in the T05 single commit (branch
+`cosmic-migration`).
+
 ---
 
 ## D11 — Smoke-test environment and pass/fail protocol

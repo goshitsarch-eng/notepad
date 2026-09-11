@@ -10,6 +10,7 @@
     "org.freedesktop.Sdk.Extension.llvm21"
   ],
   "command": "notepad",
+  "branch": "stable",
   "finish-args": [
     "--share=ipc",
     "--socket=fallback-x11",
@@ -23,10 +24,7 @@
     "env": {
       "CARGO_HOME": "/run/build/notepad/cargo",
       "RUSTFLAGS": "-C link-arg=-fuse-ld=lld"
-    },
-    "build-args": [
-      "--share=network"
-    ]
+    }
   },
   "cleanup": [
     "/include",
@@ -41,7 +39,7 @@
       "name": "notepad",
       "buildsystem": "simple",
       "build-commands": [
-        "cargo build --release",
+        "cargo build --release --frozen --offline",
         "install -Dm0755 target/release/notepad /app/bin/notepad",
         "install -Dm0644 data/com.goshapps.Notepad.desktop /app/share/applications/com.goshapps.Notepad.desktop",
         "install -Dm0644 data/com.goshapps.Notepad.metainfo.xml /app/share/metainfo/com.goshapps.Notepad.metainfo.xml",
