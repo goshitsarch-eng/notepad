@@ -1280,12 +1280,27 @@ impl App {
     }
 
     fn load_path(&mut self, path: PathBuf) -> Task<Message> {
-        // `read` + lossy conversion: plain-text files in legacy encodings
-        // (Latin-1, Windows-1252) still open instead of failing outright.
-        // Valid UTF-8 round-trips byte-identically.
+        // D8 (DECISIONS.md): strict UTF-8 via `String::from_utf8` — invalid
+        // bytes are rejected with the could-not-open dialog naming the file
+        // and the decode problem, mirroring v2's `UnicodeDecodeError` arm
+        // (`v2.0.4:src/window.py:618–628`). The former lossy conversion
+        // replaced invalid bytes with U+FFFD, silently corrupting
+        // legacy-encoding files on re-save.
         match std::fs::read(&path) {
             Ok(bytes) => {
-                let text = String::from_utf8_lossy(&bytes).into_owned();
+                let text = match String::from_utf8(bytes) {
+                    Ok(text) => text,
+                    Err(err) => {
+                        self.pending = Some(PendingDialog::Error {
+                            message: format!(
+                                "{}\n{}: {err}",
+                                fl!("could-not-open"),
+                                path.display()
+                            ),
+                        });
+                        return Task::none();
+                    }
+                };
                 self.content = Content::with_text(&text);
                 self.saved_text = self.content.text();
                 self.file_path = Some(path);
@@ -1295,7 +1310,7 @@ impl App {
             }
             Err(err) => {
                 self.pending = Some(PendingDialog::Error {
-                    message: format!("{}\n{err}", fl!("could-not-open")),
+                    message: format!("{}\n{}: {err}", fl!("could-not-open"), path.display()),
                 });
                 Task::none()
             }
@@ -1508,6 +1523,12 @@ fn cursor_selection(text: &str, cursor: text_editor::Cursor) -> Option<(usize, u
 #[cfg(test)]
 #[path = "app_test_harness.rs"]
 mod app_test_harness;
+
+// T03: file-lifecycle tests; T11 extends this file per PLAN — early creation
+// approved by the reviewer in the T03 window.
+#[cfg(test)]
+#[path = "app_file_tests.rs"]
+mod app_file_tests;
 
 #[cfg(test)]
 mod tests {
