@@ -387,20 +387,401 @@ working-tree state below reflects HEAD 8e5b01a, not the churn.
   no hash placeholder; the 19-line insertion is the file's ONLY change (git
   diff census). No deviation → no flag wire; the leg re-confirms against the
   committed blob at the record-check.
+- **T05 POST-COMMIT RECORD-CHECK — 4314e2b (landed 07:26:29 UTC 2026-09-11)
+  — CLEAN, zero deviations. Docs-window commits A (c747534, this log's rev 2
+  custodial, 07:35:19) and B (73f7606, PLAN rev 10, 07:38:01) verified in the
+  same pass.** Every leg against the committed blobs; receipt claims used only
+  where marked:
+  (1) History/shape: parent == 8e5b01a full hash; branch cosmic-migration;
+  counts 41 total / 23 atop 776b74d at 4314e2b and 43/25 at 73f7606 — all
+  matching the receipt; tree fully clean post-B.
+  (2) Census: exactly the seven declared paths, per-path numstat == receipt
+  (Cargo.lock 18/18, Cargo.toml 1/0, manifest 3/5, DECISIONS.md 19/0,
+  packaging.md 1/1, vendor.sh 25/0 new mode 100755 per ls-tree, packaging.rs
+  88/0); totals 155+/24− close; review-phase2.md and ux.md NOT in the commit.
+  (3) Body: committed message == the lead's preserved
+  /tmp/lead-t05-commit-body.txt byte-identical modulo the %B extraction's
+  appended trailing newline (head -c 5849 | cmp exit 0 — the 5850th byte is
+  git's output convention, not content). Present and permanent: the three
+  refinements with all three witnesses (+810 = 18×45 exact; post-regen 18/0;
+  the architect's stderr decode with my granularity check — 4 cosmic + 13
+  iced incl. iced_widget v0.14.2 == live lock + libcosmic, zero removals,
+  zero network legs); dual close gate (the 101→0 cure); A-before-B in
+  substance (:26 pinned-keyed stanza, zero bare-keyed, 12 replace-with, :57
+  directory, mtime chain, vendor-spike quarantined); D10 linkage closure
+  ("THIS COMMIT IS that single commit"); correction (i) in the labeled form
+  ("HEAD-era :49-50 -> live :47-48, byte-identity proven"); correction (ii)
+  in the owner's FINAL FORM verbatim ("staged 73 + 12 Edit-time wraps + 3
+  fmt wraps; 4 hunks / 5 assert sites, semantic delta zero"); gate actuals
+  (49 live-counted; G1 2.910s/636/973M; G2 config sha fce94048…; G3 1m40.6s
+  + my independent binary 45,757,432 B == the G3 artifact; G5 65a910d2… +
+  baseline-integrity trio + pre-pin fdc0d8f9… == HEAD lock); brackets;
+  item-6 DEFER-BOTH-TO-T27 boundary; evidence paths.
+  (4) Blobs: committed Cargo.lock sha256 65a910d2… == the G5 baseline, 6593
+  lines/163121 B; packaging.rs 181 lines / 10 #[test]; vendor.sh 25
+  lines/1100 B == the staging copy (diff exit 0); Cargo.toml :28 rev line;
+  manifest 58 lines/1796 B with :13 "branch": "stable", :42 the frozen
+  offline build command, :47–48 the RV-6 license lines; packaging.md's new
+  item-5 == my frozen wording incl. the T06-consequence clause, with the
+  deferred tails ("P2-T3", ":2740") correctly still in place per the T27
+  disposition.
+  (5) D10 committed blob: DECISIONS.md 22684 B == the receipt's figure
+  (21354 + 1330); block :253–270, 18 lines/1329 B, byte-identical to the
+  wire text AND the frozen staging payload (cmp exit 0 both — the staging
+  file's 33-line shape is a 14-line pre-ruled header + payload + trailing
+  separator; the first extraction attempt tripped the non-unique
+  `**Addendum (2026-09-11` prefix — :149 is the PRE-EXISTING fmt addendum,
+  present in 8e5b01a's blob too; addendum census old=2 (:81, :149), new=3
+  (+:253)); exactly two anchors in the block (0297eb7 ×1, "the T05 single
+  commit" ×1); separator context intact (:271 blank, :272 `---`);
+  frozen-file sha256 a2645430… == the lead's staging re-confirmation. Byte
+  lineage now closed FIVE ways: frozen == wire == applied (my pre-check) ==
+  committed blob == my independent extraction.
+  (6) Commit A (c747534): single path review-phase2.md 440+/42− == my
+  declaration exactly; committed blob 660 lines/46588 B == declaration and
+  the lead's front census; the custodial body's staging-time verification
+  claims (23 cited hashes resolve, chain match, 40/22 at 8e5b01a) consistent
+  with my live measurements — the lead's leg, recorded not re-run.
+  (7) PLAN rev 10 fold (commit B, single path, 35+/6−): VERBATIM-MATCH to my
+  disposition on every element — the artifact-neutrality test, all four
+  qualifying leg classes, the full authority-OFF list (incl. the i18n/*.ftl
+  parity-first carve-out), regime unchanged (per-package request, leg
+  enumeration with file+line counts, steps 1–4 always run, skips recorded in
+  the sign-off note), the self-void clause, the interim-citation transition,
+  the §3 cross-ref to this log at c747534, "no task semantics moved",
+  T27-still-excludes-PLAN. Stage-D skip requests now cite the PLAN §2-rule-3
+  text directly.
+  (8) Brackets/protected set: all eight content-clean at HEAD; app.rs mtime
+  1789099383 (04:03:03) == the §4 anchor; PLAN.md mtime 1789112244 (07:37:24)
+  = the lead's rev-10 write 37 s before commit B — legitimate declared
+  docs-window work post-dating the T05 bracket pair, and B's front census
+  (1789104587 / 38902 B / 376 lines, unmoved since rev 9) matches rev 9's
+  write→commit pattern (05:29:47 → 05:30:20); zero src/ paths in all three
+  commits. §4's src anchors stand unchanged at 73f7606.
+  VERDICT: the T05 commit record is CLOSED — CLEAN. This log's rev 2 rode
+  commit A by design; this entry opens the rev-3 working rev. Next trigger:
+  the lead's T06 release ping (clean tree, named HEAD) → the T06 evidence
+  review (the packager's plan note first; no edits before it).
+- **Lead docs-window receipt absorbed (commits A + B); PLAN rev-10 anchor
+  table live-verified; cond-8 cite renumbered by annotation (crossing #19).**
+  Commit A receipt: the custodial verification ran BEFORE staging per 48d603d
+  (23 cited hashes resolve, labels match live subjects, chain matches the live
+  enumeration, first-rev 262 + 40/22 at 8e5b01a re-confirmed) — the lead's
+  leg, recorded not re-run. Commit B receipt carries the rev-10 live-anchor
+  table (uniform +16 below the rule-3 fold): rule 6 :108; T05 :218, T06 :219,
+  T07 :220, T08 :221, T09 :235, T11 :237, T12 :238, T14 :240, T22 :257, T23
+  :258, T27 :267 — every listed row live-verified by me, plus the derived rows
+  I cite (T04 :217, T10 :236, T13 :239, T19 :254, T24 :264, T25 :265,
+  coverage table :157–163, rev-log starts :341/:349/:368/:393). Shift
+  arithmetic closes: 35+/6− = header bump (1/1) + rule fold (21/5, net +16) +
+  the 13-line rev-10 entry appended at EOF (:393–405). The lead's flag on my
+  T12 cond-8 cite is confirmed and resolved: ":221" was rev-9 numbering for
+  the T11 three-hook row, live at :237 under rev 10 — content verified
+  identical in BOTH blobs (0297eb7 :221 == 73f7606 :237,
+  `on_escape`/`on_app_exit`/`on_close_requested`); this log's historical
+  entries keep rev-9 numbers per the as-of-writing convention; §4's Docs
+  block now carries the rev-10 conversion; Stage-D release texts cite LIVE
+  anchors (rule 6). Rev-3 custodial decision (the lead's, adopted): the
+  commit rides the T06-evidence-cycle docs window so one custodial commit
+  captures the whole cycle; I append freely until my T06 verdict; the
+  staging-time read supersedes my declarations. The packager's independent
+  blob-level verification of 4314e2b is on record — third confirmation after
+  the lead's post-bracket census and my record-check, zero divergence across
+  all three; their two-head T06 citation shape (window front 73f7606 /
+  state-under-test 4314e2b) matches the release ping.
+- **T06 PLAN-NOTE REVIEW (objection window exercised) — NO STOP-GROUNDS; run
+  1 launched on the note per rev-4 (my window is not a clearance gate).
+  E7(b) DISPOSITION ISSUED: APPROVED WITH CONDITIONS.** Note citations
+  verified live: PLAN 405 lines / 41054 B; the T06 row :219 with the
+  done-when quote "flatpak-builder exit 0 fully offline" verbatim; T07 :220,
+  T08 :221; vendor state (config sha fce94048… == T05 G2b, freshness key
+  idle, pinned-key stanza). INDEPENDENT REVIEWER WITNESS: mid-window ref
+  snapshot at 08:03:18 UTC (epoch 1789113798 — 19 s BEFORE run 1's 08:03:37Z
+  log-start epoch 1789113817; corrected at the package review, §5) —
+  /tmp/rv-t06-midwindow-refs.txt: 11 refs, triple-for-triple identical to
+  the packager's pre-census snapshot (/tmp/t06-precensus-refs.txt); no
+  Locale extension (corroborates the lead's flagged delta — immaterial, the
+  manifest names none); BaseApp//stable present; `--installations` =
+  /var/lib/flatpak only. Zero installations mid-window, third-party-attested;
+  E6's ref-diff can cite my snapshot as an independent leg.
+  REFINEMENT R1 (issued to the packager pre-E6): the note's "tree 0 dirty at
+  my census" (07:49:51Z) vs my log's rev-3 churn — dual reading
+  (scoped-by-convention per their T05 "third-party-dirty, excluded"
+  practice, or a timing crossing with my edit landing); benign either way,
+  but E6/E8's git-status legs must NAME the exclusion: expected dirty at E6
+  = packaging.md (their E7) + review-phase2.md (reviewer churn, declared);
+  criterion = NO THIRD PATH. The rev-3 custodial commit rides AFTER the T06
+  verdict (the lead's decision), so both files stay dirty through the window
+  by design.
+  E7(b) DISPOSITION — the three stale "P2-T4" measurement-landing sites
+  (:157 "measured in P2-T4", :167 the >60 s archive-source revisit line,
+  :338 risk row 8) may be filled with the measured numbers + T06 naming in
+  the T06 footprint. CONDITIONS: (1) scope = exactly those three sites — my
+  live grep found the wider P2-T4/P2-T3 population (:92 audit row 3's
+  "P2-T4 becomes" note, :352/:353 task-table rows, ten P2-T3 sites incl. the
+  banked L161 tail) and ALL of it stays untouched, banked to T27's
+  stale-naming class; (2) frozen OLD/NEW strings for the three sites in the
+  package BEFORE the edit (frozen-string protocol); (3) E8's numstat
+  isolates part (a) (the Appendix A block) from part (b) (the three fills)
+  so they are separately reviewable; (4) the >60 s branch: if E5's
+  measurement crosses the §2.3 revisit threshold, the NUMBERS get recorded
+  but the revisit itself is a design decision — flagged in the package, the
+  lead rules, no unilateral §2.3 rewrite; (5) naming: "T06" (current PLAN
+  naming) + measured figures + a pointer to the Appendix A evidence block.
+  The fallback (appendix-only, (b) deferred to T27) remains available if the
+  conditions are inconvenient — my preference is (b) now, under conditions.
+  E5 methodology ACCEPTED as disclosed: the cp -a probe inside the declared
+  sink + the run-1-start→first-compile upper bound, both reported against
+  the :167 threshold; the ccache pre/post sizing on both runs self-corrects
+  the --force-clean/ccache-interaction question (if run 2 ≈ run 1, the
+  measurement is null, not misleading). Gates concur: both runs exit 0;
+  fully-offline = zero Installing/Downloading/network-pull legs in either
+  log, honest-reporting clause intact; export on `stable` (E3 = first
+  in-sandbox proof of the T04-E1 branch edit AND the RV-6 license lines
+  end-to-end) **[FRAMING SUPERSEDED IN PART by the packager's T06 correction
+  of record — the explicit `stable` build-export arg is the load-bearing
+  mechanism; manifest-`branch`-field consumption (--repo export mode) was
+  NOT what E3 proved; see the §2 T06 PACKAGE REVIEW entry, leg (3)]**;
+  empty ref-diff; tracked footprint = packaging.md only; no
+  app launch (smoke is T07). Crossing #20 logged (§5).
+
+- **T06 PACKAGE REVIEW — evidence verification + part-(b) final ruling +
+  VERDICT: APPROVED (ZERO findings — T06-F1 issued in-rev then WITHDRAWN on
+  the freeze-wire crossing, leg (7); the applied part-(b) text confirmed
+  byte-identical to the pre-edit freeze record and frozen as FINAL FORM by
+  this sign-off).** Package +
+  continuity (/tmp/t06-staging/t06-continuity.txt, 91 lines) reviewed against
+  my committed checklist; every declared number matched live state on
+  independent read-only re-execution.
+  **(1) RUNS + OFFLINE CRITERION (raw-log verified, both runs):** run1
+  FB_EXIT=0, wall 87.963s (epochs 1789113817.088→1789113905.064, Δ87.976 —
+  internally consistent), 454 Compiling, cargo `Finished … 1m 07s` :521; run2
+  FB_EXIT=0, wall 85.601s (1789114826.781→1789114912.402, Δ85.621), 454
+  Compiling, `1m 05s` :515. Zero-network tallies BOTH logs: `Installing `=0,
+  Pull=0, transferred=0; Downloading=1 each = the "Downloading sources"
+  phase header (run1 :55, run2 :52 — a phase label, not a transfer); 5×
+  `Updating <ref>` dep-checks each closing `Nothing to do.` (NtD :21/:27/:33/
+  :39/:45) + sixth NtD :542 (debuginfo-compression phase, benign); 42
+  `https://` hits = 42 `Compiling …(https://…?rev=d4d71fd…)` cargo source-ID
+  annotations (grep -c 'Compiling.*https://' = 42; zero non-annotation https
+  legs) — T05's A-before-B pin→lock→vendor chain consumed end-to-end.
+  Done-when (PLAN :219) "flatpak-builder exit 0 fully offline" MET ×2.
+  **(2) CENSUS BRACKETS — three-way, my own normalization:** I re-normalized
+  my mid-window snapshot (awk -F'\t' '{print $1"/"$2"/"$3}' | sort →
+  /tmp/rv-t06-mid-normalized.txt): mid-vs-pre diff exit 0, pre-vs-post diff
+  exit 0 — 11 refs identical across pre 07:49:51Z → my mid 08:03:18Z → post
+  08:25:57Z. Their recensus §2's raw-diff delta = the disclosed
+  column-rendering artifact (tab-separated w/ version column vs slash refs),
+  confirmed from both raw files. BaseApp commit b3f1b274d540… unchanged
+  EXACT; installations /var/lib/flatpak only; live Cargo.lock sha256
+  65a910d2…0d450a recomputed == G5; lock mtime 1789106086 / vendor.tar mtime
+  1789107149 unmoved (their §5 + my live stat). Zero installations, three
+  independent brackets.
+  **(3) CORRECTION OF RECORD — ACCEPTED, mechanism independently
+  confirmed:** app-dir metadata (/tmp/np-smoke-repo/metadata) [Application]
+  carries NO `branch=` key (name/runtime/sdk/base/command only);
+  np-t06-repo refs = exactly [app/com.goshapps.Notepad/x86_64/stable] — no
+  master ref (the branchless probe's ref deletion confirmed); rev-parse
+  bd2bf66b8686…d703ed1 == the export log's Commit line; export summary
+  Content Written: 0 / Content Bytes Written: 0 (ostree dedup against the
+  probe export's objects = byte-identical file content across both exports),
+  Metadata Written: 1. Load-bearing fact for §3.1/T07: the EXPLICIT `stable`
+  build-export argument. My plan-note-review entry's framing "E3 = first
+  in-sandbox proof of the T04-E1 branch edit" is SUPERSEDED IN PART (inline
+  marker added there): E3 as executed proves the RV-6 license lines
+  end-to-end + the explicit-arg export path; manifest-`branch`-field
+  consumption (--repo export mode) is unexercised by the ruled command form
+  and not required by the :219 done-when. Evidence-location note:
+  BEXP_STABLE_EXIT=0 itself lives only in the continuity file (the export log
+  carries no exit line) — substance closes independently (ref exists, commit
+  matches, success-only summary printed).
+  **(4) STABLE-REF CONTENTS (my ostree reads, all exact):** /files/bin/notepad
+  33,066,712 B mode 0755 STRIPPED; /files/lib/debug/bin/notepad.debug
+  12,675,712 B (33,066,712 + 12,675,712 = 45,742,424 ≈ host G3 unstripped
+  45,757,432 — delta = strip, not codegen ✓); licenses LICENSE 35,149 +
+  COPYRIGHT 427 (install legs run1 :534/:537); desktop `Exec=notepad %F`;
+  metainfo 4,186 B. REPRODUCIBILITY CONFIRMED: sha256
+  46bea49cdab7f26004d1106b41f8c1a7ab65619cf7c052291e66fbc5cc965ed4
+  recomputed independently on BOTH sides (run2 app-dir binary; run1
+  stable-ref via ostree cat) — identical. (My first ostree ls of the
+  debug/licenses dirs returned empty = my trailing-slash syntax artifact;
+  re-ran with stderr visible — resolved, not a discrepancy.)
+  **(5) E5 MEASUREMENTS:** dir-copy probe 6.679s (same-fs cp -a of vendor/,
+  914,580,292 B apparent / 973M disk — consistent with G1's 973M), ~9× under
+  the :167 "> 60 s" revisit threshold; probe created/timed/removed as
+  declared; my independent in-build cross-check: non-cargo budget = wall −
+  cargo ≈ 21.0s (run1) / 20.6s (run2) upper-bounds the copy — internally
+  consistent. type:dir STANDS ON DATA; condition (4) MOOT on facts (no
+  threshold crossing → no lead-ruling branch; the :167 rejected-alternative
+  rationale text untouched). ccache near-inert honest null: du -sb 15 →
+  13,335 → 22,175 B (intercepts C/C++, not rustc; both runs full 454-crate
+  recompiles; warm Δ −2.4s = noise) — recorded; the --ccache value question
+  closed as measured-null.
+  **(6) FOOTPRINT (live-verified):** packaging.md numstat 60+/3−, 496 lines
+  = 439 + 57 (part a), part (b) line-neutral ✓. Part-(a) isolation re-proved:
+  their post-a snapshot's head-439 == HEAD blob's head-439 (diff exit 0),
+  post-a = 496 lines; Appendix A block live :441–496 == staging
+  extracted-block byte-identical (cmp exit 0); tree-head439 staging == HEAD
+  blob head-439 (cmp exit 0). Part-(b) isolation: post-a → live = EXACTLY 3
+  hunks (157c157, 167c167, 338c338) = 3+/3− ✓ — condition (3) perfect.
+  Condition (1) scope exact: P2-T4 population now ONLY :92/:352/:353 (audit
+  row + task table = point-in-time records, untouched per disposition; the
+  :352 row's done-when "timings + findings appended to this doc" is satisfied
+  by Appendix A — task-state lives in PLAN); the three OLD fragments gone
+  (grep -F count 0 each); P2-T3 population unchanged — ELEVEN lines
+  (:14/:96/:105/:106/:154/:161/:209/:308/:311/:331/:351, 1 occurrence each;
+  my bank's "ten sites" label corrected, §5). R1 COMPLIANT: git status
+  exactly {packaging.md, review-phase2.md} — NO THIRD PATH; their recensus §6
+  (08:25:57Z) shows only my churn because their E7 edits landed POST-census
+  by design (the census brackets the BUILD; the doc footprint followed at
+  08:42:24Z, packaging.md mtime 1789116144) — ordering noted, brackets
+  intact; the R1 exclusion naming lives in the continuity + package text.
+  **(7) FINDING T06-F1 — ISSUED THEN WITHDRAWN IN-REV (freeze-wire
+  crossing; the verdict ships ZERO findings).** At review time the applied
+  fills appeared NOT byte-identical to the NEW strings displayed in the
+  package's appendix-block PART-(b) PROPOSAL section (": "→" at " ×2,
+  "(Appendix A)."→", Appendix A." ×1, :167 gaining "> 60 s revisit" + "on
+  data"), and the continuity's "frozen==tree" claim read as self-referential
+  (grepped against the applied strings). RESOLUTION: the packager's
+  DEDICATED PRE-EDIT FREEZE WIRE — sent before their 08:42:24Z application
+  per condition (2), queued behind the package and delivered to me only
+  after my verdict wire — carries the authoritative frozen OLD/NEW strings,
+  and all three NEW strings byte-match the applied tree (my grep -cF: NEW ×3
+  = 1 hit each; OLD ×3 = 0). The PROPOSAL section was a pre-freeze draft the
+  freeze wire refined (notably preserving the "> 60 s" threshold reference
+  at :167 — the form I had called "the better text" WAS the frozen text).
+  **T06-F1 WITHDRAWN as no-drift; the "self-referential grep"
+  characterization is RETRACTED — their check was correct against the freeze
+  record.** Condition (2) SATISFIED: the strings reached my inbox before the
+  edit; byte-identity confirmed. Root cause: message-delivery ordering
+  (unpollable) + my comparison against the superseded /tmp artifact. The
+  in-rev ruling on the finding as issued (no revert; FINAL FORM = applied
+  text) converges on the identical outcome and is absorbed: FINAL FORM =
+  FROZEN FORM. The enforcement point still did its work: apparent drift
+  caught at diff review, resolved by the crossing wires on the record.
+  Lesson banked (§5).
+  **(8) PART-(B) FINAL RULING: ADOPTED AS APPLIED.** Sequencing record,
+  completed by the two queued wires (delivered to me post-verdict): package
+  ~08:35Z ("HELD … You call; I apply or defer before sign-off, footprint
+  re-declared either way"; "QUIESCENT … only part-(b) edit possible, at your
+  disposition") → dedicated freeze wire (the condition-(2) record: "applying
+  immediately after this wire per your APPROVED-WITH-CONDITIONS disposition")
+  → application 08:42:24Z → receipt wire (five conditions verified) →
+  continuity ~08:44Z ("E7(b) ADOPTED + APPLIED … all met"). My plan-note-
+  stage disposition (APPROVED WITH CONDITIONS, preference "(b) now") was the
+  governing call; within the wire's own envelope ("apply or defer BEFORE
+  SIGN-OFF") — no violation; this verdict reviews the final state as the
+  binding gate (PLAN §2.2). The receipt's legs re-verified independently
+  against my leg (6): the 3-hunk incremental diff, the post-a head-439 ==
+  HEAD blob, the scope census (P2-T4 :92/:352/:353 only; P2-T3 = 11), the
+  R1 no-third-path git leg — all match. One wire-phrasing precision: their
+  freeze wire says the 08:25:57Z recensus showed BOTH dirty paths — the
+  recensus log §6 literally shows only review-phase2.md (their E7 edits
+  landed post-census: appendix ~08:29–08:31Z, part (b) 08:42:24Z); the
+  two-path set is the FINAL state, and the no-third-path criterion holds at
+  every observation point. Ordering wired to them for the commit-body
+  narrative.
+  **(9) NEW-SINK DISPOSITION: /tmp/np-t06-repo ACCEPTED** — plan-vs-package
+  delta (absent from the plan note's declared sinks), justified by the §3.1
+  REPO leg after the correction of record (the ruled build command form
+  creates no ostree repo), /tmp-only, sized (22,656,011 B disk — my du
+  matches exactly; 72,138,239 content bytes on their record), and doubles as
+  the T07 rehearsal repo (PLAN :220's smoke target = this stable ref). My
+  verification consumed it read-only.
+  **(10) RV-15a RETROACTIVE GATE T01–T05: PASSED — concurred on substance:**
+  both runs consume the T05 pinned lock + vendored ?rev= sources (42
+  annotations), the T04 manifest (no build-args, no network share, license
+  installs), and T01–T03's desktop/metainfo/license material — green
+  end-to-end fully offline. The flatpak-builder deferral-ramp debt is
+  discharged.
+  **VERDICT: T06 PACKAGE APPROVED.** T06 record ready for the lead's commit
+  turn: staging list = packaging.md ONLY, numstat 60+/3−, 496 lines
+  (Appendix A :441–496 + the three fills :157/:167/:338 in their frozen
+  final forms). Then: the lead's T06-cycle docs window (my rev-3 custodial +
+  any PLAN deltas) → T07 release ping. Verdict wired to the packager; digest
+  to the lead.
+
+- **T06 OWNER-ACK + RECORD RECONCILIATION — CYCLE CLOSED (crossing #21:
+  their ack adopted T06-F1 as live; composed after my verdict wire, before
+  my withdrawal wire — reconciled here to a single record version).** Their
+  ack: no rework, applied text = FINAL FORM per my ruling, released and
+  quiescent, staging list confirmed (packaging.md ONLY, 60+/3−, 496 lines),
+  owner FINAL-FORM commit-body language en route to the lead (RC-2
+  precedent). RECONCILED VERSION (this is the record): T06-F1 stands
+  **WITHDRAWN as a finding** — the freeze wire is the condition-(2) record
+  and matches the tree byte-for-byte — but the underlying record
+  inconsistency was **real and theirs, and they own it**: the package
+  displayed stale PROPOSAL forms, and their finalization pass refined the
+  strings without declaring the delta vs the display (colon→at ×2, the
+  nested-paren avoidance at :157, :167 expanded to keep "> 60 s" visible at
+  the landing site). My "self-referential" characterization was fair on that
+  axis (their verification was sound against the freeze wire, blind to the
+  package display); my withdrawal retracts the charge, not the observation.
+  **ADOPTED CONVENTION (T07/T08 onward, both directions): when a package
+  displays proposal strings, the freeze wire must explicitly declare the
+  delta vs that display — or apply the display forms byte-exactly.** Their
+  staging hygiene applied: /tmp/t06-staging/packaging-md-appendix-block.txt
+  updated BY THE OWNER to carry the APPLIED FINAL FORM + the superseded
+  display forms labeled as T06-F1 drift — my leg-(7) quotes refer to the
+  file's pre-update state (mtime 08:29Z, read at review time). Acknowledged
+  on their side: the BEXP provenance note (no artifact owed), the
+  trailing-slash ls artifact (same one they hit), and the P2-T3
+  eleven-count — fourth crossed self-correction this cycle, same treatment
+  on both sides. My reconciliation wire asks their FINAL-FORM language to
+  the lead to carry the withdrawn status; the lead holds a micro-note too
+  (inbox arbitrates if the owner language arrived first). My rev-3
+  declaration to them updated: 1052 lines, 408+/16− (supersedes the
+  1022/378+/16− their ack noted). Nothing owed between us until their T07
+  plan note at the lead's release ping.
+  ABSORPTION RIDER (their wire, composed vs my withdrawal, crossing my
+  reconciliation): withdrawal fully absorbed — their prior ack's F1
+  ownership MOOT; precision item (i) ACCEPTED ("pre-launch bracket"
+  corrected in their staging/continuity + the lead's body-narrative
+  guidance); precision item (ii) OWNED AS THEIR ERROR, unambiguously (their
+  freeze-wire R1 leg conflated census-time with final state; my ordering is
+  canonical and now carries their records: pre 07:49:51Z {none their side} →
+  mid 08:03:18Z → post 08:25:57Z {review-phase2.md only} → E7(a)+(b)
+  08:29–08:42Z → final {both}; their banked lesson: census-time and
+  final-state git legs are never merged in a wire — each observation renders
+  its own timestamp). Their lead-correction wire SENT (owner-F1-language
+  VOID, both precision items folded into the body guidance, staging list
+  unchanged) — my FINAL-FORM ask closed before it was read. Staging label
+  re-applied post-withdrawal: the appendix-block's superseded forms now read
+  "pre-freeze draft, superseded by the authoritative freeze wire; F1
+  issued-then-withdrawn" (their first post-verdict label "the T06-F1 drift"
+  mislabeled after the withdrawal; my leg-(7) quotes reference the original
+  08:29Z state). Their rescoped lesson bank names ONLY the census-legs item
+  — the freeze-delta convention is not contradicted but not confirmed
+  either; my reconciliation wire (in flight at their composition) adopts it
+  bilaterally, so it stands unless objected at the T07 plan note, where I
+  will hold their note to it. They routed my STALE 1052 declaration to the
+  lead — 1093/449+/16− supersedes on both wires already out; the
+  staging-time custodial read governs regardless. **RECORD CONVERGED: ZERO
+  FINDINGS, CLEAN SHEET — T06 closed from both ends.**
 
 ## 3. Open banks and package-time checklists
 
-**Queue (lead-confirmed sequencing, LOCKED):** ux sync committed 8e5b01a
-(closed). **T05 APPROVED** → lead's T05 commit (seven paths; DECISIONS.md
-applied by the lead at the commit turn) → docs window (log rev 2 custodial,
-then PLAN rev 10 = the RV-15c-1 fold) → T06 release ping (clean tree, named
-HEAD) → T06 evidence review → T07/T08 windows; **Stage D opens at T08's
+**Queue (lead-confirmed sequencing, LOCKED — execution current at 73f7606):**
+ux sync committed 8e5b01a (closed). **T05 APPROVED → COMMITTED 4314e2b →
+POST-COMMIT RECORD-CHECK CLEAN** (seven paths exactly as declared; both body
+corrections permanent; D10 lineage closed five ways — §2 record-check entry).
+Docs window EXECUTED: commit A c747534 (this log's rev 2 custodial, the
+declared 660-line rev), commit B 73f7606 (PLAN rev 10 = the RV-15c-1 fold,
+verified verbatim-match). **T06 EXECUTED → PACKAGE APPROVED** (§2
+package-review entry; ZERO findings — T06-F1 issued then WITHDRAWN on the
+freeze-wire crossing; the part-(b) fills adopted as applied, byte-identical
+to the pre-edit freeze record, FINAL FORM frozen at the sign-off;
+correction of record accepted; new sink /tmp/np-t06-repo accepted as the
+T07 rehearsal repo). **NEXT: the lead's T06 commit turn** (staging = packaging.md ONLY,
+60+/3−, 496 lines) → the T06-cycle docs window (my rev-3 custodial + any
+PLAN deltas) → T07 release ping → T07/T08 windows; **Stage D opens at T08's
 landing** (rev-5 single-modifier discipline: scripts/ vs src/tests is not
 docs-disjoint). Stage-D packages: T09 at 60+6, T10 at 84+6, T11 at 121, T12
 at 136+6=142 — all four windows banked; T12's specs ADOPTED with the pin-(c)
 refinement.
 
-**T05 package (EXECUTED — APPROVED; results in the §2 verdict entry):**
+**T05 package (EXECUTED — APPROVED — COMMITTED 4314e2b — RECORD-CHECK
+CLEAN; results in the §2 verdict + record-check entries):**
 shape census (every ± lock line a libcosmic `source` line,
 bare↔`?rev=`, identical `#` fragment, zero collateral; record actual pair count
 — 18 today); close-gate exit 0 post-regen; A-before-B evidence (vendor.sh run
@@ -416,10 +797,13 @@ proposal verbatim, staged alongside the T05 commit and declared in package +
 sign-off); commit body must carry the three refinements permanently (no rev 10 —
 my not-load-bearing judgment on record); no flatpak-builder (RV-15 → T06).
 
-**T06 (evidence review — no flatpak-builder on my side, constraint):**
-sandbox offline build exit 0 fully offline; vendor dir-copy timing vs the
-§2.3 archive-source revisit threshold (>60 s); ccache/build timings appended to
-packaging.md; retroactive Flatpak gate for T01–T05 (RV-15a).
+**T06 (EXECUTED — PACKAGE APPROVED, zero findings (T06-F1 issued then
+withdrawn in-rev); results in the §2 package-review entry):** sandbox offline build exit 0 fully offline —
+MET ×2, raw-log verified; vendor dir-copy timing vs the §2.3 archive-source
+revisit threshold (>60 s) — 6.679 s, ~9× under, type:dir stands on data,
+condition (4) moot; ccache/build timings appended to packaging.md — Appendix
+A :441–496 pure-append re-proved + the part-(b) fills :157/:167/:338 adopted
+as applied; retroactive Flatpak gate for T01–T05 (RV-15a) PASSED.
 
 **T07/T08 windows:** smoke-test + verify.sh per packaging.md §3/§4; my skip
 authority (b) activates at T08; `GIO_MODULE_DIR=""` as verify/ci env-prep
@@ -431,7 +815,12 @@ window).
 authority; effective immediately; PLAN :78–81's "src-only" text unchanged until
 the lead folds a clarification into the next rev — not required for
 effectiveness; requests cite "RV-15c + disposition RV-15c-1"; lead copied,
-overridable). **Principle:** the authority turns on ARTIFACT NEUTRALITY, not
+overridable). **[FOLDED — PLAN rev 10 (73f7606, docs-window commit B): the
+§2-rule-3 skip-authority text (:78–98 as-of-writing) now carries the
+disposition, verified verbatim-match element-by-element at the record-check;
+from rev 10 the PLAN text governs and Stage-D requests cite it directly; the
+interim citation stays valid for anything issued pre-fold. The disposition
+text below remains as issued (historical record).]** **Principle:** the authority turns on ARTIFACT NEUTRALITY, not
 literal file-path membership — steps 5–10 verify the packaging chain, and a leg
 qualifies iff it cannot alter any packaged artifact or packaging input.
 **Qualifying legs:** cfg(test) test files + their `#[path] mod` lines;
@@ -508,8 +897,19 @@ actual :215; footer 551–573 vs actual :504; corpus 432–460 vs actual :420/:4
 task-table rows :780–788 internal cites join the sweep; **packaging.md L161
 tail (T05 item-6, reviewer-ruled — deferred here): stale "P2-T3" task name
 (live: T05) + the pre-regen `Cargo.lock:2740` anchor → symbol-first
-`[[package]]` libcosmic cite**; PLAN-side count fixes are
-OUT of T27 scope (rev 9 precedent: PLAN fixes ride PLAN revs).
+`[[package]]` libcosmic cite**; **packaging.md stale task-naming class (added
+at the T06 plan-note review; the E7(b) disposition carves out ONLY the three
+measurement-landing sites :157/:167/:338 for the T06 fill): :92 audit-row-3
+"P2-T4 becomes" status note; :352/:353 task-table rows (P2-T4/P2-T5, incl.
+the retired "/tmp/np-smoke-repo rehearsal" shortcut note); the global P2-TN →
+TN rename class across the doc (ELEVEN P2-T3 lines incl. L161 — live-recounted
+at the T06 package review: :14/:96/:105/:106/:154/:161/:209/:308/:311/:331/:351,
+1 occurrence each; my earlier "ten" label was off by one, §5); the E7(b)
+carve-out is CONSUMED at T06 — :157/:167/:338 now carry the T06 fills (final
+forms frozen by the sign-off); the remaining population above is the whole
+T27 stale-naming class**; PLAN-side
+count fixes are OUT of T27 scope (rev 9 precedent: PLAN fixes ride PLAN revs;
+rev-10 renumbering of PLAN cites rode the lead's anchor table, §4).
 
 ## 4. Verified anchor base (as-of HEAD 8e5b01a; src/ unchanged since b963dce — re-verify before trusting)
 
@@ -564,12 +964,21 @@ names :6/:33, release 3.0.0 :41, provides :35–38 post-unwrap, binary 6-space
 indent kept); justfile vendor L83–88 / vendor-extract L91–93 / clean-vendor
 L34–35; .gitignore :4–7 (target/, .cargo/, vendor/, vendor.tar).
 
-**Docs (rev 9 / current):** PLAN (376 lines) — rule 6 :92; §3.1 coverage table
+**Docs (rev 9 — SUPERSEDED by rev 10; historical entries cite this
+numbering):** PLAN (376 lines) — rule 6 :92; §3.1 coverage table
 :141–147 (commands row fixed to 21 tests :269–449; :144 = T10/T18/T19 boundary
 cite); T04 :201, T05 :202 (amended), T06 :203, T09 :219 (ruling folded), T10
 :220 (twin banked), T11 :221 (names exactly three hooks), T12 :222, T14 :224,
 T19 :238, T22 :241, T24 :248, T25 :249, T27 :251; rev log :330+ (rev 8), :352+
-(rev 9). architecture.md — §2.3 rows: #2–9 :200–207, #17–28 :215–226, #31–39
+(rev 9). **PLAN rev 10 (73f7606) — CURRENT, live-verified row-by-row at this
+write: 405 lines / 41054 B; uniform +16 below the rule-3 fold (35+/6− =
+header bump 1/1 + rule fold 21/5 net +16 + the 13-line rev-10 entry at EOF).
+Rule 6 :108; §2 rule 3's RV-15c-1 skip-authority text :78–98; §3.1 coverage
+table :157–163 (:160 = the T10/T18/T19 boundary cite); T04 :217, T05 :218,
+T06 :219, T07 :220, T08 :221, T09 :235, T10 :236, T11 :237 (three-hook
+boundary — the cond-8 cite, ex-rev-9 :221), T12 :238, T13 :239, T14 :240, T19
+:254, T22 :257, T23 :258, T24 :264, T25 :265, T27 :267; rev-log entries: rev
+7 :341, rev 8 :349, rev 9 :368, rev 10 :393–405.** architecture.md — §2.3 rows: #2–9 :200–207, #17–28 :215–226, #31–39
 :229–237, #41 :239, #42–48 :240–246 (#46 :244); §4.3 flows :551–631 (F17 :612,
 F18 :616, F19 :619, F20 :622, F21 :626, F22 :631); **task table T2–T10
 :780–788** (T4 :782 = RV-1 carrier; T7 :785 = config.rs-inline anticipation,
@@ -636,7 +1045,39 @@ verdict" and the alignment wire "nothing owed until your verdict" while the
 verdict sat in both inboxes). Zero divergence: the supplement's third-witness
 breakdown verified from the raw stderr (verdict-neutral, confirmed); the
 alignment wire's tripwire resolution matches my sign-off's DECISIONS.md
-treatment exactly.
+treatment exactly. 18. The lead's docs window overtook my record-check
+mid-run: batch 1's early calls (≈07:36–07:37) saw HEAD c747534 (commit A
+landed 07:35:19 carrying my declared 660-line rev) and a clean tree; the
+lead's rev-10 write (PLAN.md mtime 07:37:24 — caught by batch 1's own later
+stat call) and commit B (73f7606, 07:38:01) landed between my batches; batch
+2 (07:42) saw B on top. Zero divergence: the record-check simply extended to
+cover B (fold verified — §2 entry item (7)); the receipt's "NEXT: docs
+window now" had already executed by the time it reached me. Same pass: the
+harness's session-start gitStatus snapshot claimed branch "main", clean tree,
+empty recent-commits — contradicted by every live git call
+(cosmic-migration, 43 commits); filed under the host's
+untrustworthy-environment-metadata class, filesystem arbitrates as always —
+corroborated by the lead's receipt: their own session-start context carried
+the same false snapshot (second independent observation of the class); both
+banks now carry the rule: never cite the snapshot, live git arbitrates.
+19. The lead's docs-window receipt listed "your open item: the 4314e2b
+post-commit record-check" — composed pre-delivery of my CLEAN verdict wire;
+their bank's board state already shows the record CLOSED and their crossing
+note names the same crossing from their side. Zero divergence; inbox
+arbitrates. 20. The packager's T06 plan-note census said "tree 0 dirty at my
+census" (07:49:51Z) while my log's rev-3 churn was likely already dirty —
+dual reading: scoped-by-convention (their T05 "third-party-dirty, excluded"
+practice) or a timing crossing with my edit landing. Benign either way;
+refinement R1 issued so E6/E8's git-status legs name the exclusion
+(criterion: no third path beyond their E7 edit + my declared churn).
+21. The packager's T06-F1 ownership-ack wire (adopting the finding as live,
+owning the display-vs-freeze drift) crossed my withdrawal wire (finding
+WITHDRAWN — their pre-edit freeze wire byte-matches the tree; the
+authoritative condition-(2) record). Reconciled to a single record version
+in the §2 cycle-closure entry: charge withdrawn, observation owned by them,
+adopted convention banked for T07/T08 (a freeze wire declares its delta vs
+any package-displayed proposal or applies the display byte-exactly); their
+FINAL-FORM language to the lead re-flagged to carry the withdrawn status.
 
 **Self-corrections (the class binds me too):** update_title anchor :1022 →
 actual :1035 (architect's example was right); tests/packaging.rs 94 → 93
@@ -655,6 +1096,23 @@ cite corrections on the record: packager's PLAN ":181" → live :202; architect'
 PLAN ":208" → :220 (pre-rev-8-valid) and "PLAN's arch-table :785" →
 architecture.md :785 (self-corrected by the architect; my condition 1 crossed
 it). Rev 9 fixed PLAN's stale commands.rs count (22 → 21, live-verified).
+**T06-window trio: my mid-window-snapshot note said "run 1 in flight" — run1's
+log-start epoch (1789113817, 08:03:37Z) is 19 s AFTER my snapshot (1789113798,
+08:03:18Z), so the snapshot actually brackets the PRE-LAUNCH window (a
+stronger zero-writes position; corrected inline at the plan-note entry). And
+my T27-bank "ten P2-T3 sites" label vs the live count of ELEVEN lines — bank
+corrected with the full enumeration. Lesson: counts get grepped fresh, never
+carried from a prior draft's label. And T06-F1: I issued a condition-(2)
+byte-drift finding by comparing the applied fills against the package's
+appendix-block PROPOSAL strings; the authoritative freeze record was the
+packager's DEDICATED PRE-EDIT WIRE, queued unread in my inbox at review time
+— its strings byte-match the tree exactly (grep -cF: NEW ×3 = 1 each, OLD ×3
+= 0). Finding WITHDRAWN, "self-referential grep" characterization retracted,
+verdict ships zero-findings. Lesson: a frozen-string adjudication needs the
+dedicated freeze record — a package attachment may be a pre-freeze draft;
+delivery ordering is unpollable, so a drift finding against frozen strings
+must name its comparison basis and flag possible in-flight freeze wires
+before it issues.**
 
 *Maintained by the reviewer; lead commits. Wire traffic between teammates is
 the operative channel — this log is the durable index, not a replacement.*
