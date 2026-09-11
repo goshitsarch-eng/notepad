@@ -1,11 +1,11 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 1 (2026-09-11).
+charter. Rev 3 (2026-09-11).
 
-**Inputs:** `docs/migration/ux.md` (rev 2), `docs/migration/architecture.md`,
-`docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md` (D1–D14),
-and the devil's-advocate review `docs/migration/review-phase1.md`.
+**Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
+(rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
+(D1–D14), and the devil's-advocate review `docs/migration/review-phase1.md`.
 
 ---
 
@@ -281,4 +281,5 @@ finished until all four hold.
   closing sentence 47-of-48 (RV-3), T17 cross-boundary mark (RV-9 as
   amended), T20 predicate test home, T21 About-drawer suppression note, T23
   same-commit test-update requirement. All 17 findings (0 BLOCKER / 1 MAJOR /
-  10 MINOR / 6 NOTE) dispositioned; reviewer confirms READY against rev 2.
+  10 MINOR / 6 NOTE) dispositioned; reviewer's verdict upgraded to ACCEPT
+  against rev 3 (review-phase1.md, final: all findings closed with disk refs).
