@@ -2,6 +2,17 @@
 
 **Phase 1 deliverable — UX teammate.** No source changes; this document only.
 
+*Rev 3.1 — T03 ticking (Phase 2; doc-only, uncommitted per protocol): §1.7
+strict-UTF-8 row → **Implemented** (**D-5 closed**; `app.rs:1282-1318`, tests
+`app_file_tests.rs:37-83`), load-error row's verification note self-corrected
+(path-naming gap found in the T03 copy review, closed in T03 as a lead-ruled
+declared extension), save-error row re-judged → **Partial** (`app.rs:1348`
+omits the filename; Save-As twin `app.rs:613` names it — fix ruled into **T22**,
+PLAN rev 7: option-1 composition extends verbatim, architect edits / ux
+co-signs), §1.7/§3.1/§3.2 file-ops citations refreshed to the
+post-T03 tree, T-6 landed notes in §6/§7/§8/App B, and an `app.rs`
+citation-baseline convention added to the evidence preamble.*
+
 *Rev 3 — reviewer Phase-1 pass (`review-phase1.md`): **ACCEPT WITH
 OBJECTIONS** on ux.md; lead accepted every finding (PLAN.md rev 2). This rev
 applies the four ux-owned doc fixes: **RV-8** (§4 unused-ftl-key count
@@ -25,7 +36,11 @@ equivalent, then classifies the current **3.0.0** working-tree implementation.
   Flatpak is installed anywhere visible**, so live A/B runtime comparison is
   unavailable — see §6 "Verification-context correction".
 - 3.0.0 evidence is cited as `src/<file>:<line>` in the repo
-  (`/home/gosh/Documents/GitHub/notepad`).
+  (`/home/gosh/Documents/GitHub/notepad`). **Citation baseline:** §1/§3
+  `app.rs` line numbers reflect the pre-Phase-2 tree unless a row was re-ticked
+  during Phase 2 (re-ticked rows cite the tree as of their tick — e.g. the T03
+  file-ops cluster in §1.7); later Phase-2 tasks shift the remaining citations.
+  A full citation re-audit is a Phase 3 item.
 - Toolkit facts are cited from the pinned libcosmic checkout
   (`~/.cargo/git/checkouts/libcosmic-41009aea1d72760b/d4d71fd`, rev `d4d71fd`).
 
@@ -216,16 +231,16 @@ Find/replace/go-to logic lives in `commands.rs` (GUI-free, unit-tested) so the
 
 | Behavior | 2.0.4 (evidence) | 3.0.0 (evidence) | Status | Verify |
 |---|---|---|---|---|
-| Open dialog | `QFileDialog.getOpenFileName`, start = current dir, filter "Text files (*.txt);;All files (*)" (`window.py:600-611`) | portal `file_chooser::open::Dialog`, same title/filters/start dir (`app.rs:1327-1346`) | **Deviation** (portal vs Qt dialog; plan `libcosmic-rewrite.md:21`) — functionally equivalent | M/S/R |
-| Save (existing path) | writes directly (`window.py:630-633`) | `write_to` (`app.rs:1292-1325`) | **Implemented** | M |
-| Save (untitled) → Save As | `window.py:633-634` | `save(false)` → `save_as_dialog` (`app.rs:1292-1296`) | **Implemented** | M |
-| Save As default filename | `basename` or `"Untitled.txt"` (`window.py:636-645`) | `file_name` or `fl!("untitled") + ".txt"` (`app.rs:1348-1356`) | **Implemented** (bugfix #14 localized) | M |
-| Save As dialog | `QFileDialog.getSaveFileName`, same filters (`window.py:640-645`) | portal save dialog, same title/filters (`app.rs:1361-1378`) | **Deviation** (portal) | M/S/R |
-| Write UTF-8, update title/clear dirty | `window.py:649-659` | `app.rs:1299-1316` | **Implemented** | M |
-| Save error → dialog | `window.py:654-655` ("Could not save file:\n{err}") | `app.rs:1318-1323` (`fl!("could-not-save")`) | **Implemented** | M |
-| Open/load UTF-8 **strict** | `open(path, encoding="utf-8")`; `UnicodeDecodeError` → "Could not open file" dialog (`window.py:618-628`) | `from_utf8_lossy` — never fails, replaces invalid bytes with U+FFFD (`app.rs:1269-1290`) | **Deviation (D-5) — WILL BE FIXED**: strict reject decided (§6, T-6; DECISIONS.md D8); current code opens lossily and can corrupt on re-save | M/R |
-| Load error (OS) → dialog | `window.py:622-624` ("Could not open file:\n{err}") | `app.rs:1283-1289` (`fl!("could-not-open")`) | **Implemented** | M |
-| Open non-file URL/URI | n/a (Qt path) | `url.to_file_path()` err → `could-not-open` dialog (`app.rs:633-640`) | **Implemented** | M |
+| Open dialog | `QFileDialog.getOpenFileName`, start = current dir, filter "Text files (*.txt);;All files (*)" (`window.py:600-611`) | portal `file_chooser::open::Dialog`, same title/filters/start dir (`app.rs:1355-1374`) | **Deviation** (portal vs Qt dialog; plan `libcosmic-rewrite.md:21`) — functionally equivalent | M/S/R |
+| Save (existing path) | writes directly (`window.py:630-633`) | `save` → `write_to` (`app.rs:1320-1353`) | **Implemented** | M |
+| Save (untitled) → Save As | `window.py:633-634` | `save(false)` → `save_as_dialog` (`app.rs:1320-1325`) | **Implemented** | M |
+| Save As default filename | `basename` or `"Untitled.txt"` (`window.py:636-645`) | `file_name` or `fl!("untitled") + ".txt"` (`app.rs:1377-1384`) | **Implemented** (bugfix #14 localized) | M |
+| Save As dialog | `QFileDialog.getSaveFileName`, same filters (`window.py:640-645`) | portal save dialog, same title/filters (`app.rs:1390-1397`) | **Deviation** (portal) | M/S/R |
+| Write UTF-8, update title/clear dirty | `window.py:649-659` | `write_to` success arm (`app.rs:1330-1345`) | **Implemented** | M |
+| Save error → dialog | `window.py:654-655` ("Could not save file:\n{err}") | `write_to` Err arm: `could-not-save` + err (`app.rs:1346-1351`) | **Partial** — re-judged at T03 (previous tick was generous, same defect as the load row's): dialog fires but names no file; v2's `OSError` string embedded the filename, and the Save-As twin names its url (`app.rs:613`), leaving `app.rs:1348` the lone save/open dialog that omits it. Save-side twin of the T03 IO-arm catch; **fix ruled into T22** (PLAN rev 7 — folded there rather than a micro-task): the option-1 composition extends verbatim, `could-not-save` + `path.display()` + err (the load arms'); architect edits / ux co-signs; row ticks at T22's done-when | M |
+| Open/load UTF-8 **strict** | `open(path, encoding="utf-8")`; `UnicodeDecodeError` → "Could not open file" dialog (`window.py:618-628`) | `String::from_utf8` (`app.rs:1291`); decode `Err` → `PendingDialog::Error` = `could-not-open` + path + `Utf8Error` detail (`app.rs:1293-1302`); document/title/`saved_text`/undo/redo untouched | **Implemented** — landed in T03 (strict reject per §6/T-6, DECISIONS.md D8; **D-5 closed**). Copy = T03 copy-review ruling of record (option 1; both `Utf8Error` Display variants carry lowercase "utf-8"). Test: `app_file_tests.rs:37-83` (spec bytes `[0x66,0x6f,0x6f,0xff,0xfe]` → dialog names file + decode problem, state untouched) | U/M/R |
+| Load error (OS) → dialog | `window.py:622-624` ("Could not open file:\n{err}") | IO `Err` → `could-not-open` + path + err (`app.rs:1311-1316`) | **Implemented** — verification note (T03 self-correction): the original tick was too generous. v2's `OSError` string embedded the filename; Rust's `io::Error` Display does not, so the pre-T03 dialog (`could-not-open` + bare err) missed v2's informativeness. Gap found in the T03 copy review and closed inside T03 as a lead-ruled declared extension (identical path-naming composition as the decode arm, `app.rs:1313`). Test: `app_file_tests.rs:89-132` | U/M |
+| Open non-file URL/URI | n/a (Qt path) | `url.to_file_path()` err → `could-not-open` dialog (`app.rs:586-593`) | **Implemented** | M |
 | Unsaved guard: New | `_guard_unsaved(_reset_document)` (`window.py:591-592`) | `guard_unsaved(AfterSave::New)` (`app.rs:631,1242-1249`) | **Implemented** | M |
 | Unsaved guard: Open | `window.py:600-612` | `app.rs:632` | **Implemented** | M |
 | Unsaved guard: external/2nd-instance open | `open_path` guarded (`window.py:614-616`); test `test_application.py:33-42` | `OpenExternal → guard_unsaved(OpenPath)` (`app.rs:641-652`) | **Implemented** | U/M |
@@ -362,21 +377,25 @@ no unit test, so it is a standing manual/smoke item.
   dialog; Save/Discard/Cancel) → `QFileDialog.getOpenFileName` (modal, Qt) →
   `load_path` reads **UTF-8 strict**; on `UnicodeDecodeError`/`OSError` shows
   "Could not open file" (`window.py:600-628`).
-- **3.0.0:** Open → `guard_unsaved(Open)` (`app.rs:632`) → portal open dialog
-  (`app.rs:1327-1346`) → `OpenSelected` → `guard_unsaved(OpenPath)` →
-  `load_path` reads **UTF-8 lossy** (`app.rs:1269-1290`).
-- **Delta:** portal vs Qt dialog (Deviation D-1); lossy vs strict decode
-  (D-5 — **resolved: strict reject will be restored**, §6/T-6, DECISIONS.md
-  D8). Otherwise equivalent, including the guard chain.
+- **3.0.0:** Open → `guard_unsaved(Open)` (`app.rs:585`) → portal open dialog
+  (`app.rs:1355-1374`) → `OpenSelected` → `guard_unsaved(OpenPath)` →
+  `load_path` reads **UTF-8 strict** (`String::from_utf8`,
+  `app.rs:1282-1318`); decode or IO `Err` → "Could not open file" dialog
+  naming the file + detail (`app.rs:1293-1302,1311-1316`), state untouched.
+- **Delta:** portal vs Qt dialog (Deviation D-1) remains; decode parity
+  **restored in T03** (D-5 **closed** — strict reject landed, §6/T-6,
+  DECISIONS.md D8). Otherwise equivalent, including the guard chain.
 
 ### 3.2 Save / Save As
 
 - **2.0.4:** Save → write if path else Save As (`window.py:630-634`); Save As →
   `QFileDialog.getSaveFileName` default name `basename` or `Untitled.txt`
   (`window.py:636-647`).
-- **3.0.0:** `save(false)` → `write_to` or `save_as_dialog` (`app.rs:1292-1296`);
-  default name localized `untitled + ".txt"` (`app.rs:1348-1356`).
-- **Delta:** portal dialog (D-1); localized default name (bugfix #14). Equivalent.
+- **3.0.0:** `save(false)` → `write_to` or `save_as_dialog` (`app.rs:1320-1325`);
+  default name localized `untitled + ".txt"` (`app.rs:1377-1384`).
+- **Delta:** portal dialog (D-1); localized default name (bugfix #14); the
+  save-error dialog omits the filename v2's `OSError` string carried (§1.7
+  row — **Partial**; fix ruled into T22). Otherwise equivalent.
 
 ### 3.3 Unsaved-guard chain ("Save continues the original action")
 
@@ -653,7 +672,7 @@ elsewhere in this document:
 
 | Item | Ruling | Consequence / split |
 |---|---|---|
-| **T-6 / D-5** — lossy UTF-8 open | **DECIDED: strict reject** (option a) — the exact 2.0.4 contract and the only zero-data-loss option. `String::from_utf8` on load; on `Err` show `PendingDialog::Error` with `could-not-open` copy + decode detail naming the file (mirrors "Could not open file:\n{err}", `window.py:622-624`); document/title/`saved_text` untouched. **Required unit test:** invalid bytes (e.g. `[0x66,0x6f,0x6f,0xff,0xfe]`) → error path + state unchanged. Recorded as **DECISIONS.md D8**. | D-5 is retired as an accepted deviation and becomes a Phase 2 fix. Owner: **architect** (load logic = state region per DECISIONS.md D5); **ux** reviews dialog copy/flow. |
+| **T-6 / D-5** — lossy UTF-8 open | **DECIDED: strict reject** (option a) — the exact 2.0.4 contract and the only zero-data-loss option. `String::from_utf8` on load; on `Err` show `PendingDialog::Error` with `could-not-open` copy + decode detail naming the file (mirrors "Could not open file:\n{err}", `window.py:622-624`); document/title/`saved_text` untouched. **Required unit test:** invalid bytes (e.g. `[0x66,0x6f,0x6f,0xff,0xfe]`) → error path + state unchanged. Recorded as **DECISIONS.md D8**. | D-5 is retired as an accepted deviation and becomes a Phase 2 fix. Owner: **architect** (load logic = state region per DECISIONS.md D5); **ux** reviews dialog copy/flow. **LANDED IN T03** (executed; with reviewer): decode arm per the ux copy ruling (option 1, verbatim); IO arm gained identical path naming as a lead-ruled declared extension (ux flag → OBJ-T03-1 → ruling → reviewer acceptance; test `app_file_tests.rs:89-132`); suite 34→39. §1.7/§3.1 rows ticked and re-cited. |
 | **T-1** — global shortcuts | **Design direction approved**, two constraints: (i) `iced::event::listen_with` filtered to `(Event::Keyboard(_), Status::Ignored)` — fires only for keys the focused widget did **not** consume; this kills double-fire by construction (the editor binding closure consumes its own keys and stays as-is; `text_input` does not consume Ctrl+S/F3, so the find bar gets them). (ii) Suppress while a modal dialog is open (`self.pending.is_some()`) — 2.0.4's modal Qt dialogs (GoTo, save-guard, error box) blocked window shortcuts; the modeless ReplaceDialog maps to our inline bar, which is not `pending`. | Split per DECISIONS.md D5 cross-boundary rule: **architect** implements the subscription + routing; **ux** verifies the 17-binding table parity and focus interactions — T-3/T-4 sequencing must not fight the subscription. |
 | **T-8** — font dialog | **Scope set.** (1) Enumerate real system families — architect spikes the cheapest enumeration through libcosmic's cosmic-text stack (no new crate if avoidable; vendoring cost matters, cf. DECISIONS.md D9); (2) keep the free-text family field; (3) keep the size list; (4) add weight/style (bold/italic) **only if** the spike shows `Font{weight,style}` plumbing + two new config fields are straightforward (iced `Font` supports both; cosmic-config v1 tolerates added keys with defaults); (5) **no live preview — accepted deviation, to be documented** (§7). | Split: **architect** = enumeration spike + config fields; **ux** = dialog UI. Final scope locks after reviewer input. |
 | **T-2** — close-find accessible name | **Approved as proposed** — do exactly `.name(fl!("close-find"))`. | ux |
@@ -702,7 +721,7 @@ Each is a conscious replacement, with justification and the governing plan line.
 | **D-2** | Replace is an **inline expanding find bar**, not a modeless dialog | `ReplaceDialog` window (`window.py:102-171`) → second row in find bar (`app.rs:1079-1103`) | iced has no cheap modeless secondary window; inline bar keeps the editor live (non-modal), preserving "edit between replaces". | plan `libcosmic-rewrite.md:37` |
 | **D-3** | About is a **context drawer**, not a modal `QMessageBox` | `window.py:452-461` → `app.rs:443-455` | COSMIC convention for About. (Content gap tracked separately as G-6.) | plan `libcosmic-rewrite.md:44` |
 | **D-4** | Theming via **cosmic-theme** tokens, not Kirigami `QPalette`/Fusion | `theme.py` palettes → `config.rs:44-58` `theme_for` | Product decision: native COSMIC look. The Kirigami contrast unit tests are explicitly out of scope. | plan `libcosmic-rewrite.md:9,136-137` |
-| **D-5** | Open decodes UTF-8 **lossily** (`from_utf8_lossy`) instead of strict | `window.py:620-624` rejects invalid UTF-8 → `app.rs:1273-1275` opens with U+FFFD | Intent: legacy Latin-1/CP1252 files "still open instead of failing" (`app.rs:1270-1272`). **Risk:** re-saving replaces unknown bytes with U+FFFD → silent corruption; 2.0.4 refused such files. **RESOLVED (DECISIONS.md D8): retired — strict reject will be restored in Phase 2 (§6, T-6).** | `app.rs:1269-1290` |
+| **D-5** | Open **decoded** UTF-8 **lossily** (`from_utf8_lossy`) instead of strict | `window.py:620-624` rejects invalid UTF-8 → pre-T03 `app.rs:1273-1275` opened with U+FFFD | Intent: legacy Latin-1/CP1252 files "still open instead of failing" (pre-T03 `app.rs:1270-1272`). **Risk:** re-saving replaced unknown bytes with U+FFFD → silent corruption; 2.0.4 refused such files. **RESOLVED (DECISIONS.md D8) → CLOSED: strict reject landed in T03** — `String::from_utf8` + error dialogs naming the file (§6, T-6; tests `app_file_tests.rs:37-132`). | historical: `app.rs:1269-1290` (pre-T03 numbering); current: `app.rs:1282-1318` |
 | **D-6** | Menu **mnemonics dropped**; header bar replaces Qt menubar+toolbar | `&File` etc. (`window.py:323-361`) → plain labels in `header_start` (`app.rs:366-410`) | COSMIC header-bar model. A11y impact A-5. | `app.rs:361-416` |
 | **D-7** | **Delete** with no selection deletes the next char (classic Notepad) | 2.0.4 disabled Delete without selection (`window.py:410,424-425`) → always deletes (`app.rs:713-716`) | bugfix-pass item #10 chose classic-Notepad behavior over literal 2.0.4 behavior. | `bugfix-pass.md:46` |
 | **D-8** | **Font/size persisted**; bounded **undo (100)**; extra **Ctrl+Shift+Z** redo; explicit **min window 360×180** | font not persisted, unbounded undo, no Shift+Z, no min size | Config persistence is a COSMIC norm (`config.rs`); undo bound guards memory (`app.rs:1442-1447`); Shift+Z is a common redo idiom; min size lets the find bar wrap (`main.rs:49`). | `config.rs`, `app.rs`, `main.rs` |
@@ -710,12 +729,12 @@ Each is a conscious replacement, with justification and the governing plan line.
 | **D-10** (UX-D10) | No clear (✕) button inside the find entry | v2 enables the QLineEdit clear button on the find entry (`window.py:72` `setClearButtonEnabled(True)`) → iced/cosmic `text_input` has no built-in equivalent | No toolkit affordance to map; workaround is select-all + delete, and T-3/PLAN T18's select-all-on-open covers the common case. **Accepted** (review RV-13, PLAN rev 2). | review-phase1.md RV-13; `window.py:72` |
 | **D-11** (UX-D11) | `NOTEPAD_ICON` env icon override dropped | v2 `_find_icon` honors a `NOTEPAD_ICON` environment override for the window icon (`application.py:27-48`) → v3 embeds the SVG (`app.rs:311-316`) | Dev/packaging affordance, not user-facing; embedding matches how COSMIC apps ship icons. **Accepted** (review RV-14, PLAN rev 2). | review-phase1.md RV-14; `application.py:27-48` |
 
-**Priority note (RESOLVED):** D-5 (lossy decode + re-save corruption) was the
-one deviation trading *parity/data-safety* for convenience. Under the stated
-priority (parity > sandbox correctness > a11y > simplicity > COSMIC convention)
-the lead decided **strict reject** — the exact 2.0.4 contract and the only
-zero-data-loss option (§6; DECISIONS.md D8). D-5 becomes a Phase 2 fix, not an
-accepted deviation.
+**Priority note (RESOLVED — closed in T03):** D-5 (lossy decode + re-save
+corruption) was the one deviation trading *parity/data-safety* for convenience.
+Under the stated priority (parity > sandbox correctness > a11y > simplicity >
+COSMIC convention) the lead decided **strict reject** — the exact 2.0.4
+contract and the only zero-data-loss option (§6; DECISIONS.md D8). D-5 became a
+Phase 2 fix, not an accepted deviation — landed in T03.
 
 ---
 
@@ -770,10 +789,13 @@ Stage D coverage lands).
   DECISIONS.md D8).** Restore the 2.0.4 contract: `String::from_utf8` on load;
   on `Err` show `PendingDialog::Error` with `could-not-open` copy + decode
   detail naming the file (mirrors "Could not open file:\n{err}",
-  `window.py:622-624`); document/title/`saved_text` untouched (current lossy
-  path: `app.rs:1269-1290`). Owner: architect (load logic); ux reviews dialog
-  copy/flow. *Verify:* **required unit test** (invalid bytes → error path +
-  state unchanged) + M.
+  `window.py:622-624`); document/title/`saved_text` untouched (lossy path at
+  proposal time: `app.rs:1269-1290`, pre-T03 numbering). Owner: architect
+  (load logic); ux reviews dialog copy/flow. *Verify:* **required unit test**
+  (invalid bytes → error path + state unchanged) + M. **LANDED IN T03**
+  (T-6→T03, §6 mapping): decode arm per the ux copy ruling; IO arm gained
+  identical path naming as a lead-ruled declared extension; tests
+  `app_file_tests.rs:37-132`; §1.7 rows ticked.
 
 - **T-7 (G-6; PLAN T17) — Restore About attribution.** Populate the `About`
   drawer's `author`/`comments`/`copyright` fields (supported:
@@ -850,7 +872,7 @@ protocol, color-scheme model + persistence, check-column alignment. These are
 | A-3 | Partial (a11y) | Go To / Font inputs not programmatically labeled | T-9 |
 | A-4 | Gap (a11y) | Menu enabled-state not conveyed to AT | T-5 |
 | A-5 | Deviation | Alt-mnemonics dropped | (accepted, D-6) |
-| D-1…D-8 | Deviation | Portals, inline replace, About drawer, cosmic theming, lossy decode, mnemonics/header, Delete-next-char, persistence/undo/min-size/Shift+Z | D-5→T-6 (decided: strict reject, DECISIONS.md D8) |
+| D-1…D-8 | Deviation | Portals, inline replace, About drawer, cosmic theming, lossy decode (fixed in T03), mnemonics/header, Delete-next-char, persistence/undo/min-size/Shift+Z | D-5→T-6→**landed in T03** (strict reject, DECISIONS.md D8; closed) |
 | D-9 (UX-D9) | Deviation | `to_lowercase()` vs v2 `casefold()` — exotic Unicode only | (accepted, RV-12; comment rides PLAN T10) |
 | D-10 (UX-D10) | Deviation | Find-entry clear button not replicated (no iced equivalent) | (accepted, RV-13; T-3/PLAN T18 mitigates) |
 | D-11 (UX-D11) | Deviation | `NOTEPAD_ICON` env icon override dropped (v3 embeds SVG) | (accepted, RV-14) |
