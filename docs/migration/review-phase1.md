@@ -9,12 +9,16 @@ untracked `docs/`; lead commits after sign-off per D4).
 `docs/migration/packaging.md` (437 lines, revised), their consistency with
 `DECISIONS.md` (D1–D14; 381 lines at review time, amended to 393 during it),
 and — per the lead's scope addition of 2026-09-11, received mid-review —
-`PLAN.md` as a formal review input. Rev 1 (248 lines) is what the verdicts and
-RV-1…RV-14 below were written against; the lead revised it to rev 2 (266
-lines), folding in all 14 findings while this review was being amended —
-every fold-in re-verified before delivery (see the rev-2 addendum under the
-PLAN.md verdict and the status table in the closing section). Eight dimensions
-per the reviewer brief:
+`PLAN.md` as a formal review input. PLAN rev 1 (248 lines) is what the
+verdicts and RV-1…RV-14 below were written against; the lead revised it to
+rev 2 (266 lines, folding RV-1…RV-14) and then rev 3 (284 lines, folding the
+scope-addition findings RV-15…RV-17 and closing both rev-2 residuals) while
+this review was being amended. The doc owners revised their files in the same
+pass (architecture.md rev 2 → 887 lines, ux.md rev 3 → 850, packaging.md →
+439). Every fold-in was re-verified on disk before delivery — see the addenda
+under the PLAN.md verdict, the fold-in verifications under "Verifications
+performed", and the final status table in the closing section. Eight
+dimensions per the reviewer brief:
 parity-claim spot-checks, citation verification (v3 tree, v2.0.4 cache,
 libcosmic d4d71fd checkout), a11y/i18n, sandbox, untested paths, dependency
 pins, buildability sequencing, decision-log consistency.
@@ -32,6 +36,13 @@ fix (doc/scope corrections). NOTE = informational.
 ---
 
 ## Verdicts
+
+**Post-fold status (final, 2026-09-11).** All 17 findings were accepted and
+folded during the review pass (PLAN rev 2–3, DECISIONS amendments, doc-owner
+revisions), and every fold-in was re-verified on disk. All five
+ACCEPT-WITH-OBJECTIONS verdicts below therefore upgrade to **ACCEPT** as of
+the current file revisions; the verdict texts and findings remain as written
+against the revisions reviewed, for the record.
 
 ### ux.md — ACCEPT WITH OBJECTIONS
 
@@ -95,7 +106,7 @@ contradicted by the D3 addendum with no cross-reference (RV-11), and D12's
 smoke-evidence condition for the portal talk-name was unsatisfiable as
 written (RV-2).
 
-### PLAN.md — ACCEPT WITH OBJECTIONS
+### PLAN.md — ACCEPT WITH OBJECTIONS (rev 1–2) → ACCEPT (rev 3)
 
 *(Added per the lead's scope addition, 2026-09-11.)* The consolidation is
 faithful: I traced every architecture T1–T10, ux T-1–T-10, and packaging
@@ -187,16 +198,34 @@ open items are RV-9(T17), RV-3(§3.1 sentence), RV-15, RV-16, RV-17; none
 blocks T01, and the fold-in quality (14/14 faithful, 2 textual residuals) is
 itself evidence the consolidation process works.
 
+**Rev-3 addendum (residual closure).** PLAN rev 3 (284 lines) closed all five
+open items plus the three scrutiny-point-4 suggestions; each re-verified on
+disk: §2.3 codifies the three RV-15 seams (T06 as retroactive Flatpak gate
+for T01–T05; T05's reliance on T06 stated as a choice; post-T08 skip criteria
+= standing commitment (b), skips recorded in sign-off notes); risk 9 reworded
+("catches breakage **only on cache-miss/fresh legs**") and T25 carries the
+commit-key/time-bust/fresh-leg fix in scope *and* done-when (RV-16); the §3.1
+`test_commands.py` row carries the U+2029 N/A annotation and the UX-D9
+cross-ref (RV-17); §3.1's closing sentence now reads "47 of 48" (RV-3
+residual); T17 is marked cross-boundary with the edit/co-sign protocol and
+updated owner column (RV-9 residual); T20 names T09 as the predicates' test
+home; T21 records the deliberate About-drawer suppression exclusion; T23
+requires the same-commit update of T12's locked FONT_FAMILIES/settings tests.
+**Verdict for rev 3: ACCEPT** — no open objections. One hygiene nit
+(lead-owned, pre-commit): PLAN.md's title block still reads "Rev 1
+(2026-09-11)" although its revision log carries rev 2–3.
+
 ---
 
 ## Findings
 
 *Status note: RV-1…RV-14 were written against PLAN.md rev 1 and the pre-fold
-state of the other docs; all 14 were accepted and folded in during the review
-pass (PLAN rev 2, DECISIONS amendments, doc-owner corrections requested).
-Findings are kept as written for the record — per-finding fold-in status and
-residuals are tabulated in the closing section. RV-15…RV-17 arise from the
-PLAN.md scope addition and are open against rev 2.*
+state of the other docs; RV-15…RV-17 arise from the PLAN.md scope addition
+(against rev 1–2). All 17 were accepted and folded during the review pass
+(PLAN rev 2–3, DECISIONS amendments, doc-owner revisions) and every fold-in
+was re-verified on disk. Findings are kept as written for the record — the
+final per-finding status table is in the closing section. **No finding
+remains open.***
 
 ### RV-1 — MAJOR — architecture.md Appendix A ("Menus" row) + PLAN.md T09
 **Claim is false today, and the gap is unowned.** Appendix A marks Menus
@@ -243,8 +272,8 @@ plan doesn't do.
 **Action:** reword to "47 of 48 variants driven; #40 `LaunchUrl` excluded by
 design (R3), manual/smoke coverage only". As reviewer I hereby sign off on the
 #40 exclusion as charter-compliant (documented, justified, externally covered).
-*Status (rev 2): Stage-D preamble fixed as asked; §3.1's closing sentence
-("T09–T14: all 48 Message variants", line ~121) still needs the same reword.*
+*Status: rev 2 fixed the Stage-D preamble; rev 3 fixed §3.1's closing
+sentence ("T09–T14: 47 of 48 Message", :129). Closed.*
 
 ### RV-4 — MINOR — architecture.md §7 T7 & Appendix A row 814; PLAN.md T12/T14
 **F1 and F20 fall between task texts.** Appendix A assigns the Ln/Col app-side
@@ -327,8 +356,9 @@ accident rather than by plan.
 **Action:** mark T17/T18/T19/T22 cross-boundary in PLAN.md (architect edits
 the state-region lines or co-signs a single combined diff; ux owns the
 focus/copy semantics and verification).
-*Status (rev 2): T18/T19/T22 now carry cross-boundary marks with the
-edit/co-sign protocol — fold-in faithful; T17's mark is still missing.*
+*Status: rev 2 marked T18/T19/T22; rev 3 marked T17 ("the About data lives in
+`App::init` (Architecture region) — architect edits or co-signs"; owner column
+"ux (+architect edit/co-sign)"). Closed.*
 
 ### RV-10 — NOTE — architecture.md Appendix B (`test_window.py` row)
 "widget *focus* not unit-testable → smoke" over-promises: the smoke test's
@@ -390,6 +420,8 @@ touching only `src/` regions under Architecture/UX ownership may skip steps
 5–10 with a signoff note (steps 1–4 always run), everything else runs all 10.
 (Matches the standing commitment in the closing section — makes it plan text
 rather than reviewer custom.)
+*Status (rev 3): closed — all three seams codified in §2.3, with skips
+recorded in task sign-off notes.*
 
 ### RV-16 — MINOR — PLAN.md §4 risk 9 vs T25 / packaging.md §5 (CI cache)
 **"CI smoke catches [BaseApp] breakage" does not hold on the cached leg.**
@@ -406,6 +438,8 @@ fresh install per run), but neither risk 9 nor T25 names a drift-catcher.
 (`flatpak info -c com.system76.Cosmic.BaseApp//stable`), or add a time-based
 bust (week number in the key), or schedule a periodic fresh-install leg;
 amend risk 9's mitigation to name the actual mechanism.
+*Status (rev 3): closed — risk 9 reworded to "only on cache-miss/fresh legs";
+T25 scope + done-when carry the commit-keyed/time-bust/fresh-leg fix.*
 
 ### RV-17 — NOTE — PLAN.md §3.1 (ported-test coverage map)
 **Two v2 test contracts are silently absent from the map rather than marked
@@ -419,6 +453,7 @@ case-insensitivity *mechanism* of `selection_matches` — v2 `casefold()` vs v3
 but the §3.1 row's contract list carries no cross-reference to it.
 **Action:** one N/A annotation and one UX-D9 cross-reference in the §3.1
 `test_commands.py` row (or architecture Appendix B).
+*Status (rev 3): closed — the row carries both.*
 
 ---
 
@@ -491,13 +526,43 @@ RV-6).
 
 **PLAN rev-2 / DECISIONS fold-in verification (post-amendment pass):** all 14
 fold-ins re-read at their target locations (details in the rev-2 addendum
-under the PLAN.md verdict) — 14/14 faithful. Residuals located: PLAN §3.1
-line ~121 "all 48 Message variants" (RV-3); T17 owner line lacks the
-cross-boundary mark (RV-9). Confirmed unchanged in rev 2 (findings open):
-§2.3 ramp text (RV-15), risk 9 mitigation + T25 cache-key text (RV-16), §3.1
-`test_commands.py` row contract list (RV-17). `git status`: only untracked
-`docs/` — no tracked file modified on `cosmic-migration` @ 776b74d at any
-point during the review.
+under the PLAN.md verdict) — 14/14 faithful. Residuals located at that time:
+§3.1 line ~121 "all 48" (RV-3) and the missing T17 mark (RV-9) — both since
+closed in rev 3. `git status`: only untracked `docs/` — no tracked file
+modified on `cosmic-migration` @ 776b74d at any point during the review.
+
+**PLAN rev-3 / doc-owner revision verification (final pass):** rev-3 edits
+re-read at their targets — §2.3 (three RV-15 seams), risk 9 + T25 (RV-16),
+§3.1 `test_commands.py` row (RV-17), §3.1 closing sentence :129 (RV-3), T17
+mark :215 (RV-9), T20/T21/T23 scrutiny-point additions — all faithful; none
+introduces a new defect. Doc-owner fixes verified: **architecture.md** (rev 2,
+887 lines) — Appendix A Menus row demoted to "🧪 T4 / PLAN T09 (RV-1: no test
+exists yet…)" (:836), §7 T1 scope amended to the three deletions with the
+28→27 arithmetic (:779), T7 row (:785) + Appendix A (:826) carry F20,
+Appendix B focus wording "Phase-3 manual verification (RV-10…)" (:847);
+**ux.md** (rev 3, 850 lines) — §1.4 Go-To-refocus Gap row (:180), §3.7 delta
+(:452-453), §4 "Four defined-but-unused strings" + per-key dispositions
+(:558, :663), §7 D-9/D-10/D-11 rows + Appendix B (:708-710, :848-850);
+**packaging.md** (439 lines) — audit row 16 enforcement caveat (:105), §6
+RV-6 gap + P2-T3 extension (:308), finish-args table + P2-T8(a) RV-2 rewire
+(:118, :356).
+
+**T01 scope pre-verification (read-only, pre-objection window):** the
+architect's amended T1 scope matches disk exactly. `#[must_use]` at
+`src/config.rs:43` sits over `theme_for`, whose return type `cosmic::Theme`
+is itself `#[must_use]` (libcosmic `theme/mod.rs:182`) — removing the
+attribute fixes `double_must_use` without losing caller-side warnings.
+`line_count` (`src/commands.rs:176-181`) carries a pre-existing
+`#[allow(dead_code)]` and has exactly one caller crate-wide: the
+`empty_document_has_one_line` test (:364-368), whose two asserts both target
+`line_count` only — deleting the whole test loses no collateral coverage.
+`#[test]` counts confirm 22+3+3 = 28 unit + 6 packaging today, so the 28→27
+arithmetic holds. **No objection to T01.** One interpretation note for the
+task record: PLAN T01's "No `#[allow]` anywhere" cannot literally hold —
+`src/app.rs:610` carries a pre-existing `#[allow(clippy::too_many_lines)]`
+(pedantic-group lint, inert under the charter gate, outside the
+three-deletion scope); read it as "T01 adds no `#[allow]`; the fix is by
+deletion, not suppression" (which the amended arch T1 text already says).
 
 ---
 
@@ -532,11 +597,14 @@ authority, exactly as the docs provide.
 ## Overall Phase-2 readiness
 
 **READY — no BLOCKERs; 1 MAJOR, 10 MINOR, 6 NOTEs (17 findings, incl. the
-PLAN.md scope addition).** The plan is unusually well-evidenced: the docs'
-citations survived ~100 spot-checks across three codebases with a
-near-perfect hit rate, the two riskiest premises (headless testability,
-offline vendored build) are empirically settled rather than argued, and the
-baseline state they describe reproduces exactly.
+PLAN.md scope addition).** All 17 were dispositioned and folded during the
+review pass (PLAN rev 2–3, DECISIONS amendments, doc-owner revisions) with
+every fold-in verified on disk — none remains open, and the five verdicts
+stand upgraded to ACCEPT per the post-fold note under "Verdicts". The plan is
+unusually well-evidenced: the docs' citations survived ~100 spot-checks across
+three codebases with a near-perfect hit rate, the two riskiest premises
+(headless testability, offline vendored build) are empirically settled rather
+than argued, and the baseline state they describe reproduces exactly.
 
 **Sequencing assessment (dimension 7).** The ordered task list keeps the tree
 buildable and the gate meaningful at every step: T01 first (only gate-red
@@ -548,46 +616,48 @@ matches D6/D9/D11; T13's parallelism note is dependency-correct (different
 file, no T02 reliance); T21 correctly depends on T18/T19/T10 so the global
 shortcut subscription cannot fight the focus work; T23 after T12 so config
 changes are guarded by persistence tests. I found **no ordering that leaves
-the tree unbuildable, gate-red, or edit-conflicted**; rev 2 closes the
-original caveat (T18/T19/T22 now marked cross-boundary), leaving RV-9's T17
-mark and RV-15's three §2.3 sentences as the only clarifications needed
-before their stages start.
+the tree unbuildable, gate-red, or edit-conflicted**; rev 2–3 closed every
+caveat found (T17/T18/T19/T22 marked cross-boundary; the three §2.3 gate-ramp
+sentences codified). No clarifications remain outstanding before any stage
+starts.
 
-**Disposition status after PLAN rev 2 / DECISIONS amendments (2026-09-11).**
-The lead accepted and folded in all 14 original findings during the review
-pass; every fold-in was re-verified at its target (rev-2 addendum under the
-PLAN.md verdict). Residual work, none of which reorders or restarts a task:
+**Disposition status — FINAL (2026-09-11, after PLAN rev 3 + doc-owner
+revisions).** The lead accepted and folded in all 17 findings during the
+review pass; every fold-in was re-verified at its target (rev-2/rev-3 addenda
+under the PLAN.md verdict; verification detail under "Verifications
+performed"). **No finding remains open.**
 
-| Finding | Fold-in | Residual |
-|---|---|---|
-| RV-1 | ✅ T09 scope + done-when | architecture.md Appendix A Menus row 🔒→🧪 (doc owner) |
-| RV-2 | ✅ T26(a) rewired; D12 amended (:312-319) | — |
-| RV-3 | ✅ Stage-D preamble | §3.1 closing sentence still "all 48" (line ~121) |
-| RV-4 | ✅ T11 (F1), T12 (F20) | architecture.md §7 T7 flow list (doc owner) |
-| RV-5 | ✅ T12 invalid-config test | — |
-| RV-6 | ✅ T05 license-pin scope | — |
-| RV-7 | ✅ T22 refocus + cross-boundary mark | ux.md §3.7 delta row (doc owner) |
-| RV-8 | ✅ T17 consume/delete + zero-unused criterion | ux.md §4 count fix (doc owner) |
-| RV-9 | ⚠ T18/T19/T22 marked | **T17 cross-boundary mark missing** |
-| RV-10 | — | architecture.md Appendix B focus wording (doc owner) |
-| RV-11 | ✅ D1 correction note; D3 heading marked | — |
-| RV-12 | ✅ T10 comment + UX-D9 in PLAN §3 | ux.md §7 row (doc owner) |
-| RV-13 | ✅ UX-D10 in PLAN §3 | ux.md §7 row (doc owner) |
-| RV-14 | ✅ UX-D11 in PLAN §3 | ux.md §7 row (doc owner) |
-| RV-15 | new (scope addition) | open: three §2.3 sentences (lead) |
-| RV-16 | new | open: risk 9 / T25 cache-key mechanism (lead; packager at T25) |
-| RV-17 | new | open: two §3.1 annotations (lead) |
+| Finding | Fold-in (verified on disk) |
+|---|---|
+| RV-1 | ✅ T09 scope + done-when; architecture Appendix A Menus row → 🧪 (:836) |
+| RV-2 | ✅ T26(a) rewired; DECISIONS D12 amendment (:312-319); packaging (:118, :356) |
+| RV-3 | ✅ Stage-D preamble (rev 2) + §3.1 closing sentence (:129, rev 3) |
+| RV-4 | ✅ T11 (F1), T12 (F20); architecture T7 row (:785) + Appendix A (:826) |
+| RV-5 | ✅ T12 invalid-config test; architecture T7 (:785) |
+| RV-6 | ✅ T05 license-pin scope; packaging audit row 16 (:105) + §6 (:308) |
+| RV-7 | ✅ T22 refocus + cross-boundary mark; ux §1.4 row (:180) + §3.7 delta (:452) |
+| RV-8 | ✅ T17 consume/delete + zero-unused criterion; ux §4 corrected (:558, :663) |
+| RV-9 | ✅ T17/T18/T19/T22 all marked cross-boundary (rev 2 + rev 3) |
+| RV-10 | ✅ architecture Appendix B "Phase-3 manual verification" (:847) |
+| RV-11 | ✅ D1 correction note; D3 heading marked historical |
+| RV-12 | ✅ T10 comment + UX-D9 (PLAN §3; ux §7 D-9 :708, §1.4 row :159) |
+| RV-13 | ✅ UX-D10 (PLAN §3; ux §7 D-10 :709) |
+| RV-14 | ✅ UX-D11 (PLAN §3; ux §7 D-11 :710) |
+| RV-15 | ✅ rev 3 §2.3: T06 retroactive gate, T05 reliance stated, skip criteria |
+| RV-16 | ✅ rev 3 risk 9 reworded + T25 cache-key fix in scope and done-when |
+| RV-17 | ✅ rev 3 §3.1 U+2029 N/A annotation + UX-D9 cross-ref |
 
-The lead-owned residuals (RV-3 sentence, RV-9/T17 mark, RV-15, RV-16, RV-17)
-are five small PLAN.md text edits, all doable before T01 starts; the
-doc-owner residuals ride the architecture/ux/packaging correction pass the
-rev-2 log already requests.
+Only hygiene nits remain (lead-owned, optional pre-commit): PLAN.md's title
+block still reads "Rev 1 (2026-09-11)" under a rev-3 revision log, and the
+rev-3 log's "reviewer confirms READY against rev 2" is accurate as history
+but reads oddly beside rev 3's own closure. Neither affects Phase-2 execution.
 
 **Reviewer standing commitments for Phase 2:** (a) I sign off on the #40
 `LaunchUrl` unit-test exclusion (R3) as charter-compliant; (b) for Stage D/E
 tasks whose diffs touch only Architecture/UX-owned `src/` files, I will grant
 verify.sh step 5-10 skip notes on request (steps 1-4 always run), per PLAN
-§2.3 — packaging-affecting diffs run all 10; (c) I will require the T02
+§2.3 — now codified there verbatim (rev 3, RV-15c); packaging-affecting diffs
+run all 10; (c) I will require the T02
 `fl!`-without-`init` question (R5) and the `set_main_window_id` constant
 (R15) to be settled *inside T02's record*, not deferred silently; (d) per D7,
 T01's diff will be checked for absence of any `#[allow]`.
