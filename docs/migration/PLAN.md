@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 3 (2026-09-11).
+charter. Rev 4 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -49,7 +49,11 @@ the ux.md §1 checklist against the running 3.0.0 Flatpak.
    list in order) → Phase 3 (harden: reviewer-led verification pass against
    the running Flatpak; failures become new tasks; repeat until clean).
 2. **Per-task protocol.** Owner states a short plan before editing; reviewer
-   may object before work begins; teammates edit only files they own; at most
+   may object before work begins — the plan note licenses editing to start,
+   and the window is the reviewer's right to stop work in flight (owner
+   pauses at the point of objection; rule 4 applies), not a clearance gate
+   to await (lead interpretation, recorded at T02); teammates edit only
+   files they own; at most
    one teammate modifies the shared tree at a time (docs in disjoint files may
    proceed in parallel); cross-boundary tasks are split/sequenced by the lead
    per D5 (one owner edits a region, the other reviews).
@@ -283,3 +287,7 @@ finished until all four hold.
   same-commit test-update requirement. All 17 findings (0 BLOCKER / 1 MAJOR /
   10 MINOR / 6 NOTE) dispositioned; reviewer's verdict upgraded to ACCEPT
   against rev 3 (review-phase1.md, final: all findings closed with disk refs).
+- Rev 4 (2026-09-11): §2 rule 2 clarified on a lead ruling first applied at
+  T02 — the plan note licenses editing to start; the reviewer's objection
+  window is the right to stop work in flight (owner pauses at the point of
+  objection; disagreement protocol applies), not a clearance gate to await.
