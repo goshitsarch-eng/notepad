@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 5 (2026-09-11).
+charter. Rev 6 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -178,7 +178,7 @@ parentheses map to the Phase-1 documents. "Owner (+collab)" uses the D5 map.
 | ID | Task | Owner (+collab) | Depends | Done when |
 |---|---|---|---|---|
 | **T02** | Test seam: split `App::init` → thin `init` + `with_config(core, flags, config, handler)` (architecture.md §3.5); add `src/app_test_harness.rs` (`test_app()`, text/tempdir helpers); `#[cfg(test)] #[path]` mod plumbing; settle `fl!`-without-init (R5) and the `set_main_window_id` constant (R15). Zero behavior change. **Must land before any UX view-region edit (R12 ruling).** (arch T2) | architect | T01 | Harness spike tests green; `App::init` behavior unchanged; no real `~/.config` touched by tests |
-| **T03** | D8 strict-UTF-8 load: `String::from_utf8` in `load_path`; on `Err` → `PendingDialog::Error` with could-not-open copy + decode detail naming the file (UX reviews copy); document/`saved_text`/title untouched. D14 CRLF lock: load→save byte-equality tests (CRLF + mixed endings). (arch T3 = ux T-6) | architect (+ux copy review) | T02 | D8 spec test (`[0x66,0x6f,0x6f,0xff,0xfe]` → error dialog, state unchanged) + CRLF round-trip tests green |
+| **T03** | D8 strict-UTF-8 load: `String::from_utf8` in `load_path`; on `Err` → `PendingDialog::Error` with could-not-open copy + decode detail naming the file (UX reviews copy); document/`saved_text`/title untouched. D14 CRLF lock: load→save byte-equality tests (CRLF + mixed endings). **Declared extension (ux flag → lead ruling → reviewer acceptance, OBJ-T03-1 option A):** the IO-error arm also names the file — v2's `OSError` embedded the path; Rust's `io::Error` Display omits it. Identical one-line composition on the IO arm (shape change only; `Task::none()` + pending-only semantics unchanged); success arm stays byte-identical. (arch T3 = ux T-6) | architect (+ux copy review) | T02 | D8 spec test (`[0x66,0x6f,0x6f,0xff,0xfe]` → error dialog, state unchanged) + CRLF round-trip tests + IO-arm path-naming test green (34→39) |
 
 ### Stage C — packaging infrastructure (Packaging & QA)
 
@@ -303,3 +303,9 @@ finished until all four hold.
   same-owner T13 mid-save produced a phantom build failure in the reviewer's
   first gate run; the one-tree-modifier rule was satisfied in letter, but
   gates run on the whole tree.
+- Rev 6 (2026-09-11): T03 row amended to carry its declared IO-arm
+  extension (reviewer OBJ-T03-1 option A; provenance ux flag → lead ruling
+  → reviewer acceptance): task cell records the extension and its shape-
+  change-only boundary, done-when cell adds the IO-arm path-naming test
+  (34→39). The reviewer verified PLAN's original T03 row was silent on the
+  IO arm — "byte-identical" was plan-note shorthand, so no PLAN conflict.
