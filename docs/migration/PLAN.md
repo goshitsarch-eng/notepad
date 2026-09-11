@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 6 (2026-09-11).
+charter. Rev 7 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -226,7 +226,7 @@ single combined diff, reviewer sign-off, one commit).
 | **T19** | Find focus-out (ux T-4, G-3): return focus to the editor on `CloseFind`/Esc, matching `window.py:97–99` / `test_window.py:46–62`. **Cross-boundary (RV-9, D5):** `on_escape` is an Architecture-region lifecycle hook — architect edits or co-signs; ux owns semantics + verification. | ux (+architect edit/co-sign) | T18 | Manual/Phase-3 verify; Esc-precedence tests (T10/T11) green |
 | **T20** | Menu enable-state (ux T-5, G-5/A-4): grey Cut/Copy/Delete with no selection, Undo/Redo with empty stacks, via the existing `aligned_disabled_item` pattern. Split: architect adds `has_selection`/undo-depth predicates (state region), ux wires the menu items (view region); the predicates' tests live in T09's suite (their named test home). | ux (+architect predicates) | T09 | No-selection → greyed; empty doc → Undo/Redo greyed; alignment intact |
 | **T21** | **Global shortcuts (ux T-1, G-1 — highest-impact fix)**: `iced::event::listen_with` filtered to `(Event::Keyboard(_), Status::Ignored)` → `key_binds` → `MenuAction::message()`; suppressed while `pending.is_some()` (modal parity); editor binding closure unchanged → no double-fire by construction. The `pending.is_some()` suppression deliberately does **not** extend to the About drawer (no v2 modal analog — recorded in the task record per reviewer). Split: architect implements subscription + routing (state region); ux owns the 17-binding table parity + focus-interaction verification (must not fight T18/T19). | architect (+ux verification) | T18, T19, T10 | Ctrl+S/Ctrl+F/F3/Ctrl+H etc. fire with find-bar focus; suppressed under modal dialogs; message-level tests + manual verify |
-| **T22** | Polish (ux T-10 + RV-7): select-all the Go To entry on open; **return focus to the editor on `GoToConfirm` success** (v2 `window.py:588` `setFocus()` — parity gap found by review; same `Id`+focus-task mechanism as T19; cross-boundary: `confirm_goto` is Architecture region — architect edits/co-signs); verify no-arg second instance raises the window (may need more than `gain_focus`). | ux (+architect edit/co-sign) | T21 | ux.md §1.4/§3.7/§3.9 rows ticked; GoTo refocus runtime-verified in Phase 3 |
+| **T22** | Polish (ux T-10 + RV-7): select-all the Go To entry on open; **return focus to the editor on `GoToConfirm` success** (v2 `window.py:588` `setFocus()` — parity gap found by review; same `Id`+focus-task mechanism as T19; cross-boundary: `confirm_goto` is Architecture region — architect edits/co-signs); verify no-arg second instance raises the window (may need more than `gain_focus`). **`write_to`'s could-not-save Err arm (app.rs:1348) names the file** — same composition as T03's load arms (save-side twin of ux's T03 catch: v2's `OSError` named the file; `SaveSelected` already names its url; :1348 is the lone holdout). Lead ruling at T03: folded here rather than a micro-task; ux's option-1 copy ruling extends verbatim; Architecture region, architect edits / ux co-signs; test extends `src/app_file_tests.rs`. | ux (+architect edit/co-sign) | T21 | ux.md §1.4/§3.7/§3.9 rows ticked; GoTo refocus runtime-verified in Phase 3; :1348 arm names the file + save-error test green |
 | **T23** | Font dialog improvements (ux T-8, G-4): architect spike — enumerate system families through the cosmic-text stack (no new crate if avoidable); weight/style **only if** `Font{weight,style}` plumbing + config fields prove straightforward (config-version handling = architect's call, defaults preserved); ux — dialog UI (keep free-text family + size list); **no live preview** (accepted deviation; ux adds it to ux.md §7 when scope locks). Family enumeration (and any weight/style config fields) must update T12's locked FONT_FAMILIES/settings tests — Architecture-owned file — **in the same commit** (reviewer requirement). Final scope locks after reviewer input. | ux (+architect spike/config) | T12 (settings tests guard config changes) | Families enumerated from system; scope deviations documented; persistence tests green |
 
 ### Stage F — deferred / conditional / CI
@@ -309,3 +309,11 @@ finished until all four hold.
   change-only boundary, done-when cell adds the IO-arm path-naming test
   (34→39). The reviewer verified PLAN's original T03 row was silent on the
   IO arm — "byte-identical" was plan-note shorthand, so no PLAN conflict.
+- Rev 7 (2026-09-11): T22 row amended at T03's close — the architect's
+  observation that `write_to`'s could-not-save Err arm (app.rs:1348) has
+  the same filename-omission parity gap ux caught on the load side is
+  ruled INTO T22 (lead call: one line + test in a declared product-change
+  task beats a standalone micro-task cycle). Identical composition, ux's
+  option-1 ruling extends, Architecture region with ux co-sign, done-when
+  gains the save-error test. Deliberately NOT in T03's diff — the
+  observation was routed out-of-band and T03's footprint stays confined.
