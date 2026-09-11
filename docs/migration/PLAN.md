@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 9 (2026-09-11).
+charter. Rev 10 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -75,11 +75,27 @@ the ux.md §1 checklist against the running 3.0.0 Flatpak.
      not an omission (RV-15b).
    - From **T07** on: `scripts/smoke-test.sh` passes.
    - From **T08** on: the per-task gate *is* `scripts/verify.sh` (all 10
-     steps). **Skip authority (RV-15c = reviewer standing commitment (b)):**
-     for tasks whose diffs touch only Architecture/UX-owned `src/` files, the
-     reviewer may grant step 5–10 skip notes on request (steps 1–4 always
-     run); packaging-affecting diffs run all 10. Every skip is recorded in the
-     task's sign-off note.
+     steps). **Skip authority (RV-15c = reviewer standing commitment (b);
+     scope clarified by reviewer disposition RV-15c-1, issued under the
+     delegated authority, lead-endorsed with no override, folded here at rev
+     10):** the authority turns on **artifact neutrality**, not literal
+     `src/` path membership — a leg qualifies for a step 5–10 skip note iff
+     it cannot alter any packaged artifact or packaging input. Qualifying
+     legs: `cfg(test)` test files + their `#[path]` mod lines;
+     `cfg(test)`-only hunks in production `src/` files; comment-only `src/`
+     hunks (census-proven); owner-applied docs-only legs inside
+     `docs/migration/` matching the task's PLAN row. Authority **OFF** (full
+     steps 1–10) for any diff touching compiled non-test code, `data/`,
+     `i18n/` (*.ftl is a compile-time-embedded runtime input, not docs),
+     `Cargo.toml`/`Cargo.lock`, the manifest, `scripts/`, `justfile`,
+     `.gitignore`, or docs outside `docs/migration/`. Regime unchanged: the
+     reviewer grants skips per package on request; every leg is enumerated
+     with file + line counts; steps 1–4 always run; every skip is recorded in
+     the task's sign-off note. Self-void clause: if any of steps 5–10 proves
+     to consume `docs/migration/` or `cfg(test)` content, the disposition
+     voids for that class. (Full disposition text: `review-phase2.md` §3.
+     Between issuance and this fold, requests cited "RV-15c + disposition
+     RV-15c-1"; from rev 10 this rule text governs.)
 4. **Disagreements** follow the charter protocol (objection with evidence →
    owner response → empirical spike/test where possible → lead decides by
    priority: parity > Flatpak sandbox correctness > accessibility >
@@ -374,3 +390,16 @@ finished until all four hold.
   pre-dated the spike wire). The packager's rev-match test design survives
   unchanged (reviewer-verified). Superseded wires: both owners' banked
   "Cargo.lock byte-identical" Step-A criterion.
+- Rev 10 (2026-09-11): §2 rule 3's T08 skip-authority wording ("for tasks
+  whose diffs touch only Architecture/UX-owned `src/` files") clarified per
+  reviewer disposition **RV-15c-1**, issued under the delegated RV-15c
+  authority; lead-endorsed, no override. The test is **artifact neutrality**,
+  not literal path membership: qualifying legs (cfg(test) test files + mod
+  lines; cfg(test)-only hunks in production src; comment-only src hunks;
+  owner-applied docs-only legs inside `docs/migration/` matching the task's
+  PLAN row), the authority-off list, the per-package regime, and the
+  self-void clause are folded into the rule text. The full disposition
+  remains in `review-phase2.md` §3 (committed at its rev 2, `c747534`).
+  Requests cited "RV-15c + disposition RV-15c-1" between issuance and this
+  fold; from here the PLAN text governs. No task semantics moved; T27's
+  scope still excludes PLAN (rev 9 precedent: PLAN fixes ride PLAN revs).
