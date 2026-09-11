@@ -308,54 +308,7 @@ impl cosmic::Application for App {
                 Err(_) => (None, Config::default()),
             };
 
-        let about = About::default()
-            .name(fl!("app-title"))
-            .icon(widget::icon::from_svg_bytes(APP_ICON))
-            .version(env!("CARGO_PKG_VERSION"))
-            .links([(fl!("repository"), REPOSITORY)])
-            .license(env!("CARGO_PKG_LICENSE"));
-
-        let mut app = App {
-            core,
-            about,
-            context_page: ContextPage::About,
-            key_binds: key_bind::key_binds(),
-            editor_font: font_from_family(&config.font_family),
-            font_family_input: config.font_family.clone(),
-            font_size_index: FONT_SIZES
-                .iter()
-                .position(|s| *s == config.font_size)
-                .unwrap_or(5),
-            config,
-            config_handler,
-            content: Content::new(),
-            file_path: None,
-            saved_text: String::new(),
-            pending_after: None,
-            find_visible: false,
-            replace_visible: false,
-            find_text: String::new(),
-            replace_text: String::new(),
-            match_case: false,
-            goto_input: String::from("1"),
-            pending: None,
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
-            font_family_labels: FONT_FAMILIES.iter().map(|s| (*s).to_string()).collect(),
-            font_size_labels: FONT_SIZES.iter().map(ToString::to_string).collect(),
-        };
-        app.saved_text = app.content.text();
-
-        let mut tasks = vec![
-            app.update_title(),
-            command::set_theme(theme_for(app.config.color_scheme)),
-        ];
-
-        if let Some(path) = flags.files.first() {
-            tasks.push(app.load_path(path.clone()));
-        }
-
-        (app, Task::batch(tasks))
+        Self::with_config(core, flags, config, config_handler)
     }
 
     fn header_start(&self) -> Vec<Element<'_, Self::Message>> {
@@ -912,6 +865,66 @@ impl cosmic::Application for App {
 }
 
 impl App {
+    /// Builds the app from an already-resolved config — the test seam
+    /// (T02; architecture.md §3.5). `init` delegates here with the real
+    /// config; tests inject `None` or a `with_custom_path` handler so no
+    /// real `~/.config` is ever touched (R4). Behavior is unchanged.
+    fn with_config(
+        core: cosmic::Core,
+        flags: Flags,
+        config: Config,
+        config_handler: Option<cosmic_config::Config>,
+    ) -> (Self, Task<Message>) {
+        let about = About::default()
+            .name(fl!("app-title"))
+            .icon(widget::icon::from_svg_bytes(APP_ICON))
+            .version(env!("CARGO_PKG_VERSION"))
+            .links([(fl!("repository"), REPOSITORY)])
+            .license(env!("CARGO_PKG_LICENSE"));
+
+        let mut app = App {
+            core,
+            about,
+            context_page: ContextPage::About,
+            key_binds: key_bind::key_binds(),
+            editor_font: font_from_family(&config.font_family),
+            font_family_input: config.font_family.clone(),
+            font_size_index: FONT_SIZES
+                .iter()
+                .position(|s| *s == config.font_size)
+                .unwrap_or(5),
+            config,
+            config_handler,
+            content: Content::new(),
+            file_path: None,
+            saved_text: String::new(),
+            pending_after: None,
+            find_visible: false,
+            replace_visible: false,
+            find_text: String::new(),
+            replace_text: String::new(),
+            match_case: false,
+            goto_input: String::from("1"),
+            pending: None,
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            font_family_labels: FONT_FAMILIES.iter().map(|s| (*s).to_string()).collect(),
+            font_size_labels: FONT_SIZES.iter().map(ToString::to_string).collect(),
+        };
+        app.saved_text = app.content.text();
+
+        let mut tasks = vec![
+            app.update_title(),
+            command::set_theme(theme_for(app.config.color_scheme)),
+        ];
+
+        if let Some(path) = flags.files.first() {
+            tasks.push(app.load_path(path.clone()));
+        }
+
+        (app, Task::batch(tasks))
+    }
+
     fn edit_menu_items(&self) -> Vec<menu::Tree<Message>> {
         let mut items = menu::items(
             &self.key_binds,
@@ -1491,6 +1504,10 @@ fn cursor_selection(text: &str, cursor: text_editor::Cursor) -> Option<(usize, u
         }
     })
 }
+
+#[cfg(test)]
+#[path = "app_test_harness.rs"]
+mod app_test_harness;
 
 #[cfg(test)]
 mod tests {
