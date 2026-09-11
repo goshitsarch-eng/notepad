@@ -40,7 +40,6 @@ impl Default for Config {
 /// Light/Dark must not use `ThemeType::System`. libcosmic overwrites System
 /// themes with the desktop palette, which made Light/Dark appear to do nothing
 /// and left window-control icons on the wrong contrast.
-#[must_use]
 pub fn theme_for(scheme: ColorScheme) -> cosmic::Theme {
     match scheme {
         ColorScheme::System => cosmic::theme::system_preference(),

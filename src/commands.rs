@@ -173,13 +173,6 @@ pub fn replace_all(
     (out, count)
 }
 
-/// Number of lines in `text`. An empty document is one line, matching Notepad.
-#[must_use]
-#[allow(dead_code)]
-pub fn line_count(text: &str) -> usize {
-    text.split('\n').count()
-}
-
 /// Byte offset of the start of a 1-based line number. `None` if out of range.
 #[must_use]
 pub fn goto_line(text: &str, line_number: usize) -> Option<usize> {
@@ -359,12 +352,6 @@ mod tests {
     fn selection_matches_ignores_case_by_default() {
         assert!(selection_matches("Hello", "hello", false));
         assert!(!selection_matches("Hello", "hello", true));
-    }
-
-    #[test]
-    fn empty_document_has_one_line() {
-        assert_eq!(line_count(""), 1);
-        assert_eq!(line_count("a\nb"), 2);
     }
 
     #[test]
