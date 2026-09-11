@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 7 (2026-09-11).
+charter. Rev 8 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -89,6 +89,18 @@ the ux.md §1 checklist against the running 3.0.0 Flatpak.
    real flatpak user installation; smoke installs use the D13 mechanisms only;
    no pushes to any remote; teammates run no sudo/apt/git; smoke tests never
    attach to the live wayland-1 session.
+6. **Doc citations** (added at T09-window close, reviewer-recommended):
+   migration docs cite code by **symbol name first** (file + fn/arm/row —
+   e.g. "`load_path`'s decode arm", "§2.3 row #26"); line ranges are
+   supporting anchors that reflect the tree **as of writing** — the
+   citation-baseline convention (ux.md preamble) applies to all migration
+   docs. Line-range re-anchoring happens **only in scheduled sweeps, never
+   per task**: the one-shot citation-only renumber (**T27** — after the last
+   structural edits, before Phase 3 opens) and the Phase 3 re-audit as the
+   verification pass over the renumbered docs. Every count, anchor, and
+   citation in wires, plan notes, and task records is re-verified against
+   the live tree at write time (standing rule since the T03/T04 stale-count
+   crossings; binds the lead too).
 
 ---
 
@@ -204,8 +216,8 @@ coverage locks current behavior before UX changes touch the view/focus layers.
 
 | ID | Task | Owner | Depends | Done when |
 |---|---|---|---|---|
-| **T09** | Editing coverage (arch T4): Editor edit/non-edit + undo snapshotting, Undo/Redo (cap-100 eviction, edit-clears-redo), Cut/Copy state effects, ClipboardPaste, Delete, SelectAll, InsertDateTime format, key-binding map unit test, **plus a pure-fn test of `MenuAction::message()`** — all 22 variants → expected `Message`, and the `aligned_disabled_item` Go-To case (review RV-1). `src/app_edit_tests.rs`. | architect | T02 | §2.3 rows #1, 10–16, 29, 30 covered; MenuAction map test-locked (architecture.md Appendix A Menus row → 🧪 T09); green |
-| **T10** | Find/replace/goto coverage (arch T5): prefill rules, wrap-around, match-case, not-found dialogs, replace-one chain, replace-all single-undo-step, goto prefill/validation/wrap-disabled no-op, `on_escape` find-bar branch. Also adds the `to_lowercase`-vs-v2-`casefold` accepted-micro-deviation comment to `src/commands.rs` (RV-12; ux.md §7 UX-D9). Flows F14–F16. `src/app_search_tests.rs`. | architect | T02 | §2.3 #17–28 covered; 2.0.4 `test_commands.py`/`test_window.py` message-level contracts locked |
+| **T09** | Editing coverage (arch T4): Editor edit/non-edit + undo snapshotting, Undo/Redo (cap-100 eviction, edit-clears-redo), Cut/Copy state effects, ClipboardPaste, Delete, SelectAll, InsertDateTime format, key-binding map unit test, **plus a pure-fn test of `MenuAction::message()`** — all 22 variants → expected `Message`, and the `aligned_disabled_item` Go-To case (review RV-1 — **window ruling at T09's closed no-objection window:** RV-1 is satisfied as *structural invariance* — the Go-To slot survives both word-wrap modes; `menu::Tree` is opaque, MenuTree fields all `pub(crate)` in the pinned checkout. **Non-vacuity condition:** the test pins the CONCRETE expected tree count per mode — cross-mode equality alone would pass if the slot vanished from both branches. The behavioral no-op twin is deferred to T10, §2.3 row #26. `text_editor::Cursor` derives PartialEq (`iced/core/src/text/editor.rs:202–203`), so undo-stack-content asserts go direct; the text-only fallback is moot). `src/app_edit_tests.rs`. | architect | T02 | §2.3 rows #1, 10–16, 29, 30 covered; MenuAction map test-locked (architecture.md Appendix A Menus row → 🧪 T09); Go-To structural-invariance test green with concrete per-mode counts; green |
+| **T10** | Find/replace/goto coverage (arch T5): prefill rules, wrap-around, match-case, not-found dialogs, replace-one chain, replace-all single-undo-step, goto prefill/validation/wrap-disabled no-op, `on_escape` find-bar branch. Also adds the `to_lowercase`-vs-v2-`casefold` accepted-micro-deviation comment to `src/commands.rs` (RV-12; ux.md §7 UX-D9). Flows F14–F16. `src/app_search_tests.rs`. | architect | T02 | §2.3 #17–28 covered; 2.0.4 `test_commands.py`/`test_window.py` message-level contracts locked; **row #26's "no-op when wrap on" behavioral test lands HERE (T09-window ruling), cross-referenced from T09's structural-invariance test** |
 | **T11** | File-lifecycle coverage (arch T6 — the big one): guard matrix (4 × AfterSave × dirty/clean), DialogSave continuation with/without path, stale-prompt clearing, CloseError re-raise, Cancelled semantics, save/load error dialogs (incl. D8 path from T03), Exit retarget, `on_escape`/`on_app_exit`/`on_close_requested`, OpenExternal, argv-init load — all on tempdirs. Flows **F1**–F13, F22 (F1 new-clean added per RV-4). `src/app_file_tests.rs`. | architect | T02, T03 | §2.3 #2–9, 42–45, 47–48 + hooks covered; `test_application.py` contract (F21) locked |
 | **T12** | Settings/theme/font + persistence coverage (arch T7): toggles with on-disk RON assertions via `with_custom_path` tempdir handler, ApplyFont state machine, `theme_for`/`pin_independent` pure tests, `UpdateConfig` (font re-derive; set_theme only on scheme change), ToggleContextPage, header_title matrix. Flows F17–F19 **+ F20** (Ln/Col app-side, per RV-4). **Plus the invalid-config-fallback test (RV-5; v2 `test_theme.py:311–313` contract): malformed RON value under a `with_custom_path` tempdir → field default applied + app functional.** `src/app_settings_tests.rs`. | architect | T02 | §2.3 #31–39, 41, 46 covered; `test_theme.py` persistence + invalid-fallback contracts locked |
 | **T13** | single_instance server testability (arch T8): extract `subscription_at(path)`; test bind-temp-socket + `forward_to` + ack on a tokio current-thread runtime; stale-socket unlink. Optional R9 bind-failure logging. Independent of T02 (different file, same owner) — **may run immediately after T01, in parallel with the T02 edit→review cycle**; separate commit. | architect | — | Server loop tested; existing client test untouched |
@@ -229,13 +241,14 @@ single combined diff, reviewer sign-off, one commit).
 | **T22** | Polish (ux T-10 + RV-7): select-all the Go To entry on open; **return focus to the editor on `GoToConfirm` success** (v2 `window.py:588` `setFocus()` — parity gap found by review; same `Id`+focus-task mechanism as T19; cross-boundary: `confirm_goto` is Architecture region — architect edits/co-signs); verify no-arg second instance raises the window (may need more than `gain_focus`). **`write_to`'s could-not-save Err arm (app.rs:1348) names the file** — same composition as T03's load arms (save-side twin of ux's T03 catch: v2's `OSError` named the file; `SaveSelected` already names its url; :1348 is the lone holdout). Lead ruling at T03: folded here rather than a micro-task; ux's option-1 copy ruling extends verbatim; Architecture region, architect edits / ux co-signs; test extends `src/app_file_tests.rs`. | ux (+architect edit/co-sign) | T21 | ux.md §1.4/§3.7/§3.9 rows ticked; GoTo refocus runtime-verified in Phase 3; :1348 arm names the file + save-error test green |
 | **T23** | Font dialog improvements (ux T-8, G-4): architect spike — enumerate system families through the cosmic-text stack (no new crate if avoidable); weight/style **only if** `Font{weight,style}` plumbing + config fields prove straightforward (config-version handling = architect's call, defaults preserved); ux — dialog UI (keep free-text family + size list); **no live preview** (accepted deviation; ux adds it to ux.md §7 when scope locks). Family enumeration (and any weight/style config fields) must update T12's locked FONT_FAMILIES/settings tests — Architecture-owned file — **in the same commit** (reviewer requirement). Final scope locks after reviewer input. | ux (+architect spike/config) | T12 (settings tests guard config changes) | Families enumerated from system; scope deviations documented; persistence tests green |
 
-### Stage F — deferred / conditional / CI
+### Stage F — deferred / conditional / CI / doc hygiene
 
 | ID | Task | Owner | Depends | Done when |
 |---|---|---|---|---|
 | **T24** | *(Conditional — reviewer-gated)* Clipboard payload seam (arch T10): extract pure `selection_text()` used by Cut/Copy so the payload itself is assertable. Runs **only if** the reviewer requires payload-level proof. | architect | T09 | Reviewer requirement satisfied or task formally skipped |
 | **T25** | CI (P2-T7): `scripts/ci.sh` + `.github/workflows/verify.yml` per packaging.md §5 (timeouts, bundle artifact; caches keyed on Cargo.lock and runtime versions — **plus the RV-16 fix: version-keyed caches must not mask BaseApp//stable commit drift, so key on the `flatpak info -c` commit, time-bust, or add a periodic fresh-install leg**). Local-only — no push (lead constraint). | packager | T08 (ideally after Stage E so the gate set is final) | ci.sh green locally; workflow validated; BaseApp-drift detection mechanism named in the workflow |
 | **T26** | Deferred DECISIONS entries (P2-T8 residue — items c/d/e already recorded as D12/D6/D9): (a) portal talk-name removal **only after the Phase-3 portal FileChooser check passes with the talk-name removed** (RV-2: the smoke test never opens a dialog and cannot produce this evidence; D12 amended accordingly) — otherwise it stays permanently; (b) settings-daemon talk-name add-or-not after Phase 3 desktop evidence. | lead | Phase 3 | DECISIONS.md updated |
+| **T27** | **One-shot doc-citation renumber** (§2 rule 6; added at T09-window close on the reviewer's recommendation): after the last structural app.rs edits land (T22/T23; T24 run or formally skipped), ONE citation-only pass re-anchors every line-range cite in `architecture.md` §2.3 (reviewer-verified pervasive drift: row cites uniformly ~−47, pre-T02 — e.g. row #16 cites Delete at 713–717, actual :667) and in `ux.md` against the post-Stage-E tree, converting to symbol-first cites where practical; historical refs stay explicitly marked. Supersedes the architect's end-of-Stage-D proposal (T18–T22 would re-drift the arm cites within weeks) and precedes Phase 3, which consumes these docs — they must be true before the walk opens; ux.md's Phase-3 re-audit becomes the verification pass over the renumbered docs. **Citation-only diffs: zero content/semantic change.** Owners edit their own docs (docs-disjoint, may run parallel); reviewer record-checks; lead commits. | architect (architecture.md) + ux (ux.md); reviewer record-check | T22, T23, T24 resolved | Reviewer record-check green (sampled cites verified against the tree); zero unmarked stale line-range cites outside historical refs; Phase 3 opens against true docs |
 
 ---
 
@@ -317,3 +330,22 @@ finished until all four hold.
   option-1 ruling extends, Architecture region with ux co-sign, done-when
   gains the save-error test. Deliberately NOT in T03's diff — the
   observation was routed out-of-band and T03's footprint stays confined.
+- Rev 8 (2026-09-11): T09's closed no-objection window folded in — the
+  Go-To ruling (structural invariance satisfies RV-1, `menu::Tree` opaque;
+  non-vacuity pin: concrete expected tree counts per mode; Cursor-PartialEq
+  settled direct) is recorded in the T09 row, and the behavioral twin
+  (§2.3 row #26 "no-op when wrap on") is explicitly banked in T10's
+  done-when with the cross-reference, per the reviewer's bank request.
+  **§2 rule 6 added** (doc-citation convention): symbol-first cites; line
+  ranges are as-of-writing baseline anchors; re-anchoring only in scheduled
+  sweeps; live-tree re-verification of every wire count/anchor. **T27
+  added** (Stage F, retitled for doc hygiene): one-shot citation-only
+  renumber of architecture.md §2.3 (reviewer-verified uniform ~−47 drift,
+  pre-T02) + ux.md at end of Stage E, before Phase 3 opens — the
+  reviewer's recommendation adopted over the architect's end-of-Stage-D
+  proposal (Stage E's T18–T22 re-drift the arm cites) and refining the
+  lead's original fold-into-Phase-3 ruling (Phase 3 consumes these docs, so
+  they must be true before the walk opens; the ux.md Phase-3 re-audit
+  becomes the verification pass). Superseded wires: the architect's
+  "baseline note at next doc touch" (folds into T27) and ux's "renumber
+  inside the Phase-3 sweep" (T27 precedes it).
