@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 4 (2026-09-11).
+charter. Rev 5 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -53,9 +53,14 @@ the ux.md §1 checklist against the running 3.0.0 Flatpak.
    and the window is the reviewer's right to stop work in flight (owner
    pauses at the point of objection; rule 4 applies), not a clearance gate
    to await (lead interpretation, recorded at T02); teammates edit only
-   files they own; at most
-   one teammate modifies the shared tree at a time (docs in disjoint files may
-   proceed in parallel); cross-boundary tasks are split/sequenced by the lead
+   files they own; at most one teammate modifies the shared tree at a time
+   (docs in disjoint files may proceed in parallel); while a task's package
+   is with the reviewer, the owner keeps the tree quiescent during reviewer
+   gate runs — gates run on the whole tree, so a concurrent in-flight edit
+   (even a different task, same owner) voids the gate signal: hold edits, or
+   confirm every in-flight file is saved and compiling, and ping the
+   reviewer before gates are trusted (added at T02 after a phantom mid-save
+   build failure); cross-boundary tasks are split/sequenced by the lead
    per D5 (one owner edits a region, the other reviews).
 3. **Per-task definition of done** (charter, with a gate ramp):
    - Always: `cargo fmt --check`, `cargo build --locked`,
@@ -291,3 +296,10 @@ finished until all four hold.
   T02 — the plan note licenses editing to start; the reviewer's objection
   window is the right to stop work in flight (owner pauses at the point of
   objection; disagreement protocol applies), not a clearance gate to await.
+- Rev 5 (2026-09-11): §2 rule 2 extended with a tree-quiescence obligation
+  while a reviewer gate run is pending — the owner holds edits, or confirms
+  every in-flight file is saved and compiling, and pings the reviewer before
+  gates are trusted. Adopted at T02 (reviewer-proposed): a concurrent
+  same-owner T13 mid-save produced a phantom build failure in the reviewer's
+  first gate run; the one-tree-modifier rule was satisfied in letter, but
+  gates run on the whole tree.
