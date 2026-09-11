@@ -34,9 +34,7 @@
   </developer>
   <provides>
     <id>com.system76.CosmicApplication</id>
-    <binaries>
       <binary>notepad</binary>
-    </binaries>
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
