@@ -660,20 +660,21 @@ elsewhere in this document:
 | **T-5** — Edit-menu enabled state | **Approved as proposed** — reuse `aligned_disabled_item`; the per-frame menu rebuild makes selection/stack state available. | ux (view region), coordinating the enable-state predicate with **architect** (`has_selection`/undo-depth live in the state region). |
 | **T-7, T-9, T-10** | **Approved as proposed.** | ux |
 | **DECISIONS.md D12** — desktop `Categories` | `Categories=COSMIC;Utility;TextEditor;` → `Utility;TextEditor;X-COSMIC;` (bare `COSMIC` is unregistered and fails `desktop-file-validate`; `X-` prefix is the spec's extension mechanism). **UX sign-off: GRANTED** (per-question evidence sent to lead, 2026-09-11). Evidence: (1) *Grouping/launch* — independent grep of this host's installed desktop files: every COSMIC-ecosystem app uses the X- convention (`cosmic-ext-whether`: `Utility;X-Cosmic;`; `clippy-land`: `Utility;X-Cosmic;X-Iced;`; `YapCap`: `System;Monitor;X-COSMIC;`) and **zero installed apps use bare `COSMIC;`**; launching never reads `Categories` (that is `Exec`/`Icon`/`TryExec`), so only grouping is at stake and `X-COSMIC` is the convention COSMIC's launcher reads. (2) *2.0.4 intent* — `Categories=Qt;Utility;TextEditor;` (`~/.cache/notepad-v2.0.4/data/com.goshapps.Notepad.desktop:9`): both substantive registered categories (Utility, TextEditor) are kept verbatim and the toolkit marker is swapped Qt→X-COSMIC — same pattern; marker position differs (2.0.4 led with it, proposal trails) but `Categories` is an unordered set per spec and marker-last matches every shipped app observed. All other desktop-entry keys unchanged. (3) *Metainfo consistency* — no `<categories>` element exists in `data/com.goshapps.Notepad.metainfo.xml` (AppStream desktop-application components take categories from the desktop file, linked via `<launchable>`, metainfo:29); the `<provides><id>com.system76.CosmicApplication</id>` identity (metainfo:36) is untouched by this change; `tests/packaging.rs` pins no Categories (no test churn); the ride-along `<binaries>`→`<binary>` unwrap is confirmed needed (wrapper present, metainfo:37-39). | packager (`data/` packaging metadata per D5); the metainfo `<provides><binary>` unwrap rides along. |
-| **RV-8** — unused ftl keys (reviewer; lead ruling, PLAN.md rev 2) | Mechanical grep of all 69 ftl keys against `src/` (re-run by ux: zero references) shows **four** defined-but-unused keys, not the two §4 originally claimed: `app-comment` (ftl:2), `app-keywords` (ftl:3), `close-find` (ftl:41), `color-scheme-button` (ftl:57). Dispositions: `close-find` → consumed by T-2 (PLAN T15); `color-scheme-button` → T-9 (PLAN T16); `app-comment` → consumed by T-7 (PLAN T17); **`app-keywords` → deleted as dead code in T17** (metainfo `<keywords>` is static XML; the ftl duplicate has no consumer — deliberate duplication removed). Post-T15/T16/T17 target: **zero unused ftl keys** (T17 done-criterion). | §4 corrected (finding 2 + per-row disposition annotations). All four consumers/deletion are ux-owned (`i18n/` + view regions, D5). |
+| **RV-8** — unused ftl keys (reviewer; lead ruling, PLAN.md rev 2) | Mechanical grep of all 69 ftl keys against `src/` (re-run by ux: zero references) shows **four** defined-but-unused keys, not the two §4 originally claimed: `app-comment` (ftl:2), `app-keywords` (ftl:3), `close-find` (ftl:41), `color-scheme-button` (ftl:57). Dispositions: `close-find` → consumed by T-2 (PLAN T15); `color-scheme-button` → T-9 (PLAN T16); `app-comment` → consumed by T-7 (PLAN T17); **`app-keywords` → deleted as dead code in T17** (metainfo `<keywords>` is static XML; the ftl duplicate has no consumer — deliberate duplication removed). Post-T15/T16/T17 target: **zero unused ftl keys** (T17 done-criterion). | §4 corrected (finding 2 + per-row disposition annotations). All four consumers/deletion land in ux tasks T15/T16/T17 (`i18n/` + view regions, D5; T17's `App::init` About-data lines are cross-boundary — architect edits/co-signs). |
 | **RV-7** — Go To editor refocus (reviewer) | Parity gap inside this document's own cited range: v2 returns keyboard focus to the editor after a successful Go To (`window.py:588` `self.edit.setFocus()`); v3's `confirm_goto` closes the dialog and moves the cursor with **no focus task** (`app.rs:1207-1240`, `Task::none()`), and COSMIC's dialog-unmount refocus behavior is unproven. **Accepted; scoped into PLAN T22** (same `Id`+focus-task mechanism as T-4/T19). | §1.4 row + §3.7 delta added; §8 T-10 scope updated. Cross-boundary per RV-9/D5 (`confirm_goto` = Architecture region — architect edits/co-signs); runtime-verify in Phase 3 (M/R). |
 | **RV-12/13/14** — accepted micro-deviations (reviewer) | Three v2 affordances missing from the original inventory are **accepted as deviations** (PLAN.md rev 2): **UX-D9** — v3 `to_lowercase()` vs v2 `casefold()` full Unicode folding (`"ß"`→`"ss"`; `commands.py:35` vs `commands.rs:81`); observable only for exotic Unicode; no std casefold in Rust and a new crate conflicts with DECISIONS.md D9 vendoring discipline → code comment rides architect's PLAN T10. **UX-D10** — v2's find-entry QLineEdit clear button (`window.py:72` `setClearButtonEnabled(True)`) has no iced/cosmic `text_input` equivalent → workaround select-all+delete; T18's select-all-on-open covers the common case. **UX-D11** — v2's `NOTEPAD_ICON` env icon override (`application.py:27-48` `_find_icon`) dropped; v3 embeds the SVG (`app.rs:311-316`) → dev affordance, not user-facing. | §7 rows D-9/D-10/D-11 + Appendix B; §1.4 case-insensitive row annotated. No behavior change. |
 
 **ID conventions.** This document's deviation IDs (D-1…D-11) and gap IDs (G-#,
 A-#) are local to it; `PLAN.md` prefixes them **UX-D#/UX-G#**, and
 DECISIONS.md D8 notes the distinction explicitly. Task IDs T-1…T-10 were
-adopted as PLAN.md's seed list; the **PLAN.md rev 2 mapping is final**:
-T-1→T21, T-2→T15, T-3→T18, T-4→T19, T-5→T20, T-6→T03, T-7→T17, T-8→T23,
-T-9→T16, T-10→T22, with T18/T19/T22 explicitly cross-boundary (RV-9:
-architect edits/co-signs the `update()`/hook lines, ux owns semantics +
-verification). The reviewer's Go-To-refocus gap is cited project-wide as
-**RV-7** inside T22 rather than minting a new G-# (PLAN.md §3 fixes the gap
-range at G-1…G-6).
+adopted as PLAN.md's seed list; the **PLAN.md mapping is final** (rev 2,
+confirmed rev 3): T-1→T21, T-2→T15, T-3→T18, T-4→T19, T-5→T20, T-6→T03,
+T-7→T17, T-8→T23, T-9→T16, T-10→T22, with **T17/T18/T19/T22 explicitly
+cross-boundary** (RV-9 as amended: architect edits/co-signs the
+Architecture-region lines — `App::init` About data, `update()` focus-task
+arms, `on_escape`, `confirm_goto` — ux owns semantics + verification). The
+reviewer's Go-To-refocus gap is cited project-wide as **RV-7** inside T22
+rather than minting a new G-# (PLAN.md §3 fixes the gap range at G-1…G-6).
 
 **Verification-context correction (DECISIONS.md D3 addendum, 2026-09-11).** No
 2.0.4 Flatpak is installed anywhere visible — live A/B runtime comparison is
@@ -774,11 +775,16 @@ Stage D coverage lands).
   copy/flow. *Verify:* **required unit test** (invalid bytes → error path +
   state unchanged) + M.
 
-- **T-7 (G-6) — Restore About attribution.** Populate the `About` drawer's
-  `author`/`comments`/`copyright` fields (supported: `about.rs:16-21`) with
-  "Made by Gosh", the tagline, and "© 2026 Gosh — GPL-3.0-or-later"
-  (`app.rs:311-316`), matching `window.py:452-461`. Add ftl keys as needed.
-  *Verify:* M (open About drawer).
+- **T-7 (G-6; PLAN T17) — Restore About attribution.** Populate the `About`
+  drawer's `author`/`comments`/`copyright` fields (supported:
+  `about.rs:16-21`) with "Made by Gosh", the tagline, and "© 2026 Gosh —
+  GPL-3.0-or-later" (`app.rs:311-316`), matching `window.py:452-461`. Add
+  ftl keys as needed; per the RV-8 ruling **consume `app-comment`** and
+  **delete the dead `app-keywords` key** (metainfo `<keywords>` is static
+  XML). Cross-boundary (RV-9 as amended): the About data lives in
+  `App::init` — Architecture region; architect edits/co-signs the combined
+  diff. *Verify:* M (open About drawer); zero unused ftl keys remain after
+  T15/T16/T17.
 
 - **T-8 (G-4) — Improve the Font dialog (scope set, §6).** (1) Enumerate real
   system families instead of the fixed 14 (`app.rs:35-50`) — architect spikes
