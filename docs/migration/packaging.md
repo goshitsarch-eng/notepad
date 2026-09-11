@@ -154,7 +154,7 @@ GitHub rejects files > 100 MB without LFS → **committing `vendor.tar` is off t
 2. Manifest changes (P2-T3):
    - build command → `cargo build --release --frozen --offline` (frozen: lockfile immutable; offline: no network even by accident);
    - **delete** `build-args: ["--share=network"]`;
-   - keep `sources: [{type: dir, path: .}]` — flatpak-builder then copies the materialized `vendor/` + `.cargo/config.toml` along with the tree (no archive-source/strip-components juggling, no second 1 GB tarball inside the build; the dir copy costs seconds and is measured in P2-T4).
+   - keep `sources: [{type: dir, path: .}]` — flatpak-builder then copies the materialized `vendor/` + `.cargo/config.toml` along with the tree (no archive-source/strip-components juggling, no second 1 GB tarball inside the build; the dir copy costs seconds — measured in T06 at 6.7 s for 914 MB apparent, Appendix A).
    - keep `CARGO_HOME=/run/build/notepad/cargo` (harmless offline; isolates in-build cache) and RUSTFLAGS/lld.
 3. **"Clean checkout" contract for verify.sh**: `git clone` → `scripts/verify.sh` must pass **unattended with exactly one network window**: `cargo vendor` fetch (~1-2 min warm cache / longer cold) + `flatpak-builder --install-deps-from=flathub` runtime/SDK pulls (first time only, ~2-3 GB in this sandbox installation; cached afterwards). Everything after the first run is fully offline-capable. This is the pragmatic reading of the user's vendoring requirement: *builds* never touch the network; *provisioning* the vendor set does, once, reproducibly pinned by `Cargo.lock`.
 4. CI: cache `vendor.tar` (or `~/.cargo` + `vendor/`) keyed on `sha256(Cargo.lock)`; with the cache, CI runs vendor-extract and never refetches (§5).
@@ -164,7 +164,7 @@ GitHub rejects files > 100 MB without LFS → **committing `vendor.tar` is off t
 Rejected alternatives:
 
 - **Commit `vendor.tar`**: size (above). Rejected.
-- **`type: archive` source for `vendor.tar` in the manifest**: works, but requires the tar to exist before build anyway, and unpacking a 943 MB tar ≈ copying the dir; extra moving part, no win. If P2-T4 measurement shows the dir-copy is slow (> 60 s), revisit.
+- **`type: archive` source for `vendor.tar` in the manifest**: works, but requires the tar to exist before build anyway, and unpacking a 943 MB tar ≈ copying the dir; extra moving part, no win. T06 measured the dir-copy at 6.7 s (Appendix A) — ~9x under the > 60 s revisit threshold; the decision stands on data.
 - **flatpak-cargo-generator (`generated-sources.json`)**: the Flathub-standard hermetic approach (per-crate sha256 archive sources, git sources with commit pins, no vendor dir). Technically excellent, but it (a) isn't literally "vendored cargo sources" as the user asked, (b) adds a Python tool dependency and a ~600-crate generated file to maintain on every dep bump. Rejected per user requirement; noted here so the reviewer sees it was considered.
 - **Keep `--share=network` + plain `cargo build`** (status quo): violates the hard requirement. Rejected.
 
@@ -335,7 +335,7 @@ Environment reality (§0): we cannot even see the host DE from these shells, so 
 5. ~~2.0.4 parity reference not launchable from agent shells~~ **RESOLVED (lead, 2026-09-11 — D3 addendum)**: 2.0.4 is definitively NOT installed anywhere; **live A/B runtime parity is OFF by decision**. Parity mechanism: (a) 2.0.4 behavioral contracts ported into Rust tests (§6 ownership), (b) Phase-3 `docs/migration/ux.md` checklist against the 3.0.0 Flatpak. Residual: a reviewer-adjudicated parity dispute the ported contracts cannot settle would escalate to building 2.0.4 from `/home/gosh/.cache/notepad-v2.0.4/` (`io.qt.PySide.BaseApp//6.10`, ~1–2 GB). DE ambiguity resolved earlier: live session is COSMIC/wayland.
 6. **`com.system76.Cosmic.BaseApp//stable` drift**: base app updates can change runtime libs under us without any repo change. Cannot pin (branch-distributed). Mitigation: record the BaseApp commit in release notes per release (today: `b3f1b274d540`); smoke test in CI catches breakage on bumps.
 7. **libcosmic master drift on lockfile regeneration**: mitigated by proposed `rev` pin (§2.3.5) + `--locked`/`--frozen` everywhere + vendored checksums.
-8. **Vendor size** (973 MB dir): slows flatpak-builder dir-copy and CI caches; measured cost acceptable (spike tar took 1.4 s to page cache; dir copy measured in P2-T4). If it hurts, `cargo vendor` per-platform trimming is *not* supported — would need the archive-source variant (§2.3 rejected list) — revisit with data.
+8. **Vendor size** (973 MB dir): slows flatpak-builder dir-copy and CI caches; measured cost acceptable (spike tar took 1.4 s to page cache; dir copy measured in T06 at 6.7 s, Appendix A). If it hurts, `cargo vendor` per-platform trimming is *not* supported — would need the archive-source variant (§2.3 rejected list) — revisit with data.
 9. **Benign-stderr classification** (§3.3): too-strict grep = flaky FAILs (this host's nix-gvfs noise proves it); too-loose = missed crashes. Mitigated by exit-code-first criteria + narrow panic regex + reviewed allowlist.
 10. ~~Isolated `--installation` bootstrap unproven~~ **RESOLVED → DISPROVEN → replaced (D13)**: `flatpak --installation=<tmpdir>` does NOT bootstrap an empty dir (spike: `Could not find installation`); replacements proven — path A end-to-end through the real sandbox (ALIVE 10 s, rc=143, 0 panics, residue-free uninstall), path B bootstrap + cost sizing (~1.2 GB one-time, persisted). **No unproven install mechanism remains for P2-T5.**
 11. **Portal availability inside sandbox under a bare `dbus-run-session`** (§3.2.4 — *narrowed* by the D13 spike: the full `flatpak run` pipeline passed liveness + clean-exit + zero-panic criteria, so startup portal probing works through flatpak's bus proxy): remaining scope is stderr-allowlist classification of in-sandbox portal/dbus noise (P2-T5); app *tolerates* absent portal by design (fallbacks in §7) — P3 asserts full function on real desktops.
@@ -436,4 +436,61 @@ $ weston 13 headless (DEFAULT shell) + dbus-run-session + flatpak run com.goshap
 $ flatpak uninstall --user -y com.goshapps.Notepad → clean; pgrep weston|notepad → empty
   footgun: first cleanup attempt `pkill -f "weston --backend=headless --socket=np-smoke-0"`
   killed the invoking shell itself (pattern self-match, exit 144) → use recorded PIDs / pkill -x
+```
+
+```text
+T06 vendored offline rebuild (2026-09-11, packager; sandbox HOME only — /home/gosh never written):
+Window: named HEAD 73f7606 (PLAN rev 10); state-under-test lineage = the T05 commit 4314e2b.
+$ flatpak-builder --user --install-deps-from=flathub --force-clean --ccache \
+      /tmp/np-smoke-repo com.goshapps.Notepad.json     (command form as-written; BUILD-DIR mode:
+                                                        app dir files//export//metadata, no ostree repo)
+  run1 (cold ccache): EXIT=0, wall 87.963s; cargo "Finished `release` in 1m 07s"; 454 Compiling
+  run2 (warm ccache): EXIT=0, wall 85.601s; cargo "Finished `release` in 1m 05s"; 454 Compiling
+  ZERO network legs in either log: "Installing "=0, "Pull"=0, "transferred"=0; 5x dependency
+    check "Updating <ref> / Nothing to do." (all deps present); the 42 https:// hits are cargo
+    source-ID annotations on Compiling lines — crates compiled from vendor/ through the
+    ?rev=-keyed replace-with stanzas (A-before-B consumption proven end-to-end).
+  Reproducibility: run2 binary sha256 46bea49cdab7f26004d1106b41f8c1a7ab65619cf7c052291e66fbc5cc965ed4
+    == run1 exported stable-ref binary, byte-identical (app-dir files carry canonical mtime=0).
+ccache finding: --ccache is near-inert for this pure-Rust manifest — ccache sink du -sb:
+  15 B pre-run1 (≈empty) -> 13,335 B -> 22,175 B (shard structure + state files only; ccache
+  intercepts C/C++ compilers, not rustc). Warm-run delta = -2.4s ≈ noise; both runs full
+  454-crate recompiles. Keep the flag (harmless, future C deps) but expect no rebuild speedup.
+Vendor dir-copy timing (probe: same-fs cp -a of vendor/, 914,580,292 B apparent / 973M disk):
+  6.679s. Cross-check: non-cargo phase budget = wall - cargo ≈ 21s TOTAL (dep checks + copy +
+  init + cleanup + export/commit). vs §2.3 rejected-list threshold ("> 60 s, revisit
+  archive-source"): dir-copy is ~9x under — the type:dir decision STANDS ON DATA.
+Export (§3.1 two-step) + T04-E1 "branch": "stable" mechanism of record:
+  $ flatpak build-export /tmp/np-t06-repo /tmp/np-smoke-repo        (NO branch arg; probe)
+    -> commit a8ab3a2d..., ref app/com.goshapps.Notepad/x86_64/MASTER. Mechanism: build-export
+    takes the branch from the app-dir metadata ([Application] carries no branch= key in
+    app-dir mode; the manifest "branch" field is consumed by flatpak-builder's own --repo
+    export mode or by an explicit build-export branch argument). The explicit stable arg below
+    is therefore load-bearing for this pipeline — as §3.1 and T07's smoke-test.sh use it.
+  $ flatpak build-export /tmp/np-t06-repo /tmp/np-smoke-repo stable (the §3.1/T07 form)
+    -> EXIT=0, commit bd2bf66b..., Content Written: 0 (ostree dedup vs the probe tree =
+    byte-identical content). Probe master ref deleted after recording; refs then exactly
+    [app/com.goshapps.Notepad/x86_64/stable]. Repo: 72,138,239 content bytes written,
+    22,656,011 B on disk (compressed objects).
+  stable-ref contents: /files/bin/notepad 33,066,712 B (0755) — STRIPPED; debuginfo separated
+    to files/lib/debug/bin/notepad.debug ("compressing debuginfo in:" at run1 log :542; host
+    unstripped binary = 45,757,432 B, so the sandbox-vs-host size delta is strip, not codegen).
+    Exec=notepad %F; /files/share/licenses/com.goshapps.Notepad/{LICENSE 35,149 B, COPYRIGHT
+    427 B} (RV-6 targets installed in-sandbox at run1 log :534-537); metainfo exported.
+Census brackets (pre 07:49:51Z / post 08:25:57Z): 11 installed refs unchanged (normalized
+  diff EMPTY; raw-snapshot delta was column rendering only), BaseApp commit b3f1b274d540...
+  EXACT (drift row 6 stays CLOSED), installations = /var/lib/flatpak only, Cargo.lock sha256
+  65a910d2... byte-identical (G5 baseline survived both sandbox builds), lock/vendor.tar
+  mtimes unmoved (freshness key idle), git footprint = this doc only (reviewer's
+  review-phase2.md churn noted, not packager's), GIO 2-line nix-gvfs noise x40 recorded
+  unsuppressed (known-benign; filtering policy = T08 empirical matrix).
+Sinks: /tmp/np-smoke-repo (stale spike repo, lead-declared moot, emptied -> 119.1MB app dir),
+  /tmp/np-t06-repo (NEW ostree repo — declared mid-window as the §3.1 REPO leg; T07 rehearsal
+  repo), .flatpak-builder/ (72.6MB: build/ccache/cache/checksums/rofiles), /tmp logs + the
+  dir-copy probe (created, timed, removed). Zero writes beyond declared sinks.
+RV-15a retroactive gate T01-T05 PASSED: this build exercises T04's manifest (--frozen
+  --offline, no build-args/network share, license installs), T05's rev-pin + vendored ?rev=
+  stanzas, and T01-T03's desktop/metainfo/license material — green end-to-end fully offline.
+Evidence: /tmp/t06-precensus.log, /tmp/t06-precensus-refs{,-normalized}.txt,
+  /tmp/t06-build-run{1,2}.log, /tmp/t06-export-stable.log, /tmp/t06-recensus{,-refs*}.log/.txt.
 ```
