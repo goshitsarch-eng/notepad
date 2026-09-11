@@ -1,7 +1,7 @@
 # PLAN.md — NotePad libcosmic migration: consolidated Phase 2/3 plan
 
 Lead-maintained consolidation of the three Phase-1 documents, per the project
-charter. Rev 8 (2026-09-11).
+charter. Rev 9 (2026-09-11).
 
 **Inputs:** `docs/migration/ux.md` (rev 3), `docs/migration/architecture.md`
 (rev 2), `docs/migration/packaging.md` (revised), `docs/migration/DECISIONS.md`
@@ -140,7 +140,7 @@ and which are checklist-only (source: architecture.md Appendix B, packaging.md
 
 | v2.0.4 test | Contract | v3.0.0 coverage | Status |
 |---|---|---|---|
-| `test_commands.py` | find first/skip-selection/wrap/case defaults; replace one/all + single undo step; goto 1-based + range rejection; U+2029 paragraph-separator case (`test_commands.py:122–127`) — **N/A**: Qt `QTextDocument` artifact, no v3 analog (RV-17) | `src/commands.rs:272–472` — 22 tests, green today; case-insensitive mechanism differs (UX-D9: `to_lowercase` vs v2 `casefold`) | 🔒 locked; app-level chains → **T10** (F14–F16) |
+| `test_commands.py` | find first/skip-selection/wrap/case defaults; replace one/all + single undo step; goto 1-based + range rejection; U+2029 paragraph-separator case (`test_commands.py:122–127`) — **N/A**: Qt `QTextDocument` artifact, no v3 analog (RV-17) | `src/commands.rs` tests — 21 `#[test]` (block :269–449, first/last attribute, live-verified rev 9), green today; case-insensitive mechanism differs (UX-D9: `to_lowercase` vs v2 `casefold`) | 🔒 locked; app-level chains → **T10** (F14–F16) |
 | `test_window.py` | find-bar focus + select-all on open; close-button accessible name "Close Find" + Esc tooltip; Esc returns focus to editor | accessible name → **T15**; focus/select-all → **T18/T19** (widget focus is not headless-unit-testable → smoke/manual verify; visibility/Esc at message level → **T10** `on_escape`) | planned |
 | `test_application.py` | second-instance open guarded (dirty → dialog; discard → loads) | → **T11/T14** (F21) | planned |
 | `test_theme.py` | color-scheme default/roundtrip/invalid-fallback; WCAG contrast; QSettings persistence | persistence + scheme decisions → **T12** (`with_custom_path`); contrast/palette **out of scope** (UX-D4) | planned / deviation |
@@ -199,7 +199,7 @@ Landed early so every later task can run the full charter DoD gate.
 | ID | Task | Owner (+collab) | Depends | Done when |
 |---|---|---|---|---|
 | **T04** | Desktop/metainfo fixes (D12): `Categories=Utility;TextEditor;X-COSMIC;`; unwrap metainfo `<provides><binaries>` → `<binary>`; pinned-string rule applies (any intentionally changed pinned string updated in `tests/packaging.rs` in the same commit). (P2-T2) | packager (+ux sign-off: granted, D12) | — | `desktop-file-validate` exit 0; `appstreamcli validate --no-net` exit 0, 0 infos; tests green |
-| **T05** | Vendoring switch (D9/D10): `scripts/vendor.sh` (vendor/ + `.cargo/config.toml` + gitignored `vendor.tar` cache); manifest → `cargo build --release --frozen --offline`, drop `--share=network`, add `"branch": "stable"`; `rev = "d4d71fd5…"` pin in `Cargo.toml` (**architect edits, packager supplies the exact string**); extend `tests/packaging.rs` per packaging.md §6, **including an assertion that the manifest build-commands contain the LICENSE/COPYRIGHT install lines (RV-6 — today only the justfile is pinned, which the Flatpak build does not use; GPL-compliance relevant)**. (P2-T3) | packager (+architect for the Cargo.toml line) | T04 | vendor.sh from clean state; `cargo build --release --frozen --offline` green; tests green |
+| **T05** | Vendoring switch (D9/D10): `scripts/vendor.sh` (vendor/ + `.cargo/config.toml` + gitignored `vendor.tar` cache); manifest → `cargo build --release --frozen --offline`, drop `--share=network`, add `"branch": "stable"`; `rev = "d4d71fd5…"` pin in `Cargo.toml` (**architect edits, packager supplies the exact string**; **rev 9 amendment — reviewer objection ADOPTED, spike-verified**: inserting the pin changes libcosmic's cargo source-ID, so the pre-amendment Step-A pair "Cargo.lock byte-identical + `cargo build --locked` green" is unsatisfiable — `cargo metadata --locked --offline` exits 101; amended Step A: insert pin → one-time `cargo metadata --offline` regen → verify the lock diff is **confined to libcosmic source lines** (bare↔`?rev=` forms, identical commit hash, zero version/checksum movement) → `cargo build --locked` green → handoff; Cargo.toml + regenerated Cargo.lock ride this commit; the packager's byte-identical done-when re-baselines to post-pin. Load-bearing for T06: `--frozen --offline` fails against a non-regenerated lock); extend `tests/packaging.rs` per packaging.md §6, **including an assertion that the manifest build-commands contain the LICENSE/COPYRIGHT install lines (RV-6 — today only the justfile is pinned, which the Flatpak build does not use; GPL-compliance relevant)**. (P2-T3) | packager (+architect for the Cargo.toml line) | T04 | vendor.sh from clean state; `cargo build --release --frozen --offline` green; tests green |
 | **T06** | Vendored offline Flatpak rebuild: `flatpak-builder --user --install-deps-from=flathub --force-clean --ccache`; measure vendor dir-copy / build / ccache timings; append findings to packaging.md. (P2-T4) | packager | T05 | flatpak-builder exit 0 fully offline |
 | **T07** | `scripts/smoke-test.sh` per packaging.md §3 + D11/D13: path-B default (persisted isolated installation), `NOTEPAD_SMOKE_FAST=1` path A; weston-headless wayland leg + Xvfb leg; liveness/termination/panic criteria + stderr allowlist; PID-based cleanup traps; checksum-tamper check. (P2-T5) | packager | T06 | Passes twice consecutively against the T06 build; no leftover processes; path-A residue-free; tampered vendor correctly fails |
 | **T08** | `scripts/verify.sh` per packaging.md §4 (10 steps, env overrides, logging, exit 0/1/2); dry run on current tree; then full run from a **fresh clone in /tmp**. (P2-T6) | packager | T07 | Fresh-clone run exits 0 unattended (single network window per D9). **From here, verify.sh is the per-task gate.** |
@@ -349,3 +349,28 @@ finished until all four hold.
   becomes the verification pass). Superseded wires: the architect's
   "baseline note at next doc touch" (folds into T27) and ux's "renumber
   inside the Phase-3 sweep" (T27 precedes it).
+- Rev 9 (2026-09-11): two corrections, no task semantics moved. (1) §3.1
+  `test_commands.py` row: commands.rs test count 22 → **21**, range :272–472
+  → :269–449 (first/last `#[test]`, live-verified) — the architect's
+  standing-rule catch; decomposition 21+5+3+5+5 = 39 stands (reviewer-
+  verified). Fixed now rather than at T27: T27's scope is architecture.md +
+  ux.md, and widening it to PLAN would itself require a PLAN rev. (2) T05
+  row amended per the reviewer's pre-execution objection (**ADOPTED**):
+  spike on exact repo copies, offline — with the `rev` key inserted,
+  `cargo metadata --locked --offline` exits 101 ("cannot update the lock
+  file"), and an unlocked regen rewrites every libcosmic source line to the
+  `git+…?rev=d4d71fd…#d4d71fd…` form (cargo source-IDs carry the query
+  param; ≥5 sites; baseline control passes --locked byte-identical). The
+  original Step-A gate pair was therefore empirically unsatisfiable, and the
+  amendment is load-bearing beyond gate cosmetics: T06's `--frozen
+  --offline` sandbox build would fail identically against a non-regenerated
+  lock. Amended Step A: pin → one-time `cargo metadata --offline` regen →
+  confined-diff verification (libcosmic source lines only, bare↔`?rev=`
+  forms, identical commit hash, zero version/checksum movement) → `cargo
+  build --locked` green → handoff; Cargo.toml + regenerated Cargo.lock ride
+  T05's single commit; architect-first sequencing unchanged; the
+  architect's explicit ack of the amended Step A is the release token for
+  T05 Step 1 (reviewer's crossing-#8 flag: the architect's last ack
+  pre-dated the spike wire). The packager's rev-match test design survives
+  unchanged (reviewer-verified). Superseded wires: both owners' banked
+  "Cargo.lock byte-identical" Step-A criterion.
