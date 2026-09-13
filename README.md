@@ -161,8 +161,10 @@ just check      # cargo clippy (pedantic warnings)
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for prerequisites and the full
-workflow, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is
-organized.
+workflow, [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the code is
+organized, and [docs/RELEASING.md](docs/RELEASING.md) for the tag-driven
+release process (GitHub Actions builds x86_64 and aarch64 tarballs and
+Flatpaks automatically).
 
 ## Project layout
 
@@ -170,7 +172,8 @@ organized.
 ├── com.goshapps.Notepad.json     # Flatpak manifest (Cosmic BaseApp)
 ├── Cargo.toml / Cargo.lock       # crate definition; libcosmic pinned by rev
 ├── justfile                      # build, test, install, vendor recipes
-├── scripts/vendor.sh             # materialize vendored deps for offline builds
+├── .github/workflows/            # CI (lint/test) and tag-driven release
+├── scripts/                      # vendor.sh, package-*.sh, verify-release.sh, check-version.sh
 ├── src/
 │   ├── main.rs                   # entry point, CLI args, single-instance handoff
 │   ├── app.rs                    # window, menus, dialogs, editor, message handling

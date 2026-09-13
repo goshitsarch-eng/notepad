@@ -1,0 +1,184 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release (must already exist, e.g. v3.0.0)
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - run: ./scripts/check-version.sh "$TAG"
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkgconf \
+            libexpat1-dev libfontconfig-dev libfreetype-dev libxkbcommon-dev
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rustup show
+      - run: cargo fmt --check
+      - run: cargo clippy --all-features --locked -- -W clippy::pedantic
+      - run: cargo test --locked
+
+  native:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+          - {runner: ubuntu-24.04-arm, arch: aarch64}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkgconf \
+            libexpat1-dev libfontconfig-dev libfreetype-dev libxkbcommon-dev
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rustup show
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
+      - name: Build and package tarball
+        run: ./scripts/package-tarball.sh "${TAG#v}" "${{ matrix.arch }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tarball-${{ matrix.arch }}
+          path: dist/notepad-*.tar.gz
+          if-no-files-found: error
+
+  flatpak:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04, arch: x86_64}
+          - {runner: ubuntu-24.04-arm, arch: aarch64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/lib/mono \
+            /opt/az /usr/local/graalvm
+          df -h /
+      - name: Install flatpak tooling and Rust
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          rustup show
+      - name: Add flathub remote
+        run: |
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+      - uses: actions/cache@v6
+        with:
+          path: vendor.tar
+          key: vendor-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+      - name: Restore vendored sources
+        run: |
+          # vendor.tar must look newer than Cargo.lock for vendor.sh to reuse it
+          [ -f vendor.tar ] && touch vendor.tar
+          true
+      - name: Build and package Flatpak
+        run: ./scripts/package-flatpak.sh "${TAG#v}" "${{ matrix.arch }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: dist/notepad-*.flatpak
+          if-no-files-found: error
+
+  release:
+    needs: [native, flatpak]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: '*-x86_64'
+          path: dist
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: '*-aarch64'
+          path: dist
+          merge-multiple: true
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum notepad-* > SHA256SUMS && cat SHA256SUMS
+      - name: Install flatpak for bundle inspection
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak
+      - name: Verify artifact set
+        run: ./scripts/verify-release.sh dist "${TAG#v}"
+      - name: Create draft release
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --draft --generate-notes \
+              --title "Notepad ${TAG#v}"
+          fi
+      - name: Upload assets and publish
+        run: |
+          gh release upload "$TAG" dist/* --clobber
+          gh release edit "$TAG" --draft=false
+      - name: Verify published assets
+        run: |
+          gh release view "$TAG" --json isDraft,assets \
+            --jq '{draft: .isDraft, assets: [.assets[].name]}'
+          gh release view "$TAG" --json isDraft --jq '.isDraft' | grep -qx false
+          assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          for arch in x86_64 aarch64; do
+            for ext in tar.gz flatpak; do
+              n="notepad-${TAG#v}-linux-${arch}.${ext}"
+              echo "$assets" | grep -qx "$n" || { echo "missing asset: $n"; exit 1; }
+            done
+          done
+          echo "$assets" | grep -qx SHA256SUMS || { echo "missing asset: SHA256SUMS"; exit 1; }
+          echo "release $TAG complete"

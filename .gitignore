@@ -10,3 +10,7 @@ __pycache__/
 .pytest_cache/
 *.pdb
 **/*.rs.bk
+
+# CI/release outputs
+dist/
+repo/
