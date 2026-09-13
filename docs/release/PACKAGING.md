@@ -34,14 +34,16 @@ or the script fails. Output: `dist/notepad-v<ver>-linux-<arch>.tar.gz`.
    --force-clean build-flatpak com.goshapps.Notepad.json`
 4. `flatpak build-bundle --arch=<arch> repo dist/…flatpak
    com.goshapps.Notepad stable`
-5. `flatpak bundle-info` must report `Arch: <arch>`.
+5. The bundle's embedded `app/com.goshapps.Notepad/<arch>/stable` ref must
+   match the matrix arch (checked with `grep -a` — `flatpak bundle-info`
+   requires flatpak ≥ 1.15, newer than Ubuntu 24.04's 1.14).
 
 The bundle is a single-file installable: `flatpak install --user x.flatpak`.
 
 ## Whole-set check — `scripts/verify-release.sh <dir> <version>`
 
 Asserts all five files exist and are non-empty, extracts each tarball and
-`file`-checks `bin/notepad`, `bundle-info`-checks each flatpak, runs
+`file`-checks `bin/notepad`, checks each flatpak's embedded ref arch, runs
 `sha256sum -c SHA256SUMS`, and fails on stray/duplicate files.
 
 ## Checksums

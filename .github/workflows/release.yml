@@ -152,10 +152,6 @@ jobs:
       - name: Generate checksums
         working-directory: dist
         run: sha256sum notepad-* > SHA256SUMS && cat SHA256SUMS
-      - name: Install flatpak for bundle inspection
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak
       - name: Verify artifact set
         run: ./scripts/verify-release.sh dist "${TAG#v}"
       - name: Create draft release

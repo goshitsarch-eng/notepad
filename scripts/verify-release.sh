@@ -11,13 +11,13 @@
 #   SHA256SUMS        (verified with sha256sum -c when present)
 #
 # Each tarball must extract and contain an executable bin/notepad of the
-# claimed architecture; each flatpak bundle must report the claimed arch.
+# claimed architecture; each flatpak bundle must embed the matching
+# app/<id>/<arch>/stable ref.
 set -euo pipefail
 
 dir="${1:?usage: verify-release.sh <dir> <version>}"
 version="${2:?usage: verify-release.sh <dir> <version>}"
 fail() { echo "verify-release: $*" >&2; exit 1; }
-command -v flatpak >/dev/null || fail "flatpak is required to inspect bundles"
 
 cd "$dir"
 tmp="$(mktemp -d)"
@@ -38,7 +38,7 @@ for arch in x86_64 aarch64; do
     file "$bin" | grep -q "$elf" ||
         fail "$tb contains wrong-arch binary: $(file "$bin")"
 
-    flatpak bundle-info "$fp" | grep -q "^Arch: $arch" ||
+    grep -aqm1 "app/com.goshapps.Notepad/$arch/stable" "$fp" ||
         fail "$fp is not arch $arch"
     echo "ok: $tb ($arch binary verified)"
     echo "ok: $fp (arch $arch verified)"

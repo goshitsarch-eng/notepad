@@ -41,8 +41,8 @@ release, not a partial one.
   2 vCPU on private repos vs 4 on public, so arm jobs are slower)
 
 No QEMU, no cross-emulation, no cross-compile: each architecture builds on
-real hardware and the output is arch-verified with `file` / `flatpak
-bundle-info`.
+real hardware and the output is arch-verified with `file` on the binary and
+the `app/<id>/<arch>/<branch>` ref embedded in each Flatpak bundle.
 
 ## Caching
 

@@ -33,9 +33,10 @@ mkdir -p dist
 out="dist/notepad-v${version}-linux-${arch}.flatpak"
 flatpak build-bundle --arch="$arch" repo "$out" com.goshapps.Notepad stable
 
-# The bundle must be for the claimed architecture.
-flatpak bundle-info "$out" | tee /tmp/notepad-bundle-info.txt
-grep -q "^Arch: $arch" /tmp/notepad-bundle-info.txt ||
+# The bundle must be for the claimed architecture. `flatpak bundle-info`
+# only exists in flatpak ≥ 1.15; the ref embedded in the bundle header
+# (app/<id>/<arch>/<branch>) is portable.
+grep -aqm1 "app/com.goshapps.Notepad/$arch/stable" "$out" ||
     { echo "flatpak bundle is not arch $arch" >&2; exit 1; }
 
 echo "wrote $out"
