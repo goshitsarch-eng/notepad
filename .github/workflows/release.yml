@@ -172,7 +172,7 @@ jobs:
           assets="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
           for arch in x86_64 aarch64; do
             for ext in tar.gz flatpak; do
-              n="notepad-${TAG#v}-linux-${arch}.${ext}"
+              n="notepad-v${TAG#v}-linux-${arch}.${ext}"
               echo "$assets" | grep -qx "$n" || { echo "missing asset: $n"; exit 1; }
             done
           done
