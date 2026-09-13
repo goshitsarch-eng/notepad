@@ -754,10 +754,463 @@ working-tree state below reflects HEAD 8e5b01a, not the churn.
   — the freeze-delta convention is not contradicted but not confirmed
   either; my reconciliation wire (in flight at their composition) adopts it
   bilaterally, so it stands unless objected at the T07 plan note, where I
-  will hold their note to it. They routed my STALE 1052 declaration to the
+  will hold their note to it. [REV-4 UPDATE (their closing wire — crossing
+  #22): the convention is EXPLICITLY CONFIRMED ahead of any plan note —
+  adopted and banked both directions ("You'll hold my packages to it;
+  I'll hold yours") and relayed by the lead in the T07 release ping:
+  tri-party record; "stands unless objected" is SUPERSEDED — it stands by
+  explicit adoption. Their staging file gains the three-part convention
+  line for compaction-recovery coherence with this §2 closure. At the T07
+  plan note I cite their adoption, not a default.] They routed my STALE
+  1052 declaration to the
   lead — 1093/449+/16− supersedes on both wires already out; the
   staging-time custodial read governs regardless. **RECORD CONVERGED: ZERO
   FINDINGS, CLEAN SHEET — T06 closed from both ends.**
+
+- **T06 POST-COMMIT RECORD-CHECK — CLEAN (commit 0a6fbefe; found mid-check —
+  HEAD moved between my measurement batches, so this ran PROACTIVELY ahead of
+  the lead's receipt; zero deviations).** Legs: single path = packaging.md,
+  numstat 60+/3− == declared exactly; parent 73f7606; committed 09:24:21Z;
+  blob 496 lines / 67,946 B, blob == worktree (cmp exit 0); the frozen fills
+  landed in the blob ("measured in T06 at 6.7 s" ×2 at :157/:338 + the :167
+  "measured the dir-copy at 6.7 s … > 60 s revisit threshold … stands on
+  data" form; Appendix A :441–496 with the ```text…``` block bounds); counts
+  44 total / 26 migration. BODY (116 lines / 6,447 B) carries the reconciled
+  record VERBATIM: "APPROVED, ZERO findings — all ten legs green"; the full
+  T06-F1 issued-then-withdrawn arc with the exact mechanism (PROPOSAL =
+  pre-freeze draft / the freeze wire authoritative / harness ordering
+  artifact, not a packager defect / the grep -cF byte-match counts); BOTH
+  precision items folded (the 19 s pre-launch bracket = the stronger
+  zero-writes position; recensus §6 = ONE dirty path at census time, the
+  two-path set = FINAL state, no-third-path at every observation point);
+  eleven P2-T3 lines + the T27 boundary; the correction-of-record mechanism
+  + declared residual boundary; the reproducible sha recomputed both sides;
+  the E5 disposition incl. my in-build cross-check; brackets (my gate-run
+  quiescence + the lead's pre-stage census re-verifying every declared
+  figure + their post-commit census); the sink acceptance (np-t06-repo
+  du-verified reviewer AND lead); evidence paths incl. my normalized-refs
+  file; "the reviewer's log rev 3 rides the separate docs-window commit."
+  **T06 CLOSED FROM ALL THREE ENDS (verdict → reconciliation → commit).**
+  POSTSCRIPT (this entry itself rides rev 4): the docs window landed WHILE
+  this entry was being written — custodial commit fc30f760 (parent
+  0a6fbefe, 09:29:23Z, single path) captured rev 3 at its rider-era state:
+  numstat 474+/16−, blob 1118 lines / 79,676 B (660+474−16=1118 closes);
+  blob anchors: ABSORPTION RIDER ×1 at :736, this record-check entry's
+  header ×0, EOF footer intact — purely rev-3 final form, zero batch-5
+  content; counts 45 total / 27 migration. The staging read (git add) thus
+  CAPTURED THE UNWIRED +25-LINE RIDER — "staging-time read supersedes every
+  declaration" honored IN THE ARTIFACT (last wired = 1093/449+/16−; the
+  rider went unwired, so the custodial capture is its only authoritative
+  render). Their body enumerates the full rev-3 arc (ten legs, the F1
+  issued-then-withdrawn arc with root cause + lesson, reconciliation,
+  crossing #21 + the adopted freeze-delta convention, pre-launch bracket,
+  correction-of-record acceptance, sink + RV-15a, self-correction trio,
+  declaration chain 756→858→861→1022→1052→1093). **BUT THE BODY'S
+  CONVERGENCE NARRATIVE CONTRADICTS ITS OWN BLOB → FINDING T06-F2 (MINOR,
+  ISSUED, record-check-scoped — the package verdict's ZERO-findings
+  language untouched; F1 was the only package-scoped finding,
+  withdrawn).** Their convergence section declares: "at staging the live
+  read EQUALLED the final declaration exactly (1093 lines, 449+/16-,
+  77,850 bytes) — converged, zero drift," and both 48d603d hex sweeps ran
+  "at the final 1093-line bytes." The blob mechanically disproves this:
+  1118 lines (wc -l) / 79,676 B (wc -c) / 474+/16− (git numstat); their
+  declared staging figures reproduce from NO committed object, the blob
+  figures do. Deltas close exactly: +25 lines (474−449; deletions
+  unchanged at 16 = pure insertion) and +1,826 B (79,676−77,850) = the
+  rider, rendered at blob :736–:761. ROOT-CAUSE RECONSTRUCTION (inference,
+  labeled): their sweep reads predate the rider; their quiescence probes
+  (cited mtime 1789118599 = 09:23:19Z, "stable across two probes spanning
+  the final hex sweep," ~2.3 min age at first read → probes ≈ 09:25:37Z+,
+  after the T06 commit 09:24:21Z) watched the rider-era file — a live read
+  at probe time could not return 1093; the cited mtime is most plausibly
+  the rider edit itself (the last rev-3 write; its timestamp is not
+  recoverable from my transcript jsonl — zero matches — so the cited mtime
+  stands as the proxy). Their growth attribution stops at "crossing-#21
+  sections landing pre-micro-note" (1052→1093) and never mentions the
+  rider. Only consistent ordering: sweeps pre-rider → rider lands (mtime
+  09:23:19Z) → probes see rider-era quiescence → git add captures 1118 →
+  body quotes sweep-time figures → commit 09:29:23Z. Their "post-commit
+  tree CLEAN" census stays consistent: my batch-5 edits applied after
+  their census — seconds-wide race, no overlap. GAP + CLOSURE
+  (reviewer-side, complete): the only content their sweeps never covered =
+  the +25-line rider delta. My remediation sweep: rider region (blob
+  :736–:761) hex-token count = ZERO; full-blob census = 54 unique tokens
+  (`\b[0-9a-f]{7,64}\b`) — their 53 classification reproduced EXACTLY (26
+  commits 0297eb7…e1a61c3 within baseline-through-73f7606, 12 epochs, 7
+  sha prefixes, 3 hunk labels, bd2bf66b8686+d703ed1, b3f1b274d540,
+  d4d71fd+d4d71fd5) + the full 64-char reproducible sha256 46bea49c…
+  (evidently outside their regex's range; double-recomputed by packager
+  AND me during T06 — benign). ZERO unclassified tokens; the
+  exhaustive-classification claim HOLDS over the full blob. Integrity
+  otherwise unaffected: single path, docs-disjoint from the footprint
+  commit, content entirely reviewer-authored, arithmetic closes at every
+  state (660+449−16=1093; 1093+25=1118=660+474−16). DISPOSITION: MINOR,
+  narrative-only; no rewrite sought or warranted (outside my lane;
+  substance sound). Remediation = this entry + wire to the lead;
+  correction of the convergence sentence at their discretion (bank notes
+  or next body). PATTERN NOTE (cross-party): identical failure class to
+  the packager's freeze-wire R1 leg (census-time figures rendered as
+  final-state — their banked lesson): an observation-time figure quoted as
+  a later authoritative read. Proposed shared rule for the record: when a
+  later authoritative read exists (staging add, freeze wire, census),
+  narrative figures get re-derived from THAT read at write time. The T05
+  precedent (staging 479 vs declared 477+2) shows supersession working
+  silently; here it worked in the artifact while the narrative denied it.
+  SELF-CORRECTION (intra-turn, never wired): this postscript's first draft
+  characterized their body's chain as "…→1093→staging-1118" and the
+  landing as "working as designed" from the head-40 read alone — the body
+  remainder, read before wiring, disproved both. Lesson reconfirmed: a
+  record-check characterizes nothing before the full body is read.
+  T06-F2 ACK + ERRATUM (the lead's receipt, folded same-turn): finding
+  ACCEPTED as a formal ERRATUM DECLARATION — recorded, not rewritten.
+  OWNER-DISCLOSED ROOT CAUSE, superseding my reconstruction above IN PART
+  (it was labeled inference; SELF-CORRECTION #5, crossed class): their
+  probe-time read (09:25:37Z) LEGITIMATELY returned 1093 — mtime
+  1789118599 (09:23:19Z) was the 1093-state's last write (the crossing-#21
+  micro-note), NOT the rider; my rider landed AFTER their probes, BETWEEN
+  probe and stage, falsifying the probe-time figures before the git add
+  captured 1118; their pre-stage guards were TOOTHLESS (`test X && echo
+  ok` under set -e — a failing test in non-final && position is
+  errexit-exempt) and failed SILENTLY; the commit proceeded; their
+  post-commit census caught it (numstat 474 ≠ 449). Guards being rebuilt
+  in `|| exit 1` form; the post-commit census remains the mandatory net.
+  My in-flight rider write was WITHIN the docs-window regime (their
+  receipt names my rev-4 churn as the standing docs-disjoint exclusion —
+  same regime as the packager's T06 window), not a quiescence violation;
+  the error class is the body rendering probe-time truth AS staging-time
+  truth, which the erratum owns. The finding's substance is untouched; my
+  "only consistent ordering" claim is RETRACTED (their ordering is the
+  actual one, mechanism-disclosed). CORROBORATION (their receipt-time
+  sweeps == my gap-closure, independently): their committed-blob sweep =
+  53 tokens, "zero new, zero gone vs the 1093 sweep" — matches my
+  rider-delta sweep ZERO exactly; their live-1149 sweep = 54 (new token =
+  0a6fbefe, self-classifying) vs my blob census 54 (their 53 + the full
+  64-char reproducible sha, outside their regex's range) — both 54s
+  reconcile token-by-token with different 54th tokens; zero unclassified
+  on either side. AMEND CONSIDERED AND BARRED by the lead's own
+  hash-stability ruling: this log cites fc30f76 durably (postscript,
+  declaration, queue, checklist — live population :787/:857/:877/:910 at
+  this write, shifting with rev-4 churn; their receipt's :787/:800/:818
+  were as-of-writing anchors per rule 6); amending would dead-cite the
+  durable index; house style = record-the-arc (T06-F1 + branchless-export
+  precedents). FORMAL ERRATUM PARAGRAPH rides the lead's rev-4 custodial
+  commit body (planned: the T07-cycle docs window) — T06-F2 CLOSURE = my
+  record-check of that commit verifying the erratum paragraph. Full
+  hashes verified live and now of record:
+  0a6fbefe6fd92678dba2bf5b69576ce5c462c7aa;
+  fc30f760502e4174e2710dfcff24b41c80b16f86; tree
+  3d0625db85ba2764cc4f6a3aa125839e4253ddc8. CITATION-SURFACE NOTE: their
+  receipt twice cites my postscript's TRANSIENT FIRST DRAFT — the adopted
+  quote ("captured rev 3 at exactly its rider-era state … first live
+  exercise") and their paraphrase correction (the "…→1093→staging-1118"
+  chain attribution), both first-draft text that their live-worktree read
+  caught mid-turn; the paraphrase correction was already self-caught and
+  overwritten pre-wire (their flag independently confirms the fix —
+  ACCEPTED-IN-SUBSTANCE, satisfied by the live text). Observation for the
+  bank: outside staging, worktree reads of this log can catch intra-turn
+  drafts — wired declarations and committed states are the stable
+  citation surfaces. The adoption's substance holds in the current text
+  ("captured rev 3 at its rider-era state"); "first live exercise" is
+  dropped there — T05 (staging 479 vs declared 477+2) was the silent
+  first exercise. BANKED FOR T08 (cross-party tooling lesson from the
+  same erratum): verify.sh step-gates must fail loudly — `|| exit N`
+  form, never `test && echo ok` under set -e (the errexit-exemption
+  class); I audit the packager's T08 legs for it at review.
+  PROBE-DATA REFINEMENT (the lead's second wire, folded same-turn —
+  upgrades the disclosed-mechanism ordering above from owner-disclosed to
+  transcript-proven): their 09:25:37Z probe transcript, verbatim:
+  `1789118599 77850` (stat %Y %s — measured TOGETHER, so mtime 1789118599
+  = 09:23:19Z is pinned to the 77,850-B/1093-line state = the crossing-#21
+  micro-note write) / `1093` (wc -l) / `449 16` (numstat), twice stable
+  across probes spanning the final hex sweep. The rider therefore landed
+  INSIDE the 09:25:37Z→~09:29:23Z probe→stage window, its mtime unobserved
+  inside the 1789118599→1789118998 span; my transcript-jsonl zero-matches
+  is consistent ("an edit whose timestamp never entered either
+  transcript"). SELF-CORRECTION #5's corrected ordering is thereby
+  CONFIRMED and upgraded. ADOPTED RE-RENDER (verbatim; the erratum and
+  this rider share it): convergence-at-1093 transiently existed at probe
+  time; the body's defect = rendering a probe-time read as a staging-time
+  read; convergence AT STAGING never occurred — supersession occurred,
+  which is the protocol working. Guards rebuilt in `|| { echo FAIL; exit
+  1; }` form (the loud-fail class; my T08 audit leg keys to that form).
+  Sweep-range lesson ACCEPTED lead-side: future custodial hex sweeps run
+  `\b[0-9a-f]{7,64}\b` (closes the {7,40}-vs-64 gap my blob census
+  exposed). Pattern note ADOPTED as a tri-party shared rule; the lead's
+  offer into my lesson index: ACCEPTED — enters below with its two cited
+  precedents (T05's silent 479-vs-477+2 supersession; this postscript's
+  artifact-honored/narrative-denied split). TOPOLOGY REFINEMENT (folded at
+  the lead's discretion; live-re-verified at this write):
+  `flatpak --installations` printing /var/lib/flatpak only enumerates
+  REGISTERED installations — it does not say where refs live. Live census:
+  sandbox USER installation = 11 runtime dirs + app dir
+  com.system76.Cosmic.BaseApp; SYSTEM /var/lib ostree refs = 0; path-B dir
+  ~/.cache/notepad-smoke-installation ABSENT; /tmp/np-xdg ABSENT; real
+  /home/gosh/.local/share/flatpak mtime 2026-09-11 05:31:38Z unmoved;
+  wayland-1 + wayland-1.lock mtime 1789078367 both. My T06-era phrasing
+  (:504–505/:576, "installations /var/lib/flatpak only") stands as the
+  point-in-time record — accurate as a command-output description, not
+  rewritten per the standing ruling; this note is the durable-index
+  clarification. T06 brackets untouched.
+  T07 PLAN-NOTE REVIEW — APPROVED-WITH-CONDITIONS (zero stop-work
+  objections; window CLOSED, staging proceeds at full speed). Window
+  mechanics: note received at its named window front HEAD fc30f76
+  (live-verified: HEAD unmoved, sole dirty path this log); sent to me
+  first per protocol, lead cc'd; disposition wired promptly to minimize
+  staging uncertainty. NO peek at /tmp/t07-staging pre-freeze — the
+  T06-F1 lesson: pre-freeze drafts are the wrong artifact; the dedicated
+  freeze wire is the authoritative surface (freeze-time verification mine
+  per the lead's relay). ANCHOR VERIFICATION (all live at this write,
+  ZERO discrepancies): PLAN :220 done-when verbatim ("Passes twice
+  consecutively against the T06 build; no leftover processes; path-A
+  residue-free; tampered vendor correctly fails"). packaging.md symbols
+  line-checked: :138 (VERIFY-P2 tamper one-liner), :180 (build-export,
+  explicit `stable` arg), :183/:185–186 (path-B block: XDG_DATA_HOME
+  export, install WITHOUT --no-deps, ~1.2 GB one-time pull), :188
+  (path-A --no-deps form), :192–193 (trap lines incl. the literal
+  `rm -rf $TMP_RT $REPO`), :196 ($SMOKE_HOME default
+  ~/.cache/notepad-smoke-installation + TMP_RT mktemp chmod 0700 +
+  build-leg-writes-active-HOME claim), :200 (path-B, 660+457+75 MB
+  breakdown), :202 (path-A FULLY PROVEN), :206 (finish-args CONFIRMED),
+  :209 (kept-spike-artifacts — stale, untouched per point-in-time
+  record), :211/:219/:224 (§3.2 header; "both legs run in every smoke
+  pass" = the Q3 tension anchor; Xvfb leg = fallback-x11+winit-X11
+  obligation), :231–234 (critical weston details incl. :234
+  remaining-P2-T5-scope stale line), :239/:249 (liveness bounds:
+  ALIVE_SECS=10; rc∈{0,143}), :252/:256/:258 (failure criteria; panic
+  regex verbatim; WARN-not-FAIL allowlist), :260 (§3.4 + the pkill -f
+  exit-144 footgun), :310 ("optional single-instance step S2" row = the
+  Q2 basis) + §3.5(b) ("optional smoke step S2 (P3)"). Freshness keys:
+  vendor.tar 943,063,040 B/1789107149, Cargo.lock 163,121 B/1789106086
+  (sha256 recomputed live
+  65a910d2f1731b06819837c9d27068d315d99da8320730c203624372fe0d450a == G5
+  == the note), manifest 1,796 B/1789106753, vendor/ 636 crate dirs — all
+  match; "build inputs unchanged since 4314e2b" holds by mtime (every key
+  ≤ 1789107149 « the T06 window). np-t06-repo: single ref
+  app/com.goshapps.Notepad/x86_64/stable, commit bd2bf66b8686…d703ed1
+  rev-parsed live, summary + summary.idx present. Baselines:
+  .flatpak-builder 81M with my itemization for their census-open bracket
+  (build 4.0K, cache 80M, ccache 1.1M, checksums 8.0K, rofiles 8.0K);
+  .gitignore :1 `.flatpak-builder/`; finish-args 6 entries with
+  fallback-x11, no share=network; packaging.md = 496 lines, EOF :494–496
+  = evidence lines + closing fence → append point after live :496
+  confirmed; run1 log 454 Compiling lines == the T06 record, libcosmic
+  compiling near the END of the crate graph (corroborates the tamper
+  leg's ~55–65 s late-fail timing). TWO BONUS BASLINES supplied by my
+  pass: sandbox ~/.config/cosmic/com.goshapps.Notepad mtime 2026-09-10
+  23:36:53Z (sink-3 pre-state) + the real-HOME stat-only baseline above.
+  RULINGS: **Q1 ACCEPT** (concurring with the lead's preliminary view) —
+  the fresh-CARGO_TARGET_DIR rationale is sound: a warm target's
+  fingerprinting can skip recompiling the tampered crate (false PASS); a
+  fresh target forces cargo's .cargo-checksum.json verification. The
+  declared boundary (host-cargo primary; sandbox flatpak-builder
+  equivalence unexercised) is ACCEPTED — :138's one-liner spec and :220's
+  done-when require a failing build, not the builder path. C1 attaches.
+  **Q2 ACCEPT** — the spec itself designates S2 optional (:310) and P3
+  (§3.5(b)); :220's done-when is silent on S2; the "no unexercised code
+  paths in a DoD-gating script" rationale is sound; the designed
+  documented-TODO with a §3.5(b) pointer satisfies visibility. **Q3
+  ACCEPT with C2** — the :219 tension resolves by scope: T07 runs carry
+  no CI=1, so "both legs in every smoke pass" holds for T07 in full; the
+  carve-out is future-CI-env-only. **Q4 ACCEPT with C3** — in-tree
+  .flatpak-builder/build as default: gitignored, shares cache/ccache with
+  T06 and the future verify.sh step-9 (one bracketed pre-state; T08
+  alignment); the BUILD_DIR knob stays. **Q5 INCORPORATED** — lead-ruled
+  (PROCEED per §3.1; ~1.2 GB pull AUTHORIZED P1 ONLY); zero objection
+  reviewer-side; the note's design reflects the ruling (:185's form
+  carries no --no-deps; P2 amortizes via the persisted SMOKE_HOME; P3's
+  documented path-A --no-deps form is spec, NOT a fallback — the ban
+  targets silent P1 degradation). C8 attaches at freeze/package. **Q6
+  ACCEPT with C7** — URL-match deletion is deterministic; name-guessing
+  is brittle across flatpak versions; P3 recording the actual auto-name
+  empirically = the right order. FIVE REFINEMENT DELTAS: ALL ACCEPT.
+  Delta 1 (per-invocation XDG_DATA_HOME scoping) prevents a global export
+  from shadowing the sandbox user installation for path-A legs + cleanup
+  assertions — a cross-contamination class. Delta 2 (trap rm's
+  script-built repos only; external NEVER rm'd) = a SAFETY IMPROVEMENT
+  over :193's literal `rm -rf $TMP_RT $REPO` — protects the banked
+  np-t06-repo sink. Delta 3 = Q6. Delta 4 (logs retained) serves my
+  review + Appendix-A citations. Delta 5 (explicit `stable` export arg)
+  aligns with the T06 correction of record (the branchless export landed
+  on master; the explicit arg is the D13-proven load-bearing form).
+  DESIGN LEGS: the dbus-run-session self-re-exec inner-leg PID capture
+  ACCEPTS with C5 (re-entry guard, realpath, knob inheritance,
+  assertion-self-match hardening); the X11-through-flatpak-run
+  FIRST-TIME-PROVEN flag posture is correct (declared contingency, only
+  if empirically needed) with C6 (deviation recorded); UNCLASSIFIED
+  stderr → WARN + loud count, never FAIL, never suppressed — aligned with
+  :258 AND the lead's GIO-record rule; PID-only cleanup + pkill -x +
+  pgrep assertions match :260–266's footgun text verbatim; the serial
+  G→P1→P2→P3→P4→T matrix with both display legs every pass satisfies
+  :219 and the done-when (P1+P2 = the twice-consecutive passes against
+  np-t06-repo); the six-sink regime ACCEPTS with my supplied baselines;
+  budgets plausible vs measured T06 actuals (87.9 s/85.6 s builds; P1
+  pull-dominated with INSTALL_TIMEOUT=1800). C4 is my only substantive
+  forward-looking condition: the reuse heuristic's freshness keys must
+  extend past the manifest mtime (the manifest does not track src/ edits)
+  — safe WITHIN T07 (inputs frozen since 4314e2b — verified) but the T08
+  verify.sh step-9 reuses the convention → a stale-reuse false-green
+  class. CONDITIONS (attach at freeze/package time, not staging): **C1**
+  tamper file = a real source file listed in
+  vendor/libcosmic/.cargo-checksum.json (a .rs preferred); cargo's
+  checksum-mismatch text captured verbatim in Appendix-A; restore
+  sha256-byte-exact + positive-control exit 0 (already designed). **C2**
+  infra-SKIP decided by PREFLIGHT checks only (weston binary absence /
+  headless-backend launch failure BEFORE app launch) — never by
+  retro-classifying an app-leg exit or stderr; app-level failures FAIL
+  under CI=1 too; SKIPs loud (recorded + counted in the pass summary +
+  Appendix-A); CI=1 explicit-only. **C3** census-open bracket carries the
+  .flatpak-builder itemization; post-run git-status-clean assertion.
+  **C4** reuse freshness: app-dir binary+metadata newer than the NEWEST
+  of (manifest, Cargo.toml, Cargo.lock) AND `find src -newer <app-dir
+  binary>` empty — or documented T07-window-only validity. **C5**
+  re-exec: --leg re-entry guard (never re-exec twice); realpath "$0"
+  before re-exec; inner leg inherits every NOTEPAD_SMOKE_* knob; pgrep -f
+  assertions exclude own PID ($$/PPID) or use pgrep -x — the documented
+  footgun's self-match class applies to assertions too. **C6** DISPLAY
+  contingency fires → recorded as a deviation in Appendix-A. **C7**
+  URL-match remote delete logs the name+URL enumeration pre-delete; the
+  code asserts the flathub URL can never match a local-repo path
+  (zero-overlap assertion). **C8** Appendix-A: actual pulled bytes +
+  post-install SMOKE_HOME ref census + every GIO line recorded never
+  suppressed; ANY --no-deps fallback in P1 = stop-work + wire (the lead's
+  condition restated). FREEZE-WIRE HOLD (the tri-party convention;
+  verification mine): sha256 + wc of both staged artifacts, exact append
+  point (live :496), exact expected numstat (packaging.md 496→496+N, 0
+  deletions; scripts/smoke-test.sh new file 0→M), delta declaration vs
+  any package-displayed strings — or the display applied byte-exactly.
+  FOOTPRINT: exactly two paths (scripts/smoke-test.sh NEW + packaging.md
+  pure EOF append) ACCEPTED; zero in-line fills consistent with the
+  point-in-time-record ruling (:353/:138/:209/:234 untouched; the T27
+  bank grows by the two sites — :209 kept-spike row + :234
+  remaining-scope line; the packager's T27 supply wire carries the
+  declaration). DISPOSITION: **APPROVED-WITH-CONDITIONS** — zero
+  stop-work objections; staging licensed to continue; rulings wired to
+  the packager in full, summary to the lead. This entry = the durable
+  record.
+  T07 MID-WINDOW RIDER (two owner wires — the :180 CORRECTION OF RECORD
+  + the census/G/sequencing status; lead cc'd on both; composed against
+  my pre-disposition state, crossing my APPROVED-WITH-CONDITIONS wire in
+  flight → §5 entry 24). Every claim below independently live-verified
+  at this write. (1) :180 ERRATUM — CORRECTION OF RECORD ACCEPTED;
+  disposition APPROVED with refinements; NEW CONDITION C9. flatpak
+  1.14.6 help text live-confirmed: `build-export [OPTION…] LOCATION
+  DIRECTORY [BRANCH]` — LOCATION = the repo. The §3.1 sketch's two
+  directory args are SWAPPED (`build-export "$BUILD_DIR" "$REPO"
+  stable`); their two-direction probe confirms mechanically (logs read
+  live: /tmp/t07-probe-export.log = the sketch order → "error: Build
+  directory /tmp/t07-probe-repo.FGFMHd not initialized, use flatpak
+  build-init"; /tmp/t07-probe-export2.log = the correct order → Commit
+  f64e9b2fedd789b0a0f7f8250f059afb72c752c0496f48ea1ddcf1f941747e7d,
+  Content Bytes Written 72,138,239). The sketch was NEVER accurate — a
+  transcription defect, not a point-in-time description — but the T07
+  footprint discipline still governs: :180 stays UNTOUCHED inline this
+  cycle (the pure-EOF-append numstat expectation stands); the
+  Appendix-A T07 block carries the erratum + probe evidence + corrected
+  form `flatpak build-export "$REPO" "$BUILD_DIR" "$BRANCH"` as the
+  authoritative record; the T27 bank grows (inline fix + pointer at the
+  sweep — their supply wire carries it with :209/:234 + §4's stale
+  "28 unit + 6 packaging" design-time counts). T06 RECORD VERIFIED
+  CLEAN at this write: Appendix A's as-written export commands are
+  consistently repo-first (:415 `build-export /tmp/np-smoke-repo
+  /tmp/np-flatpak-baseline stable`; :464 the branchless probe; :470
+  `build-export /tmp/np-t06-repo /tmp/np-smoke-repo stable` — labeled
+  "(the §3.1/T07 form)" while contradicting the :180 sketch itself);
+  :180 is the SOLE outlier; no T06-side erratum needed. BANKED-ARTIFACT
+  PROTECTION verified: /tmp/np-smoke-repo intact (119,134,085 B;
+  app-dir structure export/files/metadata/metadata.debuginfo/var — zero
+  repo pollution from the failed sketch-order probe that named it
+  LOCATION; the error fires on DIRECTORY validation before any repo
+  init); the probe repo removed (sink discipline); np-t06-repo
+  structure intact (config/objects/refs/summary/summary.idx). **C9
+  (T08-binding): verify.sh's export leg — and any future export command
+  — implements from the corrected form / the Appendix-A erratum, NEVER
+  from the :180 sketch; my T08 review audits this specifically.** Their
+  plan-note delta-(v) claim ("matches :180 sketch AND the T06
+  correction of record") is FALSIFIED AS WRITTEN and owner-corrected;
+  my delta-5 ACCEPTANCE STANDS (it ruled the explicit `stable` BRANCH
+  arg, which matches both). My disposition's :180 anchor line was
+  citation-fidelity (the line + its `stable` arg verified); the content
+  defect is owner-disclosed — no finding number, house pattern =
+  correction-of-record (the T06 branchless-export precedent). Precision
+  note for the Appendix block: the retained probe logs show commit +
+  bytes; the ref-exactness claim (app/com.goshapps.Notepad/x86_64/stable)
+  was a probe-time observation on the since-removed probe repo — label
+  it as such. (2) SECOND PROBE OBSERVATION ACCEPTED: the fresh export
+  of the SAME app dir → commit f64e9b2fedd7… ≠ bd2bf66b…d703ed1
+  (ostree embeds commit timestamps; identical file tree, different
+  commit metadata). T06's reproducibility claim is binary-sha-level
+  (46bea49c…) — unaffected; P4's self-built export carrying its own
+  commit hash = EXPECTED, not a defect; the done-when "against the T06
+  build" witness remains P1/P2 installing bd2bf66b… from /tmp/np-t06-repo,
+  with the script's pass-start `ostree rev-parse` leg recording the full
+  64-char witness in every pass log. (3) STAGING DESIGN FIXES (i)–(iv)
+  ALL ACCEPT — within the declared design space: (i) fp_run exec → $!
+  is flatpak's own PID = LOAD-BEARING (a non-exec subshell does not
+  forward SIGTERM: the wrapper would die 143 while the app orphans =
+  false PASS + a leaked process; exec gives rc fidelity + orphan
+  prevention; matches spike form :241); (ii) the trap
+  runaway-insurance sweep pkill -x ONLY (weston/Xvfb/notepad),
+  legs-started-flag guarded + logged, pkill -f nowhere executable —
+  :260–266 + C5 honored; (iii) repo-root CWD precondition exit 2
+  actionable — verify.sh code-family alignment; (iv) dead LEG_PID
+  machinery removed (legs synchronous under timeout --kill-after).
+  (4) §8R ACCEPTED + COMMENDED: their census pgrep legs self-matched
+  the harness bash -c cmdlines (PIDs verified transient) = the
+  DETECTION side of the §3.4 footgun class — my C5
+  assertion-extension confirmed empirically, in the wild, pre-landing.
+  The refined artifact-free form (pgrep -x name legs; socket-pattern
+  checks delegated to the script; the file-based
+  /tmp/t07-staging/pgcheck.sh + its usage rule — invoke only as
+  `bash …/pgcheck.sh`, never create/echo the pattern in the same
+  cmdline) BANKS FOR T08: verify.sh census legs use the file-based
+  checker or pgrep -x. Their "(exit 0)" label-precision note (the
+  tr stage measured, not pgrep) = the same class as my own
+  pipeline-exit-code artifact recorded this session — symmetry banked.
+  (5) SEQUENCING REFINEMENT ACCEPTED (declared before acting — the
+  name-late-declare-mid-window discipline honored): the path-A
+  shakedown (P3 form: NOTEPAD_SMOKE_FAST=1 +
+  NOTEPAD_SMOKE_REPO=/tmp/np-t06-repo — network-free, ~1 min, the
+  X11-through-flatpak-run first-time-proof early, informing P1–P4) runs
+  BEFORE P1. The shakedown STANDS AS THE P3 RECORD iff green
+  end-to-end INCLUDING the residue asserts + the C7 URL-match remote
+  cleanup + pgrep-clean — WITH THE RE-RUN CONDITION: if staged-script
+  fixes land post-shakedown, the freeze wire's delta section
+  classifies each fix path-A/liveness/cleanup/residue-TOUCHING vs
+  non-touching; ANY touching fix ⇒ P3 re-runs on the FINAL frozen
+  script before landing (the done-when witness must be witnessed by
+  the shipping artifact — FINAL FORM = FROZEN FORM, the T06-F1
+  principle). Matrix-position re-run not otherwise demanded. (6) P1
+  UNBLOCKED: my disposition wire (Q5 incorporated + C8) plus this reply
+  satisfy their hold condition — proceed per the Q5 ruling after the
+  shakedown. (7) CENSUS-OPEN + GATE G ACKNOWLEDGED, figures
+  cross-verified: /tmp/t07-census-open.log (epoch 1789123404 =
+  10:43:24Z; 107 lines = the declared 82 + the §8R append — the
+  appended-not-edited discipline visible in the artifact) matches my
+  independent baselines — .config/cosmic mtime 1789083413 == my
+  2026-09-10 23:36:53Z; real HOME 1789104698 == my 05:31:38Z; the
+  .flatpak-builder itemization matches mine; np-t06-repo bd2bf66b… + du
+  22,656,011; wayland-1+lock 1789078367. Gate G green (fmt 0.09 s /
+  build 1.18 s / clippy 1.29 s / test 1.20 s warm-fresh; 39 + 10 = 49
+  == my T05 live count; log tail verified: "10 passed; 0 failed",
+  GATE_test_EXIT=0, GATE G COMPLETE epoch=1789123623). Staged-script
+  census recomputed == declared: 503 lines / 22,863 B / sha256
+  ee3b8331b49eb271c7efea9e9c6e042f4fa4f34409cc955a077a5b5340e21a72 /
+  mode 755 / mtime 1789123117 — METADATA ONLY; content review waits
+  for the freeze wire (T06-F1 discipline held). (8) HARNESS NOTE (this
+  turn): my first log edit returned a file-modified-on-disk warning —
+  investigated mechanically: HEAD unmoved, single dirty path, arithmetic
+  closes exactly (pre-declaration 1118+525−8=1635), every anchor at its
+  expected position, mtime == my own edit batch — a post-compaction
+  file-state-cache artifact, zero external writes; filed under the
+  untrustworthy-environment-metadata class (the gitStatus-snapshot
+  precedents).
+  Declaration at this revision's write time (self-inclusive): 1643 lines,
+  533+/8− vs fc30f760 (1118+533−8=1643 closes); covers the whole rev-4
+  batch — record-check entry, postscript + ack rider (T06-F2) + the
+  probe-data sub-rider + topology refinement, the T07 plan-note review
+  (APPROVED-WITH-CONDITIONS) + the mid-window rider (the :180 erratum,
+  C9, the shakedown ruling), annotation, queue, bank, §5 entries 22–24,
+  the shared-rule lesson sentence; staging supersedes.
 
 ## 3. Open banks and package-time checklists
 
@@ -772,10 +1225,32 @@ package-review entry; ZERO findings — T06-F1 issued then WITHDRAWN on the
 freeze-wire crossing; the part-(b) fills adopted as applied, byte-identical
 to the pre-edit freeze record, FINAL FORM frozen at the sign-off;
 correction of record accepted; new sink /tmp/np-t06-repo accepted as the
-T07 rehearsal repo). **NEXT: the lead's T06 commit turn** (staging = packaging.md ONLY,
-60+/3−, 496 lines) → the T06-cycle docs window (my rev-3 custodial + any
-PLAN deltas) → T07 release ping → T07/T08 windows; **Stage D opens at T08's
-landing** (rev-5 single-modifier discipline: scripts/ vs src/tests is not
+T07 rehearsal repo). **T06 COMMITTED 0a6fbefe → POST-COMMIT RECORD-CHECK CLEAN** (single
+path 60+/3−, blob 496 == worktree, body carries the reconciled zero-findings
+record verbatim; §2 record-check entry). **DOCS WINDOW EXECUTED: custodial
+commit fc30f760** (rev 3 = 1118 lines / 474+/16−, single path, docs-disjoint
+from the footprint commit; staging CAPTURED the unwired rider — protocol
+honored in the artifact; **T06-F2 MINOR ISSUED: the body's convergence
+narrative declares 1093 "zero drift" vs its own blob 1118 — sweep gap
+closed reviewer-side (rider delta = ZERO tokens; full-blob census 54 = their
+53 + the reproducible sha); ACKED — erratum declared (toothless-guard root
+cause, mechanism disclosed), amend barred (hash stability), the formal
+erratum rides the lead's rev-4 custodial body; closure at that
+record-check**; counts 45/27). **T07 PLAN NOTE RECEIVED + REVIEWED —
+APPROVED-WITH-CONDITIONS (zero stop-work objections; window CLOSED; Q1–Q6
+ruled with Q5 incorporated per the lead's ruling; C1–C8 attached at
+freeze/package time; the five refinement deltas accepted; anchor
+verification zero-discrepancy; §2 entry; MID-WINDOW RIDER: the :180
+correction-of-record ACCEPTED + C9 issued, staging fixes (i)–(iv)
+accepted, §8R banked for T08, shakedown-as-P3 accepted with the re-run
+condition, P1 UNBLOCKED). NEXT (refined sequence): census-open ✓ →
+gate G ✓ → the path-A shakedown (P3 slot — stands as the P3 record iff
+green incl. the residue asserts; re-run on the FINAL script if
+path-A-touching fixes land) → P1 (the Q5-ruled pull + C8) → P2 → P4 →
+T → the DEDICATED PRE-EDIT FREEZE WIRE (my verification: sha256+wc of
+both artifacts, append point after live :496, exact expected numstat,
+delta declaration WITH the fix classification) → landing → package
+review (C1–C9 + the Appendix-A legs) → T08;** **Stage D opens at T08's landing** (rev-5 single-modifier discipline: scripts/ vs src/tests is not
 docs-disjoint). Stage-D packages: T09 at 60+6, T10 at 84+6, T11 at 121, T12
 at 136+6=142 — all four windows banked; T12's specs ADOPTED with the pin-(c)
 refinement.
@@ -798,14 +1273,24 @@ sign-off); commit body must carry the three refinements permanently (no rev 10 �
 my not-load-bearing judgment on record); no flatpak-builder (RV-15 → T06).
 
 **T06 (EXECUTED — PACKAGE APPROVED, zero findings (T06-F1 issued then
-withdrawn in-rev); results in the §2 package-review entry):** sandbox offline build exit 0 fully offline —
+withdrawn in-rev) — COMMITTED 0a6fbefe — RECORD-CHECK CLEAN; CUSTODIAL
+fc30f760: blob CLEAN / body T06-F2 MINOR ACKED — erratum rides the lead's
+rev-4 custodial body, closure at that record-check (gap closed
+reviewer-side, corroborated by their own blob sweep); results in
+the §2 package-review + record-check entries):** sandbox offline build exit 0 fully offline —
 MET ×2, raw-log verified; vendor dir-copy timing vs the §2.3 archive-source
 revisit threshold (>60 s) — 6.679 s, ~9× under, type:dir stands on data,
 condition (4) moot; ccache/build timings appended to packaging.md — Appendix
 A :441–496 pure-append re-proved + the part-(b) fills :157/:167/:338 adopted
 as applied; retroactive Flatpak gate for T01–T05 (RV-15a) PASSED.
 
-**T07/T08 windows:** smoke-test + verify.sh per packaging.md §3/§4; my skip
+**T07/T08 windows:** T07 plan-note APPROVED-WITH-CONDITIONS (§2 entry +
+mid-window rider — Q1–Q6 rulings, C1–C9, the :180 erratum disposition,
+freeze-wire verification mine); smoke-test +
+verify.sh per packaging.md §3/§4; T08's export leg implements from the
+corrected form / the Appendix-A erratum, NEVER the :180 sketch (C9);
+census pgrep legs use the file-based checker or pgrep -x (the §8R
+detection-side self-match class); my skip
 authority (b) activates at T08; `GIO_MODULE_DIR=""` as verify/ci env-prep
 candidate (packager's T04-ack point 3) WITH the no-real-output-masking caveat;
 tampered-vendor fails correctly; fresh-clone unattended run (single D9 network
@@ -1078,6 +1563,41 @@ in the §2 cycle-closure entry: charge withdrawn, observation owned by them,
 adopted convention banked for T07/T08 (a freeze wire declares its delta vs
 any package-displayed proposal or applies the display byte-exactly); their
 FINAL-FORM language to the lead re-flagged to carry the withdrawn status.
+22. Triple landing-crossing, same turn: (a) the packager's closing wire
+(composed pre-landing — still confirming the 1093 routing and the
+packaging.md staging list) delivered AFTER both commits, my record-check,
+and the lead's receipt; substance unaffected, sequencing noted — the
+convention confirmation and the zero-F1-recommendation supersession fold
+into the §2 rider annotation + ack. (b) The lead's receipt cites my
+postscript's transient first draft twice (the adopted "exactly its
+rider-era state … first live exercise" quote; the "→staging-1118"
+paraphrase correction) — their live-worktree read caught my intra-turn
+text; the correction was already self-caught and overwritten pre-wire.
+Zero divergence; the citation-surface observation is banked in the §2 ack
+rider. (c) My T06-F2 wire and their receipt+erratum composed against each
+other's pre-erratum state — the erratum's mechanism disclosure supersedes
+my reconstruction in part (self-correction #5); both records converge on
+the same finding substance and closure path (erratum rides the rev-4
+custodial; T06-F2 closes at my record-check of that commit).
+23. The lead's queue-sync receipt banked my STALE 1229-line declaration
+while this log's live state was already 1312 — my rev-4-batch wire
+crossed their receipt; their census at packager-cc time verified 1229
+exactly (true at composition, superseded at delivery). Benign, zero
+divergence: the staging-time read governs regardless; the recurring
+stale-declaration class (entry 14's precedent). Same turn, a FOLD rather
+than a crossing: their probe-data refinement arrived after my ack rider
+had already adopted the disclosed-mechanism ordering — the transcript
+upgrades the ordering from disclosed to PROVEN (§2 sub-rider).
+24. The packager's two T07 mid-window wires (the :180 correction of
+record; the census/G/shakedown status) composed against my
+PRE-DISPOSITION state — "Q1–Q6 remain open for your ruling," "window
+fully open," P1 held — while my APPROVED-WITH-CONDITIONS wire was
+already in flight. Zero divergence: the disposition answered Q1–Q6;
+this turn's reply rules the erratum disposition + the staging
+refinements (C9 issued; shakedown-as-P3 accepted with the re-run
+condition; P1 unblocked). The composed-within-minutes benign class
+(entry 17's precedent); their §8R self-match observation independently
+confirms my C5 assertion-hardening extension in the wild.
 
 **Self-corrections (the class binds me too):** update_title anchor :1022 →
 actual :1035 (architect's example was right); tests/packaging.rs 94 → 93
@@ -1112,7 +1632,12 @@ verdict ships zero-findings. Lesson: a frozen-string adjudication needs the
 dedicated freeze record — a package attachment may be a pre-freeze draft;
 delivery ordering is unpollable, so a drift finding against frozen strings
 must name its comparison basis and flag possible in-flight freeze wires
-before it issues.**
+before it issues.** **Shared rule ADOPTED tri-party (from the T06-F2
+erratum cycle; enters my lesson index at the lead's offer — ACCEPTED):
+when a later authoritative read exists — a staging add, a freeze wire, a
+census — narrative figures get re-derived from THAT read at write time.
+Its two cited precedents: T05's silent 479-vs-477+2 supersession;
+fc30f760's artifact-honored/narrative-denied split.**
 
 *Maintained by the reviewer; lead commits. Wire traffic between teammates is
 the operative channel — this log is the durable index, not a replacement.*
