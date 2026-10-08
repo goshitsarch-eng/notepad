@@ -22,6 +22,27 @@ Dark mode:
 Both were captured on Linux from the release build, with a sample text file and a separate
 settings folder.
 
+## Downloads
+
+Releases appear on the [releases page](https://github.com/goshitsarch-eng/notepad/releases) when a
+version tag such as `v0.1.0` is pushed. Each release has:
+
+- a Linux tarball and a Flatpak bundle, for x64 and arm64
+- a Windows installer, for x64 and arm64
+- `SHA256SUMS.txt`, with the checksums
+
+Install a Flatpak bundle with `flatpak install --user xp-notepad-<version>-<arch>.flatpak`. The
+files are not code-signed, so Windows may show a SmartScreen warning.
+
+No release has been published yet, so build from source until one is.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs `flutter analyze` and `flutter test` on every push to `main` and on
+every pull request. `.github/workflows/release.yml` builds the downloads above when a version tag is
+pushed. It can also be run by hand, which builds the same files without creating a release. No
+workflow run has completed yet.
+
 ## Handbook
 
 Open **`docs/handbook/index.html`** in a browser. It works straight from disk: no server, no
