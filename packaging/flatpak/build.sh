@@ -31,7 +31,7 @@ cp -a "$bundle_dir" "$work/bundle"
 cp "$here/com.goshapps.Notepad.yml" \
    "$here/com.goshapps.Notepad.desktop" \
    "$here/com.goshapps.Notepad.metainfo.xml" \
-   "$here/com.goshapps.Notepad.svg" \
+   "$here/../icons/com.goshapps.Notepad.svg" \
    "$work/"
 
 flatpak remote-add --user --if-not-exists flathub "${flathub_repo}flathub.flatpakrepo"

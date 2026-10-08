@@ -4,7 +4,7 @@ An unofficial recreation of Windows XP Notepad (Luna, blue), written entirely in
 Every control is drawn in Flutter: there is no WebView, no HTML or CSS, and no code of our
 own in the native runners. The window, menus, dialogs and status bar are Dart widgets.
 
-**Status.** Version 0.1.0+1, audited on 2026-10-07. Verified at runtime on Linux
+**Status.** Version 0.1.1+2. The audit covered 0.1.0+1 on 2026-10-07, and it was verified at runtime on Linux
 (aarch64, Flutter 3.47.6). The Windows build and runtime have not been verified. The audit
 found 28 defects. Eight of them (F-01 to F-05, F-13, F-21 and F-22) were fixed the same day.
 The rest are open and are listed below; the handbook has the full evidence.

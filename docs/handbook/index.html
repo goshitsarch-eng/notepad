@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>XP Notepad handbook</title>
-<meta name="description" content="User manual, architecture, development notes, troubleshooting, audit findings and coverage for the XP Notepad Flutter recreation (version 0.1.0+1, audited 2026-10-07).">
+<meta name="description" content="User manual, architecture, development notes, troubleshooting, audit findings and coverage for the XP Notepad Flutter recreation (version 0.1.1+2; the audit covered 0.1.0+1 on 2026-10-07).">
 <link rel="stylesheet" href="assets/handbook.css">
 </head>
 <body>
@@ -12,9 +12,9 @@
 <header class="site-header">
   <div>
     <h1>XP Notepad handbook</h1>
-    <p class="subtitle">Version 0.1.0+1 · audited 2026-10-07 · eight audit findings fixed the same day · Linux verified at runtime · Windows not verified</p>
+    <p class="subtitle">Version 0.1.1+2 · audited 2026-10-07 (the audit covered 0.1.0+1) · eight audit findings fixed the same day · Linux verified at runtime · Windows not verified</p>
     <dl class="meta-list">
-      <dt>Source fingerprint</dt><dd><code>30f66b16d66c98f52913677654786e36652e90c044ae28bd97d7da09a833d7d0</code></dd>
+      <dt>Source fingerprint</dt><dd><code>87889231bff41eb40c09252375876cf6bad6d6b82cf2e46c3ccbad4fb7349239</code></dd>
       <dt>Verification limits</dt><dd>Runtime checks were run on Linux only. Items marked "Blocked or not verified" are listed under Coverage. Nothing has been published.</dd>
     </dl>
   </div>
@@ -56,7 +56,7 @@
 <article id="ov-facts" data-block data-audience="all" data-topic="overview" data-platform="all" data-status="runtime">
   <h3>Version, revision and audit facts</h3>
   <p class="badges"><span class="badge badge-runtime">Verified at runtime</span><span class="badge badge-meta">Overview</span></p>
-  <div class="table-wrap"><table><thead><tr><th scope="col">Item</th><th scope="col">Value</th></tr></thead><tbody><tr><td>Application</td><td>XP Notepad, package <code>xp_notepad</code> (pubspec.yaml:1)</td></tr><tr><td>Version</td><td>0.1.0+1 (pubspec.yaml:4)</td></tr><tr><td>Repository revision</td><td>A git repository on branch main, with one commit for this revision. The source fingerprint below identifies the revision the handbook describes.</td></tr><tr><td>Audited fingerprint (before the fixes)</td><td>0f14993a887dd5f9fa71cf0686a2783295043f330d9963e5dcc7fbe639b3b170 over 106 files</td></tr><tr><td>Source fingerprint (current)</td><td>SHA-256 over 108 app source files (lib/, test/, linux/, windows/, pubspec.yaml, pubspec.lock, analysis_options.yaml): <code>30f66b16d66c98f52913677654786e36652e90c044ae28bd97d7da09a833d7d0</code></td></tr><tr><td>Audit date</td><td>2026-10-07</td></tr><tr><td>Flutter and Dart</td><td>Flutter 3.47.6 stable (framework revision 5fc346839b); Dart 3.13.5 (pubspec sdk ^3.13.5)</td></tr><tr><td>Host for runtime checks</td><td>Fedora Linux Asahi Remix 44, aarch64, kernel 7.1.13; GNOME on Wayland with XWayland; display 3456 x 2160 at 2x scale</td></tr><tr><td>Platforms</td><td>Linux desktop: built and run. Windows desktop: runner files present, not built or run during the audit. The release workflow is configured to build x64 and arm64 installers; those builds have not run yet.</td></tr></tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th scope="col">Item</th><th scope="col">Value</th></tr></thead><tbody><tr><td>Application</td><td>XP Notepad, package <code>xp_notepad</code> (pubspec.yaml:1)</td></tr><tr><td>Version</td><td>0.1.1+2 (pubspec.yaml:4). The audit covered 0.1.0+1.</td></tr><tr><td>Repository revision</td><td>A git repository on branch main, with one commit for this revision. The source fingerprint below identifies the revision the handbook describes.</td></tr><tr><td>Audited fingerprint (before the fixes)</td><td>0f14993a887dd5f9fa71cf0686a2783295043f330d9963e5dcc7fbe639b3b170 over 106 files</td></tr><tr><td>Source fingerprint (current)</td><td>SHA-256 over 108 app source files (lib/, test/, linux/, windows/, pubspec.yaml, pubspec.lock, analysis_options.yaml): <code>87889231bff41eb40c09252375876cf6bad6d6b82cf2e46c3ccbad4fb7349239</code></td></tr><tr><td>Audit date</td><td>2026-10-07</td></tr><tr><td>Flutter and Dart</td><td>Flutter 3.47.6 stable (framework revision 5fc346839b); Dart 3.13.5 (pubspec sdk ^3.13.5)</td></tr><tr><td>Host for runtime checks</td><td>Fedora Linux Asahi Remix 44, aarch64, kernel 7.1.13; GNOME on Wayland with XWayland; display 3456 x 2160 at 2x scale</td></tr><tr><td>Platforms</td><td>Linux desktop: built and run. Windows desktop: runner files present, not built or run during the audit. The release workflow is configured to build x64 and arm64 installers; those builds have not run yet.</td></tr></tbody></table></div>
 </article>
 <article id="ov-platforms" data-block data-audience="all" data-topic="overview" data-platform="all" data-status="source">
   <h3>Supported platforms</h3>
@@ -575,12 +575,12 @@ flutter test</code></pre><p>Results after the fixes: <code>flutter analyze</code
 <article id="bu-packaging" data-block data-audience="maintainer" data-topic="build" data-platform="all" data-status="source">
   <h3>Packaging, continuous integration and releases</h3>
   <p class="badges"><span class="badge badge-source">Confirmed in source</span><span class="badge badge-meta">Maintainer</span><span class="badge badge-meta">Build and release</span></p>
-  <ul><li>Continuous integration (.github/workflows/ci.yml) runs flutter analyze and flutter test on Ubuntu for every push to main and every pull request.</li><li>The release workflow (.github/workflows/release.yml) runs when a version tag such as v0.1.0 is pushed. It builds a Linux tarball and a Flatpak bundle for x64 and arm64, and a Windows installer for x64 and arm64 (packaging/windows/xp-notepad.iss). It writes SHA256SUMS.txt and attaches the files to a GitHub release. A manual run builds the same files as workflow artifacts and creates no release.</li><li>The Flatpak manifest (packaging/flatpak/com.goshapps.Notepad.yml) uses the GNOME 51 runtime and asks for access to the home folder, because the app lists folders with its own dialogs. packaging/flatpak/build.sh is the build script.</li><li>The Windows workflow checks that xp_notepad.exe has the machine type of the requested architecture. The installers and bundles are not code-signed.</li><li>No workflow run has completed yet. GitHub did not start any job for this account. The arm64 Flatpak was built on an arm64 machine and attached to the v0.1.0 pre-release by hand.</li><li>The Linux application ID is com.goshapps.Notepad (F-21, fixed in this revision). The Windows version information names Gosh Apps and XP Notepad (windows/runner/Runner.rc).</li><li><code>publish_to: 'none'</code> prevents publishing to pub.dev (pubspec.yaml:3).</li></ul>
+  <ul><li>Continuous integration (.github/workflows/ci.yml) runs flutter analyze and flutter test on Ubuntu for every push to main and every pull request.</li><li>The release workflow (.github/workflows/release.yml) runs when a version tag such as v0.1.0 is pushed. It builds a Linux tarball and a Flatpak bundle for x64 and arm64, and a Windows installer for x64 and arm64 (packaging/windows/xp-notepad.iss). It writes SHA256SUMS.txt and attaches the files to a GitHub release. A manual run builds the same files as workflow artifacts and creates no release.</li><li>The Flatpak manifest (packaging/flatpak/com.goshapps.Notepad.yml) uses the GNOME 51 runtime and asks for access to the home folder, because the app lists folders with its own dialogs. packaging/flatpak/build.sh is the build script.</li><li>The application icon is packaging/icons/com.goshapps.Notepad.svg. packaging/icons/generate.py builds the Windows icon (windows/runner/resources/app_icon.ico, used for the executable, window, taskbar and installer) and the macOS icon set (packaging/macos/AppIcon.icns). The repository has no macOS project yet, so that icon set is not used.</li><li>The Windows workflow checks that xp_notepad.exe has the machine type of the requested architecture. The installers and bundles are not code-signed.</li><li>No workflow run has completed yet. GitHub did not start any job for this account. The arm64 Flatpak was built on an arm64 machine and attached to the v0.1.0 pre-release by hand.</li><li>The Linux application ID is com.goshapps.Notepad (F-21, fixed in this revision). The Windows version information names Gosh Apps and XP Notepad (windows/runner/Runner.rc).</li><li><code>publish_to: 'none'</code> prevents publishing to pub.dev (pubspec.yaml:3).</li></ul>
 </article>
 <article id="bu-release" data-block data-audience="maintainer" data-topic="build" data-platform="all" data-status="source">
   <h3>Versioning and release process</h3>
   <p class="badges"><span class="badge badge-source">Confirmed in source</span><span class="badge badge-meta">Maintainer</span><span class="badge badge-meta">Build and release</span></p>
-  <ul><li>Version 0.1.0+1 is set in pubspec.yaml:4. The About box does not show it (F-25).</li><li>There is no changelog yet. The v0.1.0 tag was created by hand, with the pre-release.</li><li>The README's status section is the only record of verification.</li></ul>
+  <ul><li>Version 0.1.1+2 is set in pubspec.yaml:4. The audit covered 0.1.0+1. The About box does not show the version (F-25).</li><li>There is no changelog yet. The v0.1.0 tag was created by hand, with the pre-release.</li><li>The README's status section is the only record of verification.</li></ul>
 </article>
 <article id="bu-licence" data-block data-audience="maintainer" data-topic="build" data-platform="all" data-status="source">
   <h3>Licence and legal notices</h3>
@@ -838,7 +838,7 @@ flutter test</code></pre><p>Results after the fixes: <code>flutter analyze</code
 </article>
 </section>
 
-    <p class="footer-note">Audit of 2026-10-07. Each claim cites a file and line, a runtime session, or a verification check listed under Coverage. Source fingerprint: <code>30f66b16d66c98f52913677654786e36652e90c044ae28bd97d7da09a833d7d0</code>.</p>
+    <p class="footer-note">Audit of 2026-10-07. Each claim cites a file and line, a runtime session, or a verification check listed under Coverage. Source fingerprint: <code>87889231bff41eb40c09252375876cf6bad6d6b82cf2e46c3ccbad4fb7349239</code>.</p>
   </main>
 </div>
 <dialog id="lightbox" aria-labelledby="lightbox-caption">

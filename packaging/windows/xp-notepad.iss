@@ -6,7 +6,7 @@
 ; TargetArch is x64 or arm64. Each installer contains only that architecture.
 
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.1.1"
 #endif
 #ifndef TargetArch
   #define TargetArch "x64"
