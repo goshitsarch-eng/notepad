@@ -24,17 +24,13 @@ settings folder.
 
 ## Downloads
 
-Releases appear on the [releases page](https://github.com/goshitsarch-eng/notepad/releases) when a
-version tag such as `v0.1.0` is pushed. Each release has:
+The [v0.1.0 pre-release](https://github.com/goshitsarch-eng/notepad/releases/tag/v0.1.0) contains
+a Flatpak bundle for arm64 (64-bit ARM) Linux, and `SHA256SUMS.txt`. Install the bundle with
+`flatpak install --user xp-notepad-0.1.0-arm64.flatpak`.
 
-- a Linux tarball and a Flatpak bundle, for x64 and arm64
-- a Windows installer, for x64 and arm64
-- `SHA256SUMS.txt`, with the checksums
-
-Install a Flatpak bundle with `flatpak install --user xp-notepad-<version>-<arch>.flatpak`. The
-files are not code-signed, so Windows may show a SmartScreen warning.
-
-No release has been published yet, so build from source until one is.
+The x64 Flatpak, the Linux tarballs and the Windows installers are not published yet, so build those
+from source. The release workflow is set up to build them. The files are not code-signed, so Windows
+may show a SmartScreen warning.
 
 ## Continuous integration
 
