@@ -26,7 +26,8 @@ settings folder.
 
 The [v0.1.0 pre-release](https://github.com/goshitsarch-eng/notepad/releases/tag/v0.1.0) contains
 a Flatpak bundle for arm64 (64-bit ARM) Linux, and `SHA256SUMS.txt`. Install the bundle with
-`flatpak install --user xp-notepad-0.1.0-arm64.flatpak`.
+`flatpak install --user xp-notepad-0.1.0-arm64.flatpak`. Flatpak refuses a second copy of the app, so
+remove a system-wide copy first. Close the app before you install or uninstall it.
 
 The x64 Flatpak, the Linux tarballs and the Windows installers are not published yet, so build those
 from source. The release workflow is set up to build them. The files are not code-signed, so Windows
