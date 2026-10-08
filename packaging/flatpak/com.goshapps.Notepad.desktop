@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=XP Notepad
+GenericName=Text Editor
+Comment=Plain-text editor styled after Windows XP Notepad
+Exec=xp_notepad %F
+Icon=com.goshapps.Notepad
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;
+Keywords=notepad;text;editor;plaintext;
+StartupNotify=true

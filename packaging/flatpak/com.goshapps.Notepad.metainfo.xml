@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.goshapps.Notepad</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>XP Notepad</name>
+  <summary>A plain-text editor styled after Windows XP Notepad</summary>
+  <description>
+    <p>
+      XP Notepad is an unofficial recreation of the classic Windows XP Notepad, drawn
+      entirely in Flutter. It opens, edits and saves plain text files, with Find, Replace,
+      Go To, Time and Date, word wrap, font choice, and light and dark modes.
+    </p>
+    <p>
+      This is an independent implementation and is not affiliated with or endorsed by
+      Microsoft.
+    </p>
+  </description>
+  <launchable type="desktop-id">com.goshapps.Notepad.desktop</launchable>
+  <url type="homepage">https://github.com/goshitsarch-eng/notepad</url>
+  <url type="bugtracker">https://github.com/goshitsarch-eng/notepad/issues</url>
+  <developer id="com.goshapps">
+    <name>Gosh Apps</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-07"/>
+  </releases>
+</component>

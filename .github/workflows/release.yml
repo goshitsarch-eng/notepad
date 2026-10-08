@@ -1,0 +1,207 @@
+name: Release
+
+# A version tag such as v0.1.0 builds every download and publishes them as a GitHub
+# release. A manual run builds the same files as workflow artifacts and creates no release.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Check version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Read the version from pubspec.yaml
+        id: read
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version: *//p' pubspec.yaml | cut -d+ -f1 | tr -d '[:space:]')
+          if [ -z "$version" ]; then
+            echo "pubspec.yaml has no version" >&2
+            exit 1
+          fi
+          if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "v$version" ]; then
+            echo "Tag $REF_NAME does not match the pubspec.yaml version $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building XP Notepad $version"
+
+  linux:
+    name: Linux ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          architecture: ${{ matrix.arch }}
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
+      - name: Build the release bundle
+        run: |
+          flutter pub get --enforce-lockfile
+          flutter build linux --release
+      - name: Package the tarball
+        run: |
+          name="xp-notepad-${VERSION}-linux-${ARCH}"
+          mkdir -p "dist/${name}"
+          cp -a "build/linux/${ARCH}/release/bundle/." "dist/${name}/"
+          cp LICENSE README.md "dist/${name}/"
+          tar -C dist -czf "dist/${name}.tar.gz" "${name}"
+          rm -rf "dist/${name}"
+      - name: Allow the Flatpak builder to create sandboxes
+        run: |
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+      - name: Install the Flatpak tools
+        run: sudo apt-get install -y flatpak flatpak-builder
+      - name: Build the Flatpak bundle
+        run: packaging/flatpak/build.sh "build/linux/${ARCH}/release/bundle" "${VERSION}" "${ARCH}" dist
+      - name: Upload the Linux files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          architecture: ${{ matrix.arch }}
+      - name: Build the release
+        shell: pwsh
+        run: |
+          flutter pub get --enforce-lockfile
+          if ($LASTEXITCODE -ne 0) { throw "flutter pub get failed" }
+          flutter build windows --release
+          if ($LASTEXITCODE -ne 0) { throw "flutter build windows failed" }
+      - name: Check the executable architecture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD "build\windows\$env:ARCH\runner\Release\xp_notepad.exe"
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          $expected = if ($env:ARCH -eq 'arm64') { 0xAA64 } else { 0x8664 }
+          Write-Host ('xp_notepad.exe machine type 0x{0:X4}, expected 0x{1:X4}' -f $machine, $expected)
+          if ($machine -ne $expected) { throw 'xp_notepad.exe is not built for the requested architecture' }
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw "choco could not install Inno Setup" }
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw "ISCC not found at $iscc" }
+          $source = Join-Path $PWD "build\windows\$env:ARCH\runner\Release"
+          $output = Join-Path $PWD 'dist'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          & $iscc "/DAppVersion=$env:VERSION" "/DTargetArch=$env:ARCH" "/DSourceDir=$source" "/DOutputDir=$output" 'packaging\windows\xp-notepad.iss'
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+          Get-ChildItem $output | Format-Table Name, Length
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish the release
+    needs: [version, linux, windows]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+      NOTES: >-
+        Linux tarballs and Flatpak bundles (x64 and arm64), and Windows installers (x64 and
+        arm64). The files are not code-signed, so Windows may show a SmartScreen warning.
+        SHA256SUMS.txt lists the checksums.
+    steps:
+      - name: Download the build files
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Write SHA256SUMS.txt
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+      - name: Create the release, or add the files to it
+        run: |
+          prerelease=()
+          case "$TAG" in
+            *-*) prerelease=(--prerelease) ;;
+          esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" \
+              --title "XP Notepad ${TAG#v}" --notes "$NOTES" --generate-notes "${prerelease[@]}"
+          fi

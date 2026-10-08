@@ -1,0 +1,36 @@
+# Flatpak manifest for XP Notepad.
+#
+# The Flutter Linux release bundle is built first (flutter build linux --release) and
+# copied to bundle/ next to this file. packaging/flatpak/build.sh does that copy in a
+# scratch folder and runs flatpak-builder on it, so the repository itself is not changed.
+app-id: com.goshapps.Notepad
+runtime: org.gnome.Platform
+runtime-version: '51'
+sdk: org.gnome.Sdk
+command: xp_notepad
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # The app lists folders with its own file dialogs, so it needs the home folder.
+  - --filesystem=home
+modules:
+  - name: xp-notepad
+    buildsystem: simple
+    build-commands:
+      - install -d /app/bin
+      - cp -a bundle/. /app/bin/
+      - install -Dm644 com.goshapps.Notepad.desktop /app/share/applications/com.goshapps.Notepad.desktop
+      - install -Dm644 com.goshapps.Notepad.metainfo.xml /app/share/metainfo/com.goshapps.Notepad.metainfo.xml
+      - install -Dm644 com.goshapps.Notepad.svg /app/share/icons/hicolor/scalable/apps/com.goshapps.Notepad.svg
+    sources:
+      - type: dir
+        path: bundle
+        dest: bundle
+      - type: file
+        path: com.goshapps.Notepad.desktop
+      - type: file
+        path: com.goshapps.Notepad.metainfo.xml
+      - type: file
+        path: com.goshapps.Notepad.svg

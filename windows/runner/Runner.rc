@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "xp_notepad" "\0"
+            VALUE "CompanyName", "Gosh Apps" "\0"
+            VALUE "FileDescription", "XP Notepad" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "xp_notepad" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Gosh Apps. Licensed under the GNU GPL version 3." "\0"
             VALUE "OriginalFilename", "xp_notepad.exe" "\0"
-            VALUE "ProductName", "xp_notepad" "\0"
+            VALUE "ProductName", "XP Notepad" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
