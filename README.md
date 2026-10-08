@@ -9,6 +9,19 @@ own in the native runners. The window, menus, dialogs and status bar are Dart wi
 found 28 defects. Eight of them (F-01 to F-05, F-13, F-21 and F-22) were fixed the same day.
 The rest are open and are listed below; the handbook has the full evidence.
 
+## Screenshots
+
+Light mode:
+
+![XP Notepad in light mode, showing a sample document](docs/screenshots/light-mode.png)
+
+Dark mode:
+
+![XP Notepad in dark mode, showing the same document](docs/screenshots/dark-mode.png)
+
+Both were captured on Linux from the release build, with a sample text file and a separate
+settings folder.
+
 ## Handbook
 
 Open **`docs/handbook/index.html`** in a browser. It works straight from disk: no server, no
