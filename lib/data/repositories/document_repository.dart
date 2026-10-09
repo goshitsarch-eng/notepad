@@ -9,7 +9,9 @@ import 'package:xp_notepad/utils/result.dart';
 
 /// Source of truth for documents on disk.
 abstract interface class DocumentRepository {
-  Future<Result<TextFile>> read(String path);
+  /// Reads [path]. With no [encoding] the file's encoding is detected; with one it is read
+  /// as that, unless it has a byte order mark.
+  Future<Result<TextFile>> read(String path, {FileEncoding? encoding});
 
   Future<Result<void>> write(String path, String text, FileEncoding encoding);
 }
@@ -20,30 +22,46 @@ class FileDocumentRepository implements DocumentRepository {
   const FileDocumentRepository({
     this.replaceFile = _renameOver,
     this.maximumBytes = defaultMaximumBytes,
+    this.replaceRetryDelays,
   });
 
   /// Moves a finished temporary file over the document. The default is the real rename.
   /// Tests replace it to fail the last step of a save.
   final Future<void> Function(File temporary, String path) replaceFile;
 
+  /// The pauses before each new try when moving the finished file over the document is
+  /// refused because something else has the file open for a moment: on Windows a virus
+  /// scanner, a search indexer or a backup program. With none, the first refusal is final.
+  /// When this is null, Windows waits [windowsReplaceRetryDelays] and other systems do not
+  /// wait, since the same error numbers mean something else there.
+  final List<Duration>? replaceRetryDelays;
+
+  /// About a second in all, which is longer than such a program usually holds a file.
+  static const windowsReplaceRetryDelays = [
+    Duration(milliseconds: 50),
+    Duration(milliseconds: 150),
+    Duration(milliseconds: 300),
+    Duration(milliseconds: 500),
+  ];
+
   static const _isolateThreshold = 512 * 1024;
 
-  /// The largest file Notepad opens by default. The editor lays out the whole text, so a
-  /// bigger file would freeze the window or exhaust memory long before it was usable. The
-  /// limit is enforced while reading, so it also stops a device such as /dev/zero, which
-  /// reports no size, and a file that grows while it is read.
+  /// The largest file Notepad opens by default. The text, and the copies that editing
+  /// makes of it, are held in memory, so a bigger file would exhaust it long before it was
+  /// usable. The limit is enforced while reading, so it also stops a device such as
+  /// /dev/zero, which reports no size, and a file that grows while it is read.
   static const defaultMaximumBytes = 64 * 1024 * 1024;
 
   /// The limit this repository applies. Tests lower it to avoid writing huge files.
   final int maximumBytes;
 
   @override
-  Future<Result<TextFile>> read(String path) async {
+  Future<Result<TextFile>> read(String path, {FileEncoding? encoding}) async {
     try {
       final bytes = await _readBounded(path);
       final file = bytes.length > _isolateThreshold
-          ? await Isolate.run(() => readText(bytes))
-          : readText(bytes);
+          ? await Isolate.run(() => readText(bytes, encoding: encoding))
+          : readText(bytes, encoding: encoding);
       return Success(file);
     } on Exception catch (error, stack) {
       return Failure(error, stack);
@@ -138,12 +156,37 @@ class FileDocumentRepository implements DocumentRepository {
       await handle.flush();
       await handle.close();
       open = false;
-      await replaceFile(temporary, target.path);
+      await _replace(temporary, target.path);
     } on Object {
       if (open) await handle.close();
       if (await temporary.exists()) await temporary.delete();
       rethrow;
     }
+  }
+
+  /// Moves the finished file over the document, trying again after a pause while the
+  /// refusal is the kind that passes by itself.
+  Future<void> _replace(File temporary, String path) async {
+    final delays =
+        replaceRetryDelays ??
+        (Platform.isWindows ? windowsReplaceRetryDelays : const <Duration>[]);
+    var tries = 0;
+    while (true) {
+      try {
+        await replaceFile(temporary, path);
+        return;
+      } on FileSystemException catch (error) {
+        if (tries >= delays.length || !_isBusy(error)) rethrow;
+        await Future<void>.delayed(delays[tries++]);
+      }
+    }
+  }
+
+  /// Windows error 5 (access denied), 32 (sharing violation) and 33 (lock violation) are
+  /// what a file that another program has open gives.
+  static bool _isBusy(FileSystemException error) {
+    final code = error.osError?.errorCode;
+    return code == 5 || code == 32 || code == 33;
   }
 
   static Future<File> _resolve(String path) async {

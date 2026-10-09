@@ -217,11 +217,14 @@ class _FontDialogState extends State<FontDialog> {
                     children: [
                       Text('Script:', style: XpText.ui()),
                       const SizedBox(height: 4),
+                      // The editor draws every font the same way and has no character set
+                      // to pick, so the box shows the one script and cannot be opened.
                       XpComboBox<String>(
                         semanticLabel: 'Script',
                         options: const [XpOption('Western', 'Western')],
                         value: 'Western',
                         width: 120,
+                        enabled: false,
                         onChanged: (_) {},
                       ),
                     ],

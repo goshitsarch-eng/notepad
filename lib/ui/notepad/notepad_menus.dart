@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:xp_notepad/ui/core/xp_menu.dart';
 import 'package:xp_notepad/ui/notepad/notepad_view_model.dart';
 
@@ -126,5 +128,33 @@ List<XpMenu> buildNotepadMenus(NotepadViewModel vm) {
       const XpMenuItem.separator(),
       XpMenuItem(label: '&About Notepad', onSelected: vm.showAbout),
     ]),
+  ];
+}
+
+/// The window menu, opened with Alt+Space or from the icon in the title bar. It holds the
+/// commands of the minimize, maximize and close buttons, which have no keyboard route of
+/// their own. Move and Size are listed as XP lists them but are not available: the window
+/// is moved and sized by the window manager.
+List<XpMenuItem> buildSystemMenu(NotepadViewModel vm) {
+  return [
+    XpMenuItem(
+      label: '&Restore',
+      enabled: vm.isMaximized,
+      onSelected: vm.toggleMaximize,
+    ),
+    const XpMenuItem(label: '&Move', enabled: false),
+    const XpMenuItem(label: '&Size', enabled: false),
+    XpMenuItem(label: 'Mi&nimize', onSelected: vm.minimize),
+    XpMenuItem(
+      label: 'Ma&ximize',
+      enabled: !vm.isMaximized,
+      onSelected: vm.toggleMaximize,
+    ),
+    const XpMenuItem.separator(),
+    XpMenuItem(
+      label: '&Close',
+      shortcut: 'Alt+F4',
+      onSelected: () => unawaited(vm.requestExit()),
+    ),
   ];
 }

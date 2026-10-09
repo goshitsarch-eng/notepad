@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
@@ -21,23 +23,37 @@ import 'package:xp_notepad/ui/theme/xp_palette.dart';
 /// A keyboard command. Editing commands act on the document, so they are disabled while a
 /// text box in a dialog has focus, and the key then reaches that text box.
 class _KeyCommand extends Intent {
-  const _KeyCommand(this.run, {this.editing = false});
+  const _KeyCommand(
+    this.run, {
+    this.editing = false,
+    this.windowedOnly = false,
+  });
 
   final VoidCallback run;
   final bool editing;
+
+  /// Only for a large document, whose text box holds a window of it. Otherwise the key
+  /// belongs to the text box.
+  final bool windowedOnly;
 }
 
 /// Runs a [_KeyCommand] unless a modal dialog is open, or an editing command is used while
 /// a text box has focus. A disabled action lets the key continue to the focused field.
 class _KeyCommandAction extends Action<_KeyCommand> {
-  _KeyCommandAction({required this.modalOpen, required this.documentFocused});
+  _KeyCommandAction({
+    required this.modalOpen,
+    required this.documentFocused,
+    required this.windowed,
+  });
 
   final bool Function() modalOpen;
   final bool Function() documentFocused;
+  final bool Function() windowed;
 
   @override
   bool isEnabled(_KeyCommand intent) {
     if (modalOpen()) return false;
+    if (intent.windowedOnly && !windowed()) return false;
     return !intent.editing || documentFocused();
   }
 
@@ -190,6 +206,36 @@ class _NotepadScreenState extends State<NotepadScreen> {
       _vm.undo,
       editing: true,
     ),
+    // A large document is edited through a window of it, which cannot reach the ends of
+    // the document, so these moves are made on the whole text.
+    const SingleActivator(LogicalKeyboardKey.home, control: true): _KeyCommand(
+      () => _vm.moveToDocumentEdge(end: false),
+      editing: true,
+      windowedOnly: true,
+    ),
+    const SingleActivator(LogicalKeyboardKey.end, control: true): _KeyCommand(
+      () => _vm.moveToDocumentEdge(end: true),
+      editing: true,
+      windowedOnly: true,
+    ),
+    const SingleActivator(
+      LogicalKeyboardKey.home,
+      control: true,
+      shift: true,
+    ): _KeyCommand(
+      () => _vm.moveToDocumentEdge(end: false, extend: true),
+      editing: true,
+      windowedOnly: true,
+    ),
+    const SingleActivator(
+      LogicalKeyboardKey.end,
+      control: true,
+      shift: true,
+    ): _KeyCommand(
+      () => _vm.moveToDocumentEdge(end: true, extend: true),
+      editing: true,
+      windowedOnly: true,
+    ),
   };
 
   /// True while the document or the window itself has focus, rather than a text box in a
@@ -222,11 +268,29 @@ class _NotepadScreenState extends State<NotepadScreen> {
     return null;
   }
 
+  /// The items of menu [index]: one of the menu bar, or the window menu.
+  List<XpMenuItem> _itemsOf(int index) =>
+      index == kSystemMenu ? buildSystemMenu(_vm) : _menus()[index].items;
+
   void _openMenuFromKeyboard(int index) {
-    final items = _menus()[index].items;
+    final items = _itemsOf(index);
     setState(() => _highlight = _firstEnabled(items));
     _vm.openMenuAt(index);
     unawaited(_vm.refreshClipboard());
+  }
+
+  /// Opens the window menu, or closes it when it is open already.
+  void _toggleWindowMenu({required bool byClick}) {
+    if (_vm.openMenu == kSystemMenu) {
+      _closeMenu();
+      return;
+    }
+    if (byClick) {
+      setState(() => _highlight = null);
+      _vm.openMenuAt(kSystemMenu, byClick: true);
+    } else {
+      _openMenuFromKeyboard(kSystemMenu);
+    }
   }
 
   void _closeMenu() {
@@ -260,7 +324,8 @@ class _NotepadScreenState extends State<NotepadScreen> {
         key == LogicalKeyboardKey.altRight) {
       if (event is KeyDownEvent) {
         _altHeld = true;
-        _altUsed = false;
+        // Ctrl with Alt is AltGr, whose key-up must not light up the menu underlines.
+        _altUsed = HardwareKeyboard.instance.isControlPressed;
       } else if (event is KeyUpEvent) {
         _altHeld = false;
         if (!_altUsed) _vm.setMenuCue(true);
@@ -275,12 +340,25 @@ class _NotepadScreenState extends State<NotepadScreen> {
     if (_altHeld && !keyboard.isAltPressed) _altHeld = false;
     if (_altHeld) _altUsed = true;
 
+    // Alt+Space is the window menu, from the text or from a menu that is open.
+    if (_altHeld &&
+        key == LogicalKeyboardKey.space &&
+        !keyboard.isControlPressed) {
+      _vm.setMenuCue(true);
+      _toggleWindowMenu(byClick: false);
+      return KeyEventResult.handled;
+    }
+
     final openIndex = _vm.openMenu;
     if (openIndex != null) return _handleMenuKey(key, openIndex);
 
     // Ctrl+Alt is how Windows reports AltGr, which types characters on many keyboard
-    // layouts. It must reach the text instead of opening a menu.
-    if (_altHeld && !keyboard.isControlPressed) {
+    // layouts. It must reach the text instead of opening a menu. Windows may also drop
+    // the Ctrl that comes with AltGr, so a key that produced a character there is text
+    // too: an Alt accelerator produces none.
+    if (_altHeld &&
+        !keyboard.isControlPressed &&
+        !_typedACharacterOnWindows(event)) {
       final letter = _letterOf(key);
       final index = letter == null ? null : _menuIndexFor(letter);
       if (index != null) {
@@ -292,9 +370,16 @@ class _NotepadScreenState extends State<NotepadScreen> {
     return KeyEventResult.ignored;
   }
 
+  bool _typedACharacterOnWindows(KeyEvent event) {
+    final character = event.character;
+    return defaultTargetPlatform == TargetPlatform.windows &&
+        character != null &&
+        character.isNotEmpty;
+  }
+
   KeyEventResult _handleMenuKey(LogicalKeyboardKey key, int openIndex) {
     final menus = _menus();
-    final items = menus[openIndex].items;
+    final items = _itemsOf(openIndex);
     if (key == LogicalKeyboardKey.escape) {
       _closeMenu();
     } else if (key == LogicalKeyboardKey.arrowDown) {
@@ -302,9 +387,16 @@ class _NotepadScreenState extends State<NotepadScreen> {
     } else if (key == LogicalKeyboardKey.arrowUp) {
       _moveHighlight(items, -1);
     } else if (key == LogicalKeyboardKey.arrowRight) {
-      _openMenuFromKeyboard((openIndex + 1) % menus.length);
+      // From the window menu, Right goes to the first menu of the bar.
+      _openMenuFromKeyboard(
+        openIndex == kSystemMenu ? 0 : (openIndex + 1) % menus.length,
+      );
     } else if (key == LogicalKeyboardKey.arrowLeft) {
-      _openMenuFromKeyboard((openIndex - 1 + menus.length) % menus.length);
+      _openMenuFromKeyboard(
+        openIndex == kSystemMenu
+            ? menus.length - 1
+            : (openIndex - 1 + menus.length) % menus.length,
+      );
     } else if (key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter) {
       final index = _highlight;
@@ -350,6 +442,7 @@ class _NotepadScreenState extends State<NotepadScreen> {
   /// Left edge of the popup under menu [index], in window coordinates.
   double _menuLeft(List<XpMenu> menus, int index) {
     var left = XpMetrics.frame;
+    if (index == kSystemMenu) return left;
     for (var i = 0; i < index; i++) {
       left += XpMenuLayout.barLabelWidth(menus[i].label);
     }
@@ -359,17 +452,32 @@ class _NotepadScreenState extends State<NotepadScreen> {
   static const _barTop = XpMetrics.captionHeight;
   static const _popupTop = XpMetrics.captionHeight + XpMetrics.menuBarHeight;
 
+  /// Where the title bar's icon, which opens the window menu, ends.
+  static const _iconRight = 28.0;
+
+  /// The window menu hangs from the title bar, the others from the menu bar.
+  double _menuTop(int index) => index == kSystemMenu ? _barTop : _popupTop;
+
   /// Clicks outside an open menu close it. Clicks on the menu bar go to its labels.
   void _onPointerDown(PointerDownEvent event, List<XpMenu> menus) {
     if (_vm.menuCue) _vm.setMenuCue(false);
     final openIndex = _vm.openMenu;
     if (openIndex == null) return;
     final position = event.localPosition;
+    // The title bar and the menu bar belong to their own handlers, which open, switch and
+    // close menus themselves.
     if (position.dy >= _barTop && position.dy < _popupTop) return;
-    final items = menus[openIndex].items;
+    // The title bar opens and closes the window menu itself, from its icon and from a
+    // right click. That includes a right click that has just opened it.
+    if (openIndex == kSystemMenu &&
+        position.dy < _barTop &&
+        (position.dx < _iconRight || (event.buttons & kSecondaryButton) != 0)) {
+      return;
+    }
+    final items = _itemsOf(openIndex);
     final popup = Rect.fromLTWH(
       _menuLeft(menus, openIndex),
-      _popupTop,
+      _menuTop(openIndex),
       XpMenuLayout.popupWidth(items),
       XpMenuLayout.popupHeight(items),
     );
@@ -389,6 +497,7 @@ class _NotepadScreenState extends State<NotepadScreen> {
             _KeyCommand: _KeyCommandAction(
               modalOpen: () => _vm.modal != null,
               documentFocused: _documentHasFocus,
+              windowed: () => _vm.windowed != null,
             ),
           },
           child: ListenableBuilder(
@@ -419,6 +528,8 @@ class _NotepadScreenState extends State<NotepadScreen> {
                   onToggleMaximize: _vm.toggleMaximize,
                   onMinimize: _vm.minimize,
                   onClose: () => _run(_vm.requestExit),
+                  onWindowMenu: () =>
+                      _run(() => _toggleWindowMenu(byClick: true)),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -448,6 +559,7 @@ class _NotepadScreenState extends State<NotepadScreen> {
                       wordWrap: _vm.wordWrap,
                       revealSerial: _vm.revealSerial,
                       onTab: () => _run(() => _vm.insertText('\t')),
+                      windowed: _vm.windowed,
                     ),
                   ),
                 ),
@@ -568,10 +680,10 @@ class _NotepadScreenState extends State<NotepadScreen> {
   }
 
   Widget _popupLayer(List<XpMenu> menus, int index) {
-    final items = menus[index].items;
+    final items = _itemsOf(index);
     return Positioned(
       left: _menuLeft(menus, index),
-      top: _popupTop,
+      top: _menuTop(index),
       child: XpMenuPopup(
         items: items,
         highlight: _highlight,

@@ -1,4 +1,4 @@
-import 'package:flutter/gestures.dart' show kPrimaryButton;
+import 'package:flutter/gestures.dart' show kPrimaryButton, kSecondaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:xp_notepad/ui/core/xp_icons.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
@@ -16,6 +16,7 @@ class XpCaption extends StatefulWidget {
     required this.onToggleMaximize,
     required this.onMinimize,
     required this.onClose,
+    this.onWindowMenu,
   });
 
   final String title;
@@ -25,6 +26,9 @@ class XpCaption extends StatefulWidget {
   final VoidCallback onToggleMaximize;
   final VoidCallback onMinimize;
   final VoidCallback onClose;
+
+  /// Opens the window menu: a click on the icon, or a right click on the bar.
+  final VoidCallback? onWindowMenu;
 
   @override
   State<XpCaption> createState() => _XpCaptionState();
@@ -40,6 +44,10 @@ class _XpCaptionState extends State<XpCaption> {
   /// Detects a double click from raw pointer events. A gesture-based double tap would make
   /// the buttons on this bar wait out the double-click window before they respond.
   void _onPointerDown(PointerDownEvent event) {
+    if ((event.buttons & kSecondaryButton) != 0) {
+      widget.onWindowMenu?.call();
+      return;
+    }
     // Only the primary button counts. Two quick right-button presses are not a double click.
     if ((event.buttons & kPrimaryButton) == 0) return;
     final lastTime = _lastPressTime;
@@ -84,12 +92,24 @@ class _XpCaptionState extends State<XpCaption> {
               ),
             ),
           ),
-          const Positioned(
+          Positioned(
             left: 6,
             top: 7,
-            child: CustomPaint(
-              size: Size.square(16),
-              painter: NotepadIconPainter(),
+            child: Semantics(
+              container: true,
+              button: true,
+              label: 'Window menu',
+              onTap: widget.onWindowMenu,
+              excludeSemantics: true,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                excludeFromSemantics: true,
+                onTap: widget.onWindowMenu,
+                child: const CustomPaint(
+                  size: Size.square(16),
+                  painter: NotepadIconPainter(),
+                ),
+              ),
             ),
           ),
           Positioned(

@@ -18,10 +18,10 @@ class GatedDocumentRepository implements DocumentRepository {
   Completer<void>? gate;
 
   @override
-  Future<Result<TextFile>> read(String path) async {
+  Future<Result<TextFile>> read(String path, {FileEncoding? encoding}) async {
     final bytes = files[path];
     if (bytes == null) return Failure<TextFile>(StateError('missing $path'));
-    return Success(readText(bytes));
+    return Success(readText(bytes, encoding: encoding));
   }
 
   @override

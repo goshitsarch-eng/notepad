@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:xp_notepad/domain/models/file_encoding.dart';
@@ -23,14 +24,26 @@ final _cp1252Reverse = {
   for (var i = 0; i < _cp1252High.length; i++) _cp1252High[i]: 0x80 + i,
 };
 
-/// Reads [bytes], detecting the encoding the way Notepad does: byte order marks first,
-/// then valid UTF-8 that has non-ASCII bytes, and ANSI (Windows-1252) otherwise.
-TextFile readText(Uint8List bytes) {
-  final encoding = detectEncoding(bytes);
-  return TextFile(decodeText(bytes, encoding), encoding);
+/// Reads [bytes]. With no [encoding] it is detected the way Notepad does: byte order marks
+/// first, then UTF-16 with no mark, then valid UTF-8 that has non-ASCII bytes, and ANSI
+/// (Windows-1252) otherwise. With an [encoding], which is what the Open dialog's Encoding
+/// list gives, the file is read as that, unless it has a byte order mark: as in XP, the
+/// mark says what the file is.
+TextFile readText(Uint8List bytes, {FileEncoding? encoding}) {
+  final used = _byteOrderMark(bytes) ?? encoding ?? detectEncoding(bytes);
+  return TextFile(decodeText(bytes, used), used);
 }
 
 FileEncoding detectEncoding(Uint8List bytes) {
+  final marked = _byteOrderMark(bytes);
+  if (marked != null) return marked;
+  final utf16 = _guessUtf16WithoutMark(bytes);
+  if (utf16 != null) return utf16;
+  if (_hasHighByte(bytes) && _isValidUtf8(bytes)) return FileEncoding.utf8;
+  return FileEncoding.ansi;
+}
+
+FileEncoding? _byteOrderMark(Uint8List bytes) {
   if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
     return FileEncoding.unicode;
   }
@@ -43,8 +56,72 @@ FileEncoding detectEncoding(Uint8List bytes) {
       bytes[2] == 0xBF) {
     return FileEncoding.utf8;
   }
-  if (_hasHighByte(bytes) && _isValidUtf8(bytes)) return FileEncoding.utf8;
-  return FileEncoding.ansi;
+  return null;
+}
+
+/// How much of a file is looked at to tell UTF-16 without a byte order mark.
+const _utf16SampleBytes = 4096;
+
+/// Recognises UTF-16 that has no byte order mark by its zero bytes. Text in a Latin or
+/// Cyrillic script has a zero in the high byte of many of its characters, so in the file
+/// the zero bytes sit at every other place, all odd (little endian) or all even (big
+/// endian). Other text files have no zero bytes at all, and UTF-32 and binary data have
+/// them at both kinds of place, so a file that fits is UTF-16 with very little room for
+/// doubt. A file that holds mostly Chinese, Japanese or Korean has hardly any zero bytes
+/// and cannot be told this way. The user chooses its encoding in the Open dialog.
+FileEncoding? _guessUtf16WithoutMark(Uint8List bytes) {
+  final length = math.min(bytes.length, _utf16SampleBytes) & ~1;
+  if (length < 2) return null;
+  var evenZeros = 0;
+  var oddZeros = 0;
+  for (var i = 0; i < length; i += 2) {
+    if (bytes[i] == 0) evenZeros++;
+    if (bytes[i + 1] == 0) oddZeros++;
+  }
+  final pairs = length ~/ 2;
+  final stray = pairs ~/ 100;
+  final little = oddZeros * 10 >= pairs && evenZeros <= stray;
+  final big = evenZeros * 10 >= pairs && oddZeros <= stray;
+  if (little == big) return null;
+  final cut = bytes.length > length;
+  return _looksLikeUtf16Text(bytes, length, bigEndian: big, cut: cut)
+      ? (big ? FileEncoding.unicodeBigEndian : FileEncoding.unicode)
+      : null;
+}
+
+/// True when the first [length] bytes read as UTF-16 text: surrogates come in pairs, and
+/// the only control characters are the ones a text file has. [cut] is set when the sample
+/// ends before the file does, so a pair may be split at its end.
+bool _looksLikeUtf16Text(
+  Uint8List bytes,
+  int length, {
+  required bool bigEndian,
+  required bool cut,
+}) {
+  final data = ByteData.sublistView(bytes, 0, length);
+  final endian = bigEndian ? Endian.big : Endian.little;
+  final units = length ~/ 2;
+  for (var i = 0; i < units; i++) {
+    final unit = data.getUint16(i * 2, endian);
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      if (i + 1 == units) {
+        if (cut) continue;
+        return false;
+      }
+      final next = data.getUint16((i + 1) * 2, endian);
+      if (next < 0xDC00 || next > 0xDFFF) return false;
+      i++;
+    } else if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      return false;
+    } else if (unit < 0x20 &&
+        unit != 0x09 &&
+        unit != 0x0A &&
+        unit != 0x0C &&
+        unit != 0x0D) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /// Decodes [bytes] as [encoding], skipping a matching byte order mark, and converts

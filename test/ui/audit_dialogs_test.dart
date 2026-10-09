@@ -265,6 +265,79 @@ void main() {
     });
   });
 
+  group('a combo box that is not enabled', () {
+    Widget host(bool enabled, ValueChanged<String> onChanged) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) => Align(
+              alignment: Alignment.topLeft,
+              child: XpComboBox<String>(
+                semanticLabel: 'Script',
+                options: const [
+                  XpOption('Western', 'Western'),
+                  XpOption('Greek', 'Greek'),
+                ],
+                value: 'Western',
+                width: 120,
+                enabled: enabled,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    testWidgets('shows its value but does not open when tapped', (
+      tester,
+    ) async {
+      String? picked;
+      await tester.pumpWidget(host(false, (value) => picked = value));
+      expect(find.text('Western'), findsOneWidget);
+
+      await tester.tap(find.byType(XpComboBox<String>));
+      await tester.pump();
+
+      expect(find.text('Greek'), findsNothing, reason: 'the list did not open');
+      expect(picked, isNull);
+    });
+
+    testWidgets('an enabled one still opens', (tester) async {
+      String? picked;
+      await tester.pumpWidget(host(true, (value) => picked = value));
+
+      await tester.tap(find.byType(XpComboBox<String>));
+      await tester.pump();
+      expect(find.text('Greek'), findsOneWidget);
+      await tester.tap(find.text('Greek'));
+      await tester.pump();
+
+      expect(picked, 'Greek');
+    });
+
+    testWidgets('is announced as not enabled', (tester) async {
+      final handle = tester.ensureSemantics();
+      try {
+        await tester.pumpWidget(host(false, (_) {}));
+
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Script')),
+          isSemantics(
+            isButton: true,
+            value: 'Western',
+            hasEnabledState: true,
+            isEnabled: false,
+            hasTapAction: false,
+          ),
+        );
+      } finally {
+        handle.dispose();
+      }
+    });
+  });
+
   group('Go To', () {
     Future<NotepadViewModel> withLines(WidgetTester tester) async {
       final vm = await pump(

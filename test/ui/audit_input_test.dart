@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +114,88 @@ void main() {
         expect(vm.openMenu, isNull);
       },
     );
+
+    testWidgets(
+      'on Windows a key that typed a character is text even when the Ctrl of AltGr was dropped',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+        try {
+          final vm = await pump(tester);
+
+          // A German layout: AltGr+E types the euro sign. No Ctrl is reported.
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.altRight);
+          await tester.sendKeyDownEvent(
+            LogicalKeyboardKey.keyE,
+            character: '€',
+          );
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.keyE);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.altRight);
+          await tester.pump();
+
+          expect(vm.openMenu, isNull);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    testWidgets('on Windows Alt+E, which types nothing, still opens Edit', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      try {
+        final vm = await pump(tester);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyE, character: '');
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.keyE);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        expect(vm.openMenu, 1);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets(
+      'elsewhere Alt+F opens File even though the key reports its letter',
+      (tester) async {
+        final vm = await pump(tester);
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.keyF, character: 'f');
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.keyF);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+        await tester.pump();
+
+        expect(vm.openMenu, 0);
+      },
+    );
+
+    testWidgets('tapping AltGr does not light up the menu underlines', (
+      tester,
+    ) async {
+      final vm = await pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altRight);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+
+      expect(vm.menuCue, isFalse);
+    });
+
+    testWidgets('tapping Alt alone does light them up', (tester) async {
+      final vm = await pump(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.altLeft);
+      await tester.pump();
+
+      expect(vm.menuCue, isTrue);
+    });
 
     testWidgets(
       'Alt+F still works after a lost Alt key-up once Alt is pressed again',

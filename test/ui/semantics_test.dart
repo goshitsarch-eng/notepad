@@ -119,6 +119,33 @@ void main() {
       }
     });
 
+    semantic('the icon of the title bar is the button of the window menu', (
+      tester,
+    ) async {
+      final vm = await pump(tester);
+
+      expect(
+        node(tester, 'Window menu'),
+        isSemantics(isButton: true, hasTapAction: true),
+      );
+
+      vm.openMenuAt(kSystemMenu);
+      await frames(tester);
+      // The menu names its commands as the menus of the menu bar do.
+      for (final name in ['Minimize', 'Maximize', 'Close']) {
+        expect(
+          allNodes(tester).where(
+            (n) =>
+                n.getSemanticsData().label.startsWith(name) &&
+                n.getSemanticsData().flagsCollection.isButton == false,
+          ),
+          isNotEmpty,
+          reason: name,
+        );
+      }
+      expect(allNodes(tester).any((n) => n.role == SemanticsRole.menu), isTrue);
+    });
+
     semantic('the menu bar names its menus as menu items', (tester) async {
       await pump(tester);
 
@@ -352,10 +379,16 @@ void main() {
       expect(has(tester, 'Font'), isTrue);
       expect(has(tester, 'Font style'), isTrue);
       expect(has(tester, 'Size'), isTrue);
-      // The script box is a named button whose value is the script it shows.
+      // The script box is a named button whose value is the script it shows. It is not
+      // enabled: the editor draws every font the same way, so there is nothing to choose.
       expect(
         node(tester, 'Script'),
-        isSemantics(isButton: true, value: 'Western'),
+        isSemantics(
+          isButton: true,
+          value: 'Western',
+          hasEnabledState: true,
+          isEnabled: false,
+        ),
       );
       // The chosen font is marked selected in its list.
       expect(

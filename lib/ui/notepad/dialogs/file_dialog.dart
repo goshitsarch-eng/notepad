@@ -37,6 +37,9 @@ class _FileDialogState extends State<FileDialog> {
   late final FileSystemService _fileSystem;
   late String _directory = widget.request.startDirectory;
   late FileEncoding _encoding = widget.request.encoding;
+
+  /// What the Open dialog reads the file as. Null is to detect it from the file.
+  FileEncoding? _openAs;
   FileTypeFilter _filter = textDocumentsFilter;
   List<DirectoryEntry> _entries = const [];
   int? _selected;
@@ -132,7 +135,9 @@ class _FileDialogState extends State<FileDialog> {
       _nameFocus.requestFocus();
       return;
     }
-    widget.request.complete(FileChoice(entry.path, _encoding));
+    widget.request.complete(
+      FileChoice(entry.path, _encoding, openAs: _isSave ? null : _openAs),
+    );
   }
 
   void _select(int index) {
@@ -173,7 +178,7 @@ class _FileDialogState extends State<FileDialog> {
     if (!_isSave) {
       // A missing file is reported by the view model, so the user is told why nothing
       // opened.
-      widget.request.complete(FileChoice(target, _encoding));
+      widget.request.complete(FileChoice(target, _encoding, openAs: _openAs));
       return;
     }
     final extension = _filter.extensions?.first;
@@ -287,29 +292,44 @@ class _FileDialogState extends State<FileDialog> {
                           ),
                         ],
                       ),
-                      if (_isSave) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: _labelWidth,
-                              child: Text('Encoding:', style: XpText.ui()),
-                            ),
-                            Expanded(
-                              child: XpComboBox<FileEncoding>(
-                                semanticLabel: 'Encoding',
-                                options: [
-                                  for (final encoding in FileEncoding.values)
-                                    XpOption(encoding.label, encoding),
-                                ],
-                                value: _encoding,
-                                onChanged: (encoding) =>
-                                    setState(() => _encoding = encoding),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: _labelWidth,
+                            child: Text('Encoding:', style: XpText.ui()),
+                          ),
+                          Expanded(
+                            child: _isSave
+                                ? XpComboBox<FileEncoding>(
+                                    semanticLabel: 'Encoding',
+                                    options: [
+                                      for (final encoding
+                                          in FileEncoding.values)
+                                        XpOption(encoding.label, encoding),
+                                    ],
+                                    value: _encoding,
+                                    onChanged: (encoding) =>
+                                        setState(() => _encoding = encoding),
+                                  )
+                                : XpComboBox<FileEncoding?>(
+                                    semanticLabel: 'Encoding',
+                                    options: [
+                                      const XpOption(
+                                        'Detect automatically',
+                                        null,
+                                      ),
+                                      for (final encoding
+                                          in FileEncoding.values)
+                                        XpOption(encoding.label, encoding),
+                                    ],
+                                    value: _openAs,
+                                    onChanged: (encoding) =>
+                                        setState(() => _openAs = encoding),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

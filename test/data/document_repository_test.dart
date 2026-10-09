@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xp_notepad/data/encoding/text_codec.dart';
@@ -156,6 +157,60 @@ void main() {
       expect(textOf(path), 'after');
     },
   );
+  group('reading as a chosen encoding', () {
+    Uint8List utf16(String text) {
+      final data = ByteData(text.length * 2);
+      for (var i = 0; i < text.length; i++) {
+        data.setUint16(i * 2, text.codeUnitAt(i), Endian.little);
+      }
+      return data.buffer.asUint8List();
+    }
+
+    test(
+      'a file with nothing in it that names its encoding is read as asked',
+      () async {
+        final path = '${folder.path}/jp.txt';
+        File(path).writeAsBytesSync(utf16('日本語のテキストです。\n'));
+
+        final result = await repository.read(
+          path,
+          encoding: FileEncoding.unicode,
+        );
+
+        final file = (result as Success<TextFile>).value;
+        expect(file.encoding, FileEncoding.unicode);
+        expect(file.text, '日本語のテキストです。\n');
+      },
+    );
+
+    test(
+      'English UTF-16 with no byte order mark is found without being asked',
+      () async {
+        final path = '${folder.path}/en.txt';
+        File(path).writeAsBytesSync(utf16('Hello, world.\nSecond line.\n'));
+
+        final result = await repository.read(path);
+
+        final file = (result as Success<TextFile>).value;
+        expect(file.encoding, FileEncoding.unicode);
+        expect(file.text, 'Hello, world.\nSecond line.\n');
+      },
+    );
+
+    test('a large file is read as asked too', () async {
+      final path = '${folder.path}/big.txt';
+      final text = '日本語のテキストです。\n' * 60000;
+      File(path).writeAsBytesSync(utf16(text));
+      expect(File(path).lengthSync(), greaterThan(512 * 1024));
+
+      final result = await repository.read(
+        path,
+        encoding: FileEncoding.unicode,
+      );
+
+      expect((result as Success<TextFile>).value.text, text);
+    });
+  });
 }
 
 /// Stands in for the final rename, so the test can fail a save after its bytes are written.

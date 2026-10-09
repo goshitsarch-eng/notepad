@@ -90,6 +90,7 @@ class XpComboBox<T> extends StatefulWidget {
     required this.onChanged,
     this.width,
     this.semanticLabel,
+    this.enabled = true,
   });
 
   final List<XpOption<T>> options;
@@ -101,6 +102,10 @@ class XpComboBox<T> extends StatefulWidget {
 
   /// Null fills the width the parent gives the box.
   final double? width;
+
+  /// A box that is not enabled shows its value, greyed, and cannot be opened. XP draws a
+  /// choice that has nothing to choose from this way.
+  final bool enabled;
 
   @override
   State<XpComboBox<T>> createState() => _XpComboBoxState<T>();
@@ -158,7 +163,8 @@ class _XpComboBoxState<T> extends State<XpComboBox<T>> {
           button: true,
           label: widget.semanticLabel,
           value: selected?.label ?? '',
-          onTap: _toggle,
+          enabled: widget.enabled,
+          onTap: widget.enabled ? _toggle : null,
           excludeSemantics: true,
           child: OverlayPortal(
             controller: _portal,
@@ -213,10 +219,10 @@ class _XpComboBoxState<T> extends State<XpComboBox<T>> {
                 height: XpMetrics.fieldHeight,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: _toggle,
+                  onTap: widget.enabled ? _toggle : null,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: XpColors.paper,
+                      color: widget.enabled ? XpColors.paper : XpColors.face,
                       border: Border.all(color: XpColors.editBorder),
                     ),
                     child: Stack(
@@ -230,7 +236,11 @@ class _XpComboBoxState<T> extends State<XpComboBox<T>> {
                                 selected?.label ?? '',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: XpText.ui(),
+                                style: widget.enabled
+                                    ? XpText.ui()
+                                    : XpText.ui().copyWith(
+                                        color: XpColors.grayText,
+                                      ),
                               ),
                             ),
                           ),
@@ -239,8 +249,8 @@ class _XpComboBoxState<T> extends State<XpComboBox<T>> {
                           right: 6,
                           top: 8,
                           child: CustomPaint(
-                            size: Size(7, 4),
-                            painter: _ArrowPainter(),
+                            size: const Size(7, 4),
+                            painter: _ArrowPainter(enabled: widget.enabled),
                           ),
                         ),
                       ],
@@ -561,9 +571,10 @@ class _ListRow extends StatelessWidget {
 }
 
 class _ArrowPainter extends CustomPainter {
-  _ArrowPainter() : dark = XpColors.dark;
+  _ArrowPainter({this.enabled = true}) : dark = XpColors.dark;
 
   final bool dark;
+  final bool enabled;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -572,9 +583,13 @@ class _ArrowPainter extends CustomPainter {
       ..lineTo(7, 0)
       ..lineTo(3.5, 4)
       ..close();
-    canvas.drawPath(path, Paint()..color = XpColors.text);
+    canvas.drawPath(
+      path,
+      Paint()..color = enabled ? XpColors.text : XpColors.grayText,
+    );
   }
 
   @override
-  bool shouldRepaint(_ArrowPainter oldDelegate) => oldDelegate.dark != dark;
+  bool shouldRepaint(_ArrowPainter oldDelegate) =>
+      oldDelegate.dark != dark || oldDelegate.enabled != enabled;
 }

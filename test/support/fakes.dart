@@ -23,13 +23,17 @@ class FakeDocumentRepository implements DocumentRepository {
   /// When set, every write fails with this error and nothing is stored.
   Object? writeFailure;
 
+  /// The encoding each read was asked for, or null where it was left to detection.
+  final List<FileEncoding?> readEncodings = [];
+
   @override
-  Future<Result<TextFile>> read(String path) async {
+  Future<Result<TextFile>> read(String path, {FileEncoding? encoding}) async {
+    readEncodings.add(encoding);
     final failure = readFailures[path];
     if (failure != null) return Failure<TextFile>(failure);
     final bytes = files[path];
     if (bytes == null) return Failure<TextFile>(StateError('missing $path'));
-    return Success(readText(bytes));
+    return Success(readText(bytes, encoding: encoding));
   }
 
   @override
@@ -124,6 +128,9 @@ class FakeWindowService implements WindowService {
 
   /// How many times the caption asked to maximize or restore the window.
   int maximizeToggles = 0;
+
+  /// How many times the window was asked to minimize.
+  int minimizes = 0;
   ({double width, double height}) size = (width: 500.0, height: 400.0);
 
   @override
@@ -152,7 +159,7 @@ class FakeWindowService implements WindowService {
   Future<void> startResizing(ResizeDirection direction) async {}
 
   @override
-  Future<void> minimize() async {}
+  Future<void> minimize() async => minimizes++;
 
   @override
   Future<void> toggleMaximize() async => maximizeToggles++;

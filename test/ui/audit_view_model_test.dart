@@ -342,7 +342,7 @@ void main() {
   });
 
   group('a large file is opened only when the user agrees', () {
-    // Typing in a document this size takes seconds per key, so the user is told first.
+    // A document this size takes seconds to open and a lot of memory, so the user is told first.
     final big = 'a' * (kLargeDocumentCharacters + 1);
 
     Future<MessageRequest> openBig() async {
@@ -365,7 +365,7 @@ void main() {
       final warning = await openBig();
 
       expect(warning.text, contains('"big.txt" is large'));
-      expect(warning.text, contains('very slow'));
+      expect(warning.text, contains('takes a while'));
       expect(warning.choices, [MessageChoice.yes, MessageChoice.no]);
       expect(warning.icon, MessageIcon.warning);
       warning.complete(MessageChoice.no);
