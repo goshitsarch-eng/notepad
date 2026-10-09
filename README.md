@@ -82,10 +82,10 @@ flutter analyze
 flutter test
 ```
 
-On Linux, `flutter analyze` reports no issues and `flutter test` runs 506 tests. Run as root, 3 of them
+On Linux, `flutter analyze` reports no issues and `flutter test` runs 518 tests. Run as root, 3 of them
 skip themselves, because they test file permissions and root ignores permissions (the progress line then
-ends `+503 ~3`); run as an ordinary user, all 506 run and pass. The 137 tests of 0.1.1 are unchanged.
-The 369 added since are in
+ends `+515 ~3`); run as an ordinary user, all 518 run and pass. The 137 tests of 0.1.1 are unchanged.
+The 381 added since are in
 `test/ui/audit_*_test.dart`, `test/ui/semantics_test.dart`, `test/data/*_test.dart` (the new ones),
 `test/domain/print_text_test.dart`, `test/config/app_info_test.dart` and, for editing large documents,
 the dialog queue, the window menu and the Open dialog's encoding, `test/ui/windowed_*_test.dart`,
