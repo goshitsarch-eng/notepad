@@ -1,9 +1,11 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
+import 'package:xp_notepad/domain/text/print_text.dart';
 import 'package:xp_notepad/utils/result.dart';
 
 /// Sends a document to the platform print dialog.
@@ -40,11 +42,15 @@ class PdfPrintingService implements PrintingService {
       await Printing.layoutPdf(
         name: documentName,
         format: PdfPageFormat.letter,
-        onLayout: (format) => buildPdf(
-          text: text,
-          documentName: documentName,
-          setup: usable,
-          format: format,
+        // Laying out a long document takes seconds, so it runs on its own isolate and the
+        // window keeps responding.
+        onLayout: (format) => Isolate.run(
+          () => buildPdf(
+            text: text,
+            documentName: documentName,
+            setup: usable,
+            format: format,
+          ),
         ),
       );
       return const Success<void>(null);
@@ -55,11 +61,13 @@ class PdfPrintingService implements PrintingService {
 }
 
 /// Builds the PDF bytes. Pure Dart, so the layout can be checked without a printer.
+/// [now] fills the `&d` and `&t` codes; it is a parameter so a test can fix it.
 Future<Uint8List> buildPdf({
   required String text,
   required String documentName,
   required PageSetup setup,
   required PdfPageFormat format,
+  DateTime? now,
 }) async {
   const pointsPerInch = 72.0;
   final pageFormat = format.copyWith(
@@ -68,25 +76,61 @@ Future<Uint8List> buildPdf({
     marginTop: setup.topInches * pointsPerInch,
     marginBottom: setup.bottomInches * pointsPerInch,
   );
+  final moment = now ?? DateTime.now();
   final font = pw.Font.courier();
   final bodyStyle = pw.TextStyle(font: font, fontSize: 10);
-  final lines = text.replaceAll('\t', '    ').split('\n');
-  final headerText = setup.header.replaceAll('&f', documentName);
+  final noteStyle = pw.TextStyle(font: font, fontSize: 9);
+  final lines = text.split('\n').map(expandTabs).toList();
+
+  pw.Widget note(String template, int page) {
+    final line = expandHeaderFooter(
+      template,
+      fileName: documentName,
+      page: page,
+      now: moment,
+    );
+    // The usual header, centred text only, spans the page. Left and right parts share
+    // the width in thirds.
+    if (line.left.isEmpty && line.right.isEmpty) {
+      return pw.Text(
+        line.center,
+        style: noteStyle,
+        textAlign: pw.TextAlign.center,
+      );
+    }
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Text(
+            line.left,
+            style: noteStyle,
+            textAlign: pw.TextAlign.left,
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Text(
+            line.center,
+            style: noteStyle,
+            textAlign: pw.TextAlign.center,
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Text(
+            line.right,
+            style: noteStyle,
+            textAlign: pw.TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
 
   final document = pw.Document();
   document.addPage(
     pw.MultiPage(
       pageFormat: pageFormat,
-      header: (context) => pw.Text(
-        headerText,
-        style: pw.TextStyle(font: font, fontSize: 9),
-        textAlign: pw.TextAlign.center,
-      ),
-      footer: (context) => pw.Text(
-        setup.footer.replaceAll('&p', '${context.pageNumber}'),
-        style: pw.TextStyle(font: font, fontSize: 9),
-        textAlign: pw.TextAlign.center,
-      ),
+      header: (context) => note(setup.header, context.pageNumber),
+      footer: (context) => note(setup.footer, context.pageNumber),
       build: (context) => [
         for (final line in lines)
           pw.Text(line.isEmpty ? ' ' : line, style: bodyStyle),

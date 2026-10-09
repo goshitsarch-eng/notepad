@@ -24,6 +24,7 @@ class XpCheckBox extends StatefulWidget {
 
 class _XpCheckBoxState extends State<XpCheckBox> {
   final _focusNode = FocusNode(debugLabel: 'XpCheckBox');
+  bool _focused = false;
 
   @override
   void dispose() {
@@ -35,37 +36,50 @@ class _XpCheckBoxState extends State<XpCheckBox> {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: widget.autofocus,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.space) {
-          _toggle();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _focusNode.requestFocus();
+    return Semantics(
+      container: true,
+      checked: widget.value,
+      label: widget.label,
+      focusable: true,
+      focused: _focused,
+      onTap: _toggle,
+      excludeSemantics: true,
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: widget.autofocus,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.space) {
             _toggle();
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Box(
-                shape: BoxShape.rectangle,
-                child: widget.value
-                    ? CustomPaint(painter: _CheckPainter())
-                    : null,
-              ),
-              const SizedBox(width: 6),
-              Text(widget.label, style: XpText.ui()),
-            ],
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _focusNode.requestFocus();
+              _toggle();
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Box(
+                  shape: BoxShape.rectangle,
+                  child: widget.value
+                      ? CustomPaint(painter: _CheckPainter())
+                      : null,
+                ),
+                const SizedBox(width: 6),
+                _FocusCue(
+                  focused: _focused,
+                  child: Text(widget.label, style: XpText.ui()),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -74,78 +88,168 @@ class _XpCheckBoxState extends State<XpCheckBox> {
 }
 
 /// A Luna radio button with its label. Clicking selects it. Parents keep the group state.
+/// The arrow keys call [onMove] with -1 (left or up) or 1 (right or down), and the parent
+/// then selects and focuses the neighbour, as the arrow keys do in a Windows radio group.
 class XpRadioButton extends StatefulWidget {
   const XpRadioButton({
     super.key,
     required this.label,
     required this.selected,
     required this.onSelected,
+    this.onMove,
+    this.focusNode,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onSelected;
+  final ValueChanged<int>? onMove;
+
+  /// Lets the parent move focus to this button. Null uses a node of the button's own.
+  final FocusNode? focusNode;
 
   @override
   State<XpRadioButton> createState() => _XpRadioButtonState();
 }
 
 class _XpRadioButtonState extends State<XpRadioButton> {
-  final _focusNode = FocusNode(debugLabel: 'XpRadioButton');
+  FocusNode? _ownNode;
+  bool _focused = false;
+
+  FocusNode get _focusNode =>
+      widget.focusNode ?? (_ownNode ??= FocusNode(debugLabel: 'XpRadioButton'));
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    _ownNode?.dispose();
     super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.space && event is KeyDownEvent) {
+      widget.onSelected();
+      return KeyEventResult.handled;
+    }
+    final onMove = widget.onMove;
+    if (onMove == null) return KeyEventResult.ignored;
+    if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowUp) {
+      onMove(-1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.arrowDown) {
+      onMove(1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      focusNode: _focusNode,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.space) {
-          widget.onSelected();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _focusNode.requestFocus();
-            widget.onSelected();
-          },
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _Box(
-                shape: BoxShape.circle,
-                child: widget.selected
-                    ? Center(
-                        child: SizedBox.square(
-                          dimension: 5,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: XpColors.checkMark,
-                              shape: BoxShape.circle,
+    return Semantics(
+      container: true,
+      checked: widget.selected,
+      inMutuallyExclusiveGroup: true,
+      label: widget.label,
+      focusable: true,
+      focused: _focused,
+      onTap: widget.onSelected,
+      excludeSemantics: true,
+      child: Focus(
+        focusNode: _focusNode,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        onKeyEvent: _onKey,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _focusNode.requestFocus();
+              widget.onSelected();
+            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Box(
+                  shape: BoxShape.circle,
+                  child: widget.selected
+                      ? Center(
+                          child: SizedBox.square(
+                            dimension: 5,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: XpColors.checkMark,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 6),
-              Text(widget.label, style: XpText.ui()),
-            ],
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 6),
+                _FocusCue(
+                  focused: _focused,
+                  child: Text(widget.label, style: XpText.ui()),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The dotted rectangle XP draws round the label of the control that has keyboard focus.
+/// It shows only while the keyboard is in use, so clicking a box does not draw it.
+class _FocusCue extends StatelessWidget {
+  const _FocusCue({required this.focused, required this.child});
+
+  final bool focused;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible =
+        focused &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
+    // The rectangle is drawn just outside the label, so showing it moves nothing.
+    return CustomPaint(
+      foregroundPainter: visible ? _DottedRectPainter(XpColors.text) : null,
+      child: child,
+    );
+  }
+}
+
+class _DottedRectPainter extends CustomPainter {
+  const _DottedRectPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    final box = Offset.zero & size;
+    final outer = box.inflate(1);
+    // One pixel on, one off, along each side.
+    for (var x = outer.left; x < outer.right; x += 2) {
+      canvas.drawRect(Rect.fromLTWH(x, outer.top, 1, 1), paint);
+      canvas.drawRect(Rect.fromLTWH(x, outer.bottom - 1, 1, 1), paint);
+    }
+    for (var y = outer.top; y < outer.bottom; y += 2) {
+      canvas.drawRect(Rect.fromLTWH(outer.left, y, 1, 1), paint);
+      canvas.drawRect(Rect.fromLTWH(outer.right - 1, y, 1, 1), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DottedRectPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _Box extends StatelessWidget {

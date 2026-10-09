@@ -268,12 +268,19 @@ class _NotepadScreenState extends State<NotepadScreen> {
       return KeyEventResult.ignored;
     }
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final keyboard = HardwareKeyboard.instance;
+    // The Alt key-up never arrives when focus leaves the window while Alt is down, such as
+    // Alt+Tab. The keyboard's own state is the truth, so a stale flag is dropped here
+    // rather than turning later plain letters into menu accelerators.
+    if (_altHeld && !keyboard.isAltPressed) _altHeld = false;
     if (_altHeld) _altUsed = true;
 
     final openIndex = _vm.openMenu;
     if (openIndex != null) return _handleMenuKey(key, openIndex);
 
-    if (_altHeld) {
+    // Ctrl+Alt is how Windows reports AltGr, which types characters on many keyboard
+    // layouts. It must reach the text instead of opening a menu.
+    if (_altHeld && !keyboard.isControlPressed) {
       final letter = _letterOf(key);
       final index = letter == null ? null : _menuIndexFor(letter);
       if (index != null) {
@@ -349,14 +356,6 @@ class _NotepadScreenState extends State<NotepadScreen> {
     return left;
   }
 
-  double _popupHeight(List<XpMenuItem> items) {
-    var height = 4.0;
-    for (final item in items) {
-      height += item.isSeparator ? 6 : XpMetrics.menuRowHeight;
-    }
-    return height;
-  }
-
   static const _barTop = XpMetrics.captionHeight;
   static const _popupTop = XpMetrics.captionHeight + XpMetrics.menuBarHeight;
 
@@ -372,7 +371,7 @@ class _NotepadScreenState extends State<NotepadScreen> {
       _menuLeft(menus, openIndex),
       _popupTop,
       XpMenuLayout.popupWidth(items),
-      _popupHeight(items),
+      XpMenuLayout.popupHeight(items),
     );
     if (popup.contains(position)) return;
     _closeMenu();

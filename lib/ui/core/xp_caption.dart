@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/widgets.dart';
 import 'package:xp_notepad/ui/core/xp_icons.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
@@ -39,6 +40,8 @@ class _XpCaptionState extends State<XpCaption> {
   /// Detects a double click from raw pointer events. A gesture-based double tap would make
   /// the buttons on this bar wait out the double-click window before they respond.
   void _onPointerDown(PointerDownEvent event) {
+    // Only the primary button counts. Two quick right-button presses are not a double click.
+    if ((event.buttons & kPrimaryButton) == 0) return;
     final lastTime = _lastPressTime;
     final lastPosition = _lastPressPosition;
     final isDoubleClick =
@@ -72,6 +75,9 @@ class _XpCaptionState extends State<XpCaption> {
             child: Listener(
               onPointerDown: _onPointerDown,
               child: GestureDetector(
+                // Dragging the bar is not something assistive technology can do, so it
+                // is not offered as a scrollable area.
+                excludeFromSemantics: true,
                 behavior: HitTestBehavior.opaque,
                 onPanStart: (_) => widget.onDragStart(),
                 child: const SizedBox.expand(),
@@ -171,8 +177,26 @@ class _XpCaptionButtonState extends State<XpCaptionButton> {
     return XpColors.captionActive;
   }
 
+  String get _label => switch (widget.kind) {
+    XpCaptionButtonKind.minimize => 'Minimize',
+    XpCaptionButtonKind.maximize => 'Maximize',
+    XpCaptionButtonKind.restore => 'Restore',
+    XpCaptionButtonKind.close => 'Close',
+  };
+
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      label: _label,
+      onTap: widget.onPressed,
+      excludeSemantics: true,
+      child: _buildButton(),
+    );
+  }
+
+  Widget _buildButton() {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),

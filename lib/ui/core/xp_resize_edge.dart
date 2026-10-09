@@ -12,6 +12,8 @@ class XpResizeEdge extends StatelessWidget {
     return MouseRegion(
       cursor: cursor,
       child: GestureDetector(
+        // A resize edge has no meaning for assistive technology.
+        excludeFromSemantics: true,
         behavior: HitTestBehavior.opaque,
         onPanStart: (_) => onStart(),
         child: const SizedBox.expand(),

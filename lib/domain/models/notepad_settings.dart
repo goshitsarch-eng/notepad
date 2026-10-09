@@ -1,9 +1,11 @@
 /// The smallest size the window may have, in logical pixels. The menu bar, caption and
-/// status bar stop fitting below this.
-const kMinimumWindowSize = (width: 400.0, height: 240.0);
+/// status bar stop fitting below this, and so does the tallest menu: the Edit popup is
+/// drawn inside the window, so a window shorter than it would hide the last items.
+/// test/ui/menu_fit_test.dart checks that every menu fits at this height.
+const kMinimumWindowSize = (width: 400.0, height: 310.0);
 
-/// The largest saved window size. Anything bigger in the settings file is treated as
-/// damaged, so the window cannot open off the screen.
+/// The largest saved window size. Larger values in the settings file are clamped to this,
+/// so the window cannot open off the screen.
 const _maximumSavedWindowSide = 8192.0;
 
 /// Font styles offered by the Font dialog's "Font style" list.

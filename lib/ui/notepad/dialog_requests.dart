@@ -34,10 +34,9 @@ final class MessageRequest extends ModalRequest<MessageChoice> {
 }
 
 final class GoToRequest extends ModalRequest<int> {
-  GoToRequest({required this.currentLine, required this.lineCount});
+  GoToRequest({required this.currentLine});
 
   final int currentLine;
-  final int lineCount;
 }
 
 final class FontRequest extends ModalRequest<EditorFont> {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:xp_notepad/data/encoding/text_codec.dart';
@@ -16,8 +17,16 @@ class FakeDocumentRepository implements DocumentRepository {
   final Map<String, Uint8List> files = {};
   final List<({String path, String text, FileEncoding encoding})> writes = [];
 
+  /// Errors to fail a read of a path with, instead of looking in [files].
+  final Map<String, Object> readFailures = {};
+
+  /// When set, every write fails with this error and nothing is stored.
+  Object? writeFailure;
+
   @override
   Future<Result<TextFile>> read(String path) async {
+    final failure = readFailures[path];
+    if (failure != null) return Failure<TextFile>(failure);
     final bytes = files[path];
     if (bytes == null) return Failure<TextFile>(StateError('missing $path'));
     return Success(readText(bytes));
@@ -29,6 +38,8 @@ class FakeDocumentRepository implements DocumentRepository {
     String text,
     FileEncoding encoding,
   ) async {
+    final failure = writeFailure;
+    if (failure != null) return Failure<void>(failure);
     writes.add((path: path, text: text, encoding: encoding));
     files[path] = encodeText(text, encoding);
     return const Success<void>(null);
@@ -48,6 +59,18 @@ class FakeSettingsRepository implements SettingsRepository {
 class FakeFileSystemService implements FileSystemService {
   final Set<String> existing = {};
 
+  /// Every folder [listDirectory] was asked for, in order.
+  final List<String> listed = [];
+
+  /// Folders that exist, as [directoryExists] reports them.
+  final Set<String> directories = {};
+
+  /// Folders whose listing fails as if they had been deleted.
+  final Set<String> missingDirectories = {};
+
+  /// Folders that cannot be read, with the reason their listing fails with.
+  final Map<String, String> unreadable = {};
+
   @override
   String get homeDirectory => '/home/tester';
 
@@ -55,10 +78,22 @@ class FakeFileSystemService implements FileSystemService {
   Future<bool> fileExists(String path) async => existing.contains(path);
 
   @override
+  Future<bool> directoryExists(String path) async => directories.contains(path);
+
+  @override
   Future<List<DirectoryEntry>> listDirectory(
     String directory,
     FileTypeFilter filter,
   ) async {
+    listed.add(directory);
+    if (missingDirectories.contains(directory)) {
+      throw PathNotFoundException(
+        directory,
+        const OSError('No such file or directory', 2),
+      );
+    }
+    final reason = unreadable[directory];
+    if (reason != null) throw FileSystemException(reason, directory);
     return const [];
   }
 }
@@ -83,6 +118,9 @@ class FakeWindowService implements WindowService {
   bool preventClose = false;
   bool closed = false;
   bool maximized = false;
+
+  /// How many times the caption asked to maximize or restore the window.
+  int maximizeToggles = 0;
   ({double width, double height}) size = (width: 500.0, height: 400.0);
 
   @override
@@ -114,7 +152,7 @@ class FakeWindowService implements WindowService {
   Future<void> minimize() async {}
 
   @override
-  Future<void> toggleMaximize() async {}
+  Future<void> toggleMaximize() async => maximizeToggles++;
 
   @override
   Future<void> closeWindow() async => closed = true;

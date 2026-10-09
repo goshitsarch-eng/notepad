@@ -17,8 +17,15 @@ class GoToDialog extends StatefulWidget {
 }
 
 class _GoToDialogState extends State<GoToDialog> {
-  late final TextEditingController _line = TextEditingController(
-    text: '${widget.request.currentLine}',
+  // The line number starts out selected, so typing replaces it instead of adding to it.
+  late final TextEditingController _line = TextEditingController.fromValue(
+    TextEditingValue(
+      text: '${widget.request.currentLine}',
+      selection: TextSelection(
+        baseOffset: 0,
+        extentOffset: '${widget.request.currentLine}'.length,
+      ),
+    ),
   );
   final _focus = FocusNode(debugLabel: 'line number');
 
@@ -30,10 +37,17 @@ class _GoToDialogState extends State<GoToDialog> {
   }
 
   void _submit() {
-    final line = int.tryParse(_line.text.trim());
+    final typed = _line.text.trim();
+    // Only digits can be typed. One too long for an int is simply a line past the end of
+    // the text, which goes to the last line, not a number to ignore.
+    final line =
+        int.tryParse(typed) ??
+        (RegExp(r'^[0-9]+$').hasMatch(typed) ? _pastTheEnd : null);
     if (line == null) return;
     widget.request.complete(line);
   }
+
+  static const _pastTheEnd = 0x7FFFFFFF;
 
   void _cancel() => widget.request.complete(null);
 
@@ -55,6 +69,7 @@ class _GoToDialogState extends State<GoToDialog> {
               controller: _line,
               focusNode: _focus,
               autofocus: true,
+              semanticLabel: 'Line number',
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onSubmitted: (_) => _submit(),
             ),

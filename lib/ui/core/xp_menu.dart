@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/semantics.dart' show SemanticsRole;
 import 'package:flutter/widgets.dart';
 import 'package:xp_notepad/ui/core/xp_icons.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
@@ -52,6 +53,7 @@ class XpMenuItem {
     this.shortcut,
     this.enabled = true,
     this.checked = false,
+    this.checkable = false,
     this.onSelected,
   }) : isSeparator = false;
 
@@ -60,6 +62,7 @@ class XpMenuItem {
       shortcut = null,
       enabled = false,
       checked = false,
+      checkable = false,
       onSelected = null,
       isSeparator = true;
 
@@ -67,6 +70,10 @@ class XpMenuItem {
   final String? shortcut;
   final bool enabled;
   final bool checked;
+
+  /// True for an item that has a check mark state, such as Word Wrap. Screen readers
+  /// announce it as a check item, whether or not it is ticked at the moment.
+  final bool checkable;
   final VoidCallback? onSelected;
   final bool isSeparator;
 }
@@ -91,6 +98,18 @@ abstract final class XpMenuLayout {
   static double barLabelWidth(String label) {
     return measureUiText(MenuLabel.parse(label).text) + _labelPadding;
   }
+
+  /// Height of a popup: 2px padding and 1px border on each side, a row for each item and a
+  /// thin row for each separator.
+  static double popupHeight(List<XpMenuItem> items) {
+    var height = 4.0;
+    for (final item in items) {
+      height += item.isSeparator ? separatorHeight : XpMetrics.menuRowHeight;
+    }
+    return height;
+  }
+
+  static const separatorHeight = 6.0;
 
   static double popupWidth(List<XpMenuItem> items) {
     var width = _minWidth;
@@ -128,20 +147,25 @@ class XpMenuBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: XpMetrics.menuBarHeight,
-      color: XpColors.face,
-      child: Row(
-        children: [
-          for (var i = 0; i < menus.length; i++)
-            _MenuBarLabel(
-              label: menus[i].label,
-              open: openIndex == i,
-              showMnemonic: showMnemonics,
-              onPressed: () => onPressed(i),
-              onHovered: () => onHovered(i),
-            ),
-        ],
+    return Semantics(
+      role: SemanticsRole.menuBar,
+      container: true,
+      explicitChildNodes: true,
+      child: Container(
+        height: XpMetrics.menuBarHeight,
+        color: XpColors.face,
+        child: Row(
+          children: [
+            for (var i = 0; i < menus.length; i++)
+              _MenuBarLabel(
+                label: menus[i].label,
+                open: openIndex == i,
+                showMnemonic: showMnemonics,
+                onPressed: () => onPressed(i),
+                onHovered: () => onHovered(i),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -166,20 +190,28 @@ class _MenuBarLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final parsed = MenuLabel.parse(label);
     final color = open ? XpColors.highlightText : XpColors.text;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => onHovered(),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => onPressed(),
-        child: Container(
-          height: XpMetrics.menuBarHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 5.5),
-          alignment: Alignment.center,
-          color: open ? XpColors.highlight : null,
-          child: Text.rich(
-            parsed.span(XpText.ui(color: color), underline: showMnemonic),
-            maxLines: 1,
+    return Semantics(
+      container: true,
+      role: SemanticsRole.menuItem,
+      label: parsed.text,
+      expanded: open,
+      onTap: onPressed,
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => onHovered(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) => onPressed(),
+          child: Container(
+            height: XpMetrics.menuBarHeight,
+            padding: const EdgeInsets.symmetric(horizontal: 5.5),
+            alignment: Alignment.center,
+            color: open ? XpColors.highlight : null,
+            child: Text.rich(
+              parsed.span(XpText.ui(color: color), underline: showMnemonic),
+              maxLines: 1,
+            ),
           ),
         ),
       ),
@@ -206,36 +238,41 @@ class XpMenuPopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: XpMenuLayout.popupWidth(items),
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      decoration: BoxDecoration(
-        color: XpColors.paper,
-        border: Border.all(color: XpColors.menuBorder),
-        boxShadow: [
-          BoxShadow(
-            color: XpColors.menuShadow,
-            offset: Offset(2, 2),
-            blurRadius: 3,
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < items.length; i++)
-            if (items[i].isSeparator)
-              const _MenuSeparator()
-            else
-              _MenuRow(
-                item: items[i],
-                highlighted: highlight == i,
-                showMnemonic: showMnemonics,
-                onEnter: () => onHighlight(i),
-                onTap: () => onActivate(i),
-              ),
-        ],
+    return Semantics(
+      role: SemanticsRole.menu,
+      container: true,
+      explicitChildNodes: true,
+      child: Container(
+        width: XpMenuLayout.popupWidth(items),
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        decoration: BoxDecoration(
+          color: XpColors.paper,
+          border: Border.all(color: XpColors.menuBorder),
+          boxShadow: [
+            BoxShadow(
+              color: XpColors.menuShadow,
+              offset: Offset(2, 2),
+              blurRadius: 3,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              if (items[i].isSeparator)
+                const _MenuSeparator()
+              else
+                _MenuRow(
+                  item: items[i],
+                  highlighted: highlight == i,
+                  showMnemonic: showMnemonics,
+                  onEnter: () => onHighlight(i),
+                  onTap: () => onActivate(i),
+                ),
+          ],
+        ),
       ),
     );
   }
@@ -264,55 +301,68 @@ class _MenuRow extends StatelessWidget {
         ? XpColors.grayText
         : (active ? XpColors.highlightText : XpColors.text);
     final label = MenuLabel.parse(item.label);
-    return MouseRegion(
-      onEnter: enabled ? (_) => onEnter() : null,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
-        child: Container(
-          height: XpMetrics.menuRowHeight,
-          color: active ? XpColors.highlight : null,
-          child: Stack(
-            children: [
-              if (item.checked)
-                Positioned(
-                  left: 7,
-                  top: 6,
-                  child: CustomPaint(
-                    size: const Size.square(9),
-                    painter: _CheckGlyphPainter(color),
-                  ),
-                ),
-              Positioned(
-                left: 22,
-                top: 0,
-                bottom: 0,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text.rich(
-                    label.span(
-                      XpText.ui(color: color),
-                      underline: showMnemonic,
+    return Semantics(
+      container: true,
+      role: item.checkable
+          ? SemanticsRole.menuItemCheckbox
+          : SemanticsRole.menuItem,
+      label: label.text,
+      hint: item.shortcut,
+      enabled: enabled,
+      checked: item.checkable ? item.checked : null,
+      selected: active,
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: MouseRegion(
+        onEnter: enabled ? (_) => onEnter() : null,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? onTap : null,
+          child: Container(
+            height: XpMetrics.menuRowHeight,
+            color: active ? XpColors.highlight : null,
+            child: Stack(
+              children: [
+                if (item.checked)
+                  Positioned(
+                    left: 7,
+                    top: 6,
+                    child: CustomPaint(
+                      size: const Size.square(9),
+                      painter: _CheckGlyphPainter(color),
                     ),
-                    maxLines: 1,
                   ),
-                ),
-              ),
-              if (item.shortcut != null)
                 Positioned(
-                  right: 20,
+                  left: 22,
                   top: 0,
                   bottom: 0,
                   child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      item.shortcut!,
+                    alignment: Alignment.centerLeft,
+                    child: Text.rich(
+                      label.span(
+                        XpText.ui(color: color),
+                        underline: showMnemonic,
+                      ),
                       maxLines: 1,
-                      style: XpText.ui(color: color),
                     ),
                   ),
                 ),
-            ],
+                if (item.shortcut != null)
+                  Positioned(
+                    right: 20,
+                    top: 0,
+                    bottom: 0,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        item.shortcut!,
+                        maxLines: 1,
+                        style: XpText.ui(color: color),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
