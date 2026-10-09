@@ -26,6 +26,8 @@ class _FindDialogState extends State<FindDialog> {
   final _replace = TextEditingController();
   final _findFocus = FocusNode(debugLabel: 'find what');
   final _replaceFocus = FocusNode(debugLabel: 'replace with');
+  final _upFocus = FocusNode(debugLabel: 'direction up');
+  final _downFocus = FocusNode(debugLabel: 'direction down');
   late bool _matchCase;
   late bool _wholeWord;
   late bool _down;
@@ -35,7 +37,16 @@ class _FindDialogState extends State<FindDialog> {
     super.initState();
     _vm = context.read<NotepadViewModel>();
     final last = _vm.lastSearch;
-    _find = TextEditingController(text: last.query);
+    // The query starts out selected, so typing replaces it instead of adding to it.
+    _find = TextEditingController.fromValue(
+      TextEditingValue(
+        text: last.query,
+        selection: TextSelection(
+          baseOffset: 0,
+          extentOffset: last.query.length,
+        ),
+      ),
+    );
     _matchCase = last.matchCase;
     _wholeWord = last.wholeWord;
     _down = last.forward;
@@ -66,14 +77,18 @@ class _FindDialogState extends State<FindDialog> {
     _replace.dispose();
     _findFocus.dispose();
     _replaceFocus.dispose();
+    _upFocus.dispose();
+    _downFocus.dispose();
     super.dispose();
   }
 
+  /// The Replace dialog has no Direction group, so it always searches down. Otherwise an
+  /// earlier Find upwards would make Replace search upwards with nothing on screen to say so.
   SearchOptions get _options => SearchOptions(
     query: _find.text,
     matchCase: _matchCase,
     wholeWord: _wholeWord,
-    forward: _down,
+    forward: widget.replace || _down,
   );
 
   void _findNext() {
@@ -121,6 +136,7 @@ class _FindDialogState extends State<FindDialog> {
                       controller: _find,
                       focusNode: _findFocus,
                       autofocus: true,
+                      semanticLabel: 'Find what',
                       onSubmitted: (_) => _findNext(),
                     ),
                   ),
@@ -128,7 +144,11 @@ class _FindDialogState extends State<FindDialog> {
                     const SizedBox(height: 6),
                     _labeled(
                       'Replace with:',
-                      XpTextBox(controller: _replace, focusNode: _replaceFocus),
+                      XpTextBox(
+                        controller: _replace,
+                        focusNode: _replaceFocus,
+                        semanticLabel: 'Replace with',
+                      ),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -187,6 +207,12 @@ class _FindDialogState extends State<FindDialog> {
     );
   }
 
+  /// The arrow keys in the Direction group select the neighbour and move focus to it.
+  void _moveDirection(int step) {
+    setState(() => _down = step > 0);
+    (step > 0 ? _downFocus : _upFocus).requestFocus();
+  }
+
   Widget _directionGroup() {
     return XpGroupBox(
       label: 'Direction',
@@ -196,13 +222,17 @@ class _FindDialogState extends State<FindDialog> {
           XpRadioButton(
             label: 'Up',
             selected: !_down,
+            focusNode: _upFocus,
             onSelected: () => setState(() => _down = false),
+            onMove: _moveDirection,
           ),
           const SizedBox(width: 24),
           XpRadioButton(
             label: 'Down',
             selected: _down,
+            focusNode: _downFocus,
             onSelected: () => setState(() => _down = true),
+            onMove: _moveDirection,
           ),
         ],
       ),

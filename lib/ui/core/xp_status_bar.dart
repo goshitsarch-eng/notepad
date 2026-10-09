@@ -1,3 +1,4 @@
+import 'package:flutter/semantics.dart' show SemanticsRole;
 import 'package:flutter/widgets.dart';
 import 'package:xp_notepad/ui/core/xp_icons.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
@@ -14,6 +15,14 @@ class XpStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      role: SemanticsRole.status,
+      container: true,
+      child: _bar(),
+    );
+  }
+
+  Widget _bar() {
     return Container(
       // No top margin: a gap there would show the transparent window behind the bar.
       margin: const EdgeInsets.symmetric(horizontal: XpMetrics.frame),
@@ -45,6 +54,7 @@ class XpStatusBar extends StatelessWidget {
           MouseRegion(
             cursor: SystemMouseCursors.resizeDownRight,
             child: GestureDetector(
+              excludeFromSemantics: true,
               behavior: HitTestBehavior.opaque,
               onPanStart: onResizeStart == null
                   ? null

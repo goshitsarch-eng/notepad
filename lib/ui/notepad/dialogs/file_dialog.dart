@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -15,6 +16,7 @@ import 'package:xp_notepad/ui/core/xp_scrollbar.dart';
 import 'package:xp_notepad/ui/notepad/dialog_requests.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
 import 'package:xp_notepad/ui/theme/xp_text.dart';
+import 'package:xp_notepad/utils/file_error.dart';
 
 /// The Open and Save As dialogs. They list folders and files with the XP columns, and
 /// provide "Look in", "File name", "Files of type" and, for saving, "Encoding".
@@ -38,6 +40,9 @@ class _FileDialogState extends State<FileDialog> {
   FileTypeFilter _filter = textDocumentsFilter;
   List<DirectoryEntry> _entries = const [];
   int? _selected;
+
+  /// Why the current folder cannot be shown, or null when it listed normally.
+  String? _problem;
   int _loadSerial = 0;
   final _name = TextEditingController();
   final _nameFocus = FocusNode(debugLabel: 'file name');
@@ -61,17 +66,55 @@ class _FileDialogState extends State<FileDialog> {
 
   Future<void> _load() async {
     final serial = ++_loadSerial;
-    final entries = await _fileSystem.listDirectory(_directory, _filter);
+    var directory = _directory;
+    var entries = const <DirectoryEntry>[];
+    String? problem;
+    while (true) {
+      try {
+        entries = await _fileSystem.listDirectory(directory, _filter);
+        break;
+      } on PathNotFoundException catch (error) {
+        // A folder that has been deleted or moved since it was last used: show the nearest
+        // folder above it that still exists, rather than an empty list.
+        final parent = p.dirname(directory);
+        if (parent != directory) {
+          directory = parent;
+          continue;
+        }
+        problem = _folderProblem(error);
+        break;
+      } on FileSystemException catch (error) {
+        // An empty list with no explanation looks like an empty folder, so say why.
+        problem = _folderProblem(error);
+        break;
+      }
+    }
     if (!mounted || serial != _loadSerial) return;
     setState(() {
+      _directory = directory;
       _entries = entries;
+      _problem = problem;
       _selected = null;
     });
+  }
+
+  static String _folderProblem(FileSystemException error) {
+    final reason = describeFileError(error);
+    return reason.isEmpty
+        ? 'This folder cannot be opened.'
+        : 'This folder cannot be opened.\n$reason';
   }
 
   void _navigate(String directory) {
     setState(() => _directory = directory);
     unawaited(_load());
+  }
+
+  /// Opens a folder that was named in the File name box. The name typed to get here is
+  /// cleared, so it is not taken for a file name in the new folder.
+  void _enter(String directory) {
+    _name.clear();
+    _navigate(directory);
   }
 
   void _goUp() {
@@ -83,6 +126,7 @@ class _FileDialogState extends State<FileDialog> {
 
   void _activate(DirectoryEntry entry) {
     if (entry.isDirectory) {
+      // Going into a folder from the list keeps what was typed, as Up and Look in do.
       _navigate(entry.path);
       // Keep typing in the file name box after entering a folder, as XP does.
       _nameFocus.requestFocus();
@@ -115,10 +159,17 @@ class _FileDialogState extends State<FileDialog> {
     }
     final folder = _entryNamed(typed, directory: true);
     if (folder != null) {
-      _navigate(folder.path);
+      _enter(folder.path);
       return;
     }
     final target = p.join(_directory, typed);
+    // A typed path that names a folder opens the folder, as XP does. Without this a
+    // folder path typed into Save As was saved as a file with that name.
+    if (await _fileSystem.directoryExists(target)) {
+      if (mounted) _enter(p.normalize(target));
+      return;
+    }
+    if (!mounted) return;
     if (!_isSave) {
       // A missing file is reported by the view model, so the user is told why nothing
       // opened.
@@ -166,6 +217,7 @@ class _FileDialogState extends State<FileDialog> {
                 ),
                 Expanded(
                   child: XpComboBox<String>(
+                    semanticLabel: _isSave ? 'Save in' : 'Look in',
                     options: _folderOptions,
                     value: _directory,
                     onChanged: _navigate,
@@ -178,6 +230,7 @@ class _FileDialogState extends State<FileDialog> {
             const SizedBox(height: 8),
             _FileList(
               entries: _entries,
+              problem: _problem,
               selected: _selected,
               height: _listHeight,
               onSelect: _select,
@@ -202,6 +255,7 @@ class _FileDialogState extends State<FileDialog> {
                               controller: _name,
                               focusNode: _nameFocus,
                               autofocus: true,
+                              semanticLabel: 'File name',
                               onSubmitted: (_) => _submit(),
                             ),
                           ),
@@ -216,6 +270,7 @@ class _FileDialogState extends State<FileDialog> {
                           ),
                           Expanded(
                             child: XpComboBox<FileTypeFilter>(
+                              semanticLabel: 'Files of type',
                               options: const [
                                 XpOption(
                                   'Text Documents (*.txt)',
@@ -242,6 +297,7 @@ class _FileDialogState extends State<FileDialog> {
                             ),
                             Expanded(
                               child: XpComboBox<FileEncoding>(
+                                semanticLabel: 'Encoding',
                                 options: [
                                   for (final encoding in FileEncoding.values)
                                     XpOption(encoding.label, encoding),
@@ -282,6 +338,7 @@ class _FileDialogState extends State<FileDialog> {
 class _FileList extends StatefulWidget {
   const _FileList({
     required this.entries,
+    required this.problem,
     required this.selected,
     required this.height,
     required this.onSelect,
@@ -289,6 +346,9 @@ class _FileList extends StatefulWidget {
   });
 
   final List<DirectoryEntry> entries;
+
+  /// Shown in place of the rows when the folder could not be listed.
+  final String? problem;
   final int? selected;
   final double height;
   final ValueChanged<int> onSelect;
@@ -336,6 +396,7 @@ class _FileListState extends State<_FileList> {
     // The border and padding take 4 logical pixels. The bar is shown only when the rows
     // do not fit, as in XP.
     final overflows = widget.entries.length * _rowHeight > widget.height - 4;
+    final problem = widget.problem;
     return SizedBox(
       height: widget.height + 18,
       child: Column(
@@ -349,24 +410,32 @@ class _FileListState extends State<_FileList> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(1),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scroll,
-                        itemExtent: _rowHeight,
-                        itemCount: widget.entries.length,
-                        itemBuilder: (context, index) => _row(index),
+                child: problem != null
+                    ? Center(
+                        child: Text(
+                          problem,
+                          textAlign: TextAlign.center,
+                          style: XpText.ui(color: XpColors.grayText),
+                        ),
+                      )
+                    : Row(
+                        children: [
+                          Expanded(
+                            child: ListView.builder(
+                              controller: _scroll,
+                              itemExtent: _rowHeight,
+                              itemCount: widget.entries.length,
+                              itemBuilder: (context, index) => _row(index),
+                            ),
+                          ),
+                          if (overflows)
+                            XpScrollBar(
+                              controller: _scroll,
+                              axis: Axis.vertical,
+                              lineStep: _rowHeight,
+                            ),
+                        ],
                       ),
-                    ),
-                    if (overflows)
-                      XpScrollBar(
-                        controller: _scroll,
-                        axis: Axis.vertical,
-                        lineStep: _rowHeight,
-                      ),
-                  ],
-                ),
               ),
             ),
           ),

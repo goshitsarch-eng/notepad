@@ -108,6 +108,8 @@ class _PageSetupDialogState extends State<PageSetupDialog> {
                       controller: _header,
                       focusNode: _focusNodes[0],
                       autofocus: true,
+                      semanticLabel: 'Header',
+                      onSubmitted: (_) => _submit(),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -116,6 +118,8 @@ class _PageSetupDialogState extends State<PageSetupDialog> {
                     child: XpTextBox(
                       controller: _footer,
                       focusNode: _focusNodes[1],
+                      semanticLabel: 'Footer',
+                      onSubmitted: (_) => _submit(),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -128,20 +132,24 @@ class _PageSetupDialogState extends State<PageSetupDialog> {
                         Row(
                           children: [
                             _marginLabel('Left:'),
-                            _marginBox(_left, _focusNodes[2]),
+                            _marginBox(_left, _focusNodes[2], 'Left margin'),
                             const SizedBox(width: 24),
                             _marginLabel('Right:'),
-                            _marginBox(_right, _focusNodes[3]),
+                            _marginBox(_right, _focusNodes[3], 'Right margin'),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Row(
                           children: [
                             _marginLabel('Top:'),
-                            _marginBox(_top, _focusNodes[4]),
+                            _marginBox(_top, _focusNodes[4], 'Top margin'),
                             const SizedBox(width: 24),
                             _marginLabel('Bottom:'),
-                            _marginBox(_bottom, _focusNodes[5]),
+                            _marginBox(
+                              _bottom,
+                              _focusNodes[5],
+                              'Bottom margin',
+                            ),
                           ],
                         ),
                       ],
@@ -172,12 +180,18 @@ class _PageSetupDialogState extends State<PageSetupDialog> {
     return SizedBox(width: 46, child: Text(label, style: XpText.ui()));
   }
 
-  Widget _marginBox(TextEditingController controller, FocusNode focusNode) {
+  Widget _marginBox(
+    TextEditingController controller,
+    FocusNode focusNode,
+    String name,
+  ) {
     return XpTextBox(
       controller: controller,
       focusNode: focusNode,
+      semanticLabel: name,
       width: 60,
       inputFormatters: [_decimal],
+      onSubmitted: (_) => _submit(),
     );
   }
 }

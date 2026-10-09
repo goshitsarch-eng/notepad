@@ -1,0 +1,33 @@
+import 'package:flutter/widgets.dart';
+import 'package:xp_notepad/domain/text/text_metrics.dart';
+
+/// Measures the width of the longest line of a text, and remembers the answer for as long
+/// as the text and style stay the same objects.
+///
+/// Laying a line out costs time in proportion to its length, and the text controller also
+/// notifies when only the caret or selection moved. Without this, every arrow key in a
+/// large document measured the longest line again.
+class LongestLineMeter {
+  String? _text;
+  TextStyle? _style;
+  double _width = 0;
+
+  /// How many times a line has actually been laid out. Tests read it to check the cache.
+  int computations = 0;
+
+  double measure(String text, TextStyle style) {
+    if (identical(text, _text) && style == _style) return _width;
+    final line = TextMetrics.longestLine(text);
+    final painter = TextPainter(
+      text: TextSpan(text: line.isEmpty ? ' ' : line, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final width = painter.width;
+    painter.dispose();
+    computations++;
+    _text = text;
+    _style = style;
+    _width = width;
+    return width;
+  }
+}

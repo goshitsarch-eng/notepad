@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
-import 'package:xp_notepad/domain/text/text_metrics.dart';
 import 'package:xp_notepad/ui/core/xp_scrollbar.dart';
+import 'package:xp_notepad/ui/notepad/editor/longest_line_meter.dart';
 import 'package:xp_notepad/ui/notepad/editor/notepad_text_controller.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
 import 'package:xp_notepad/ui/theme/xp_text.dart';
@@ -23,6 +23,7 @@ class XpEditor extends StatefulWidget {
     required this.wordWrap,
     required this.revealSerial,
     required this.onTab,
+    this.meter,
   });
 
   final NotepadTextController controller;
@@ -36,6 +37,10 @@ class XpEditor extends StatefulWidget {
 
   /// Tab inserts a tab character instead of moving focus, as in Notepad.
   final VoidCallback onTab;
+
+  /// Measures the longest line when word wrap is off. Tests pass their own to count the
+  /// measurements. The editor makes one for itself when this is null.
+  final LongestLineMeter? meter;
 
   @override
   State<XpEditor> createState() => _XpEditorState();
@@ -100,29 +105,26 @@ class _XpEditorState extends State<XpEditor> {
     });
   }
 
-  double _textWidth(String line, TextStyle style) {
-    final painter = TextPainter(
-      text: TextSpan(text: line.isEmpty ? ' ' : line, style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    return painter.width;
-  }
+  late final _meter = widget.meter ?? LongestLineMeter();
 
   @override
   Widget build(BuildContext context) {
     final style = XpText.editor(widget.font);
-    final editable = EditableText(
-      key: _editableKey,
-      controller: widget.controller,
-      focusNode: widget.focusNode,
-      undoController: widget.undoHistory,
-      style: style,
-      cursorColor: XpColors.text,
-      backgroundCursorColor: XpColors.grayText,
-      selectionColor: XpColors.highlight,
-      maxLines: null,
-      keyboardType: TextInputType.multiline,
-      cursorWidth: 1,
+    final editable = Semantics(
+      label: 'Text editor',
+      child: EditableText(
+        key: _editableKey,
+        controller: widget.controller,
+        focusNode: widget.focusNode,
+        undoController: widget.undoHistory,
+        style: style,
+        cursorColor: XpColors.text,
+        backgroundCursorColor: XpColors.grayText,
+        selectionColor: XpColors.highlight,
+        maxLines: null,
+        keyboardType: TextInputType.multiline,
+        cursorWidth: 1,
+      ),
     );
 
     return CallbackShortcuts(
@@ -214,10 +216,7 @@ class _XpEditorState extends State<XpEditor> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final longest = _textWidth(
-          TextMetrics.longestLine(widget.controller.text),
-          style,
-        );
+        final longest = _meter.measure(widget.controller.text, style);
         final contentWidth = math.max(constraints.maxWidth, longest + 16);
         return SingleChildScrollView(
           controller: _horizontal,

@@ -96,6 +96,7 @@ List<XpMenu> buildNotepadMenus(NotepadViewModel vm) {
       XpMenuItem(
         label: '&Word Wrap',
         checked: vm.wordWrap,
+        checkable: true,
         onSelected: vm.toggleWordWrap,
       ),
       XpMenuItem(label: '&Font...', onSelected: vm.showFont),
@@ -104,6 +105,7 @@ List<XpMenu> buildNotepadMenus(NotepadViewModel vm) {
       XpMenuItem(
         label: '&Status Bar',
         checked: vm.statusBarChecked,
+        checkable: true,
         enabled: !vm.wordWrap,
         onSelected: vm.toggleStatusBar,
       ),
@@ -111,6 +113,7 @@ List<XpMenu> buildNotepadMenus(NotepadViewModel vm) {
       XpMenuItem(
         label: '&Dark Mode',
         checked: vm.darkMode,
+        checkable: true,
         onSelected: vm.toggleDarkMode,
       ),
     ]),

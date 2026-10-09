@@ -126,6 +126,9 @@ class _XpScrollBarState extends State<XpScrollBar> {
                   : constraints.maxWidth;
               final geometry = _geometry(length);
               return GestureDetector(
+                // The text or list the bar scrolls is the accessible part. The bar itself
+                // would only add an unnamed scrollable area.
+                excludeFromSemantics: true,
                 behavior: HitTestBehavior.opaque,
                 onTapDown: (details) =>
                     _pressTrack(details.localPosition, length),

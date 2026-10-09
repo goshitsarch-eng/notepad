@@ -52,45 +52,55 @@ class _XpButtonState extends State<XpButton> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onPressed != null;
-    return Focus(
-      focusNode: _focusNode,
-      autofocus: widget.autofocus,
-      onFocusChange: (focused) => setState(() => _focused = focused),
-      onKeyEvent: _onKey,
-      child: MouseRegion(
-        cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() {
-          _hovered = false;
-          _pressed = false;
-        }),
-        child: GestureDetector(
-          onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
-          onTap: widget.onPressed,
-          child: SizedBox(
-            width: widget.width,
-            height: XpMetrics.buttonHeight,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: _pressed
-                    ? XpGradients.buttonPressed
-                    : XpGradients.buttonFace,
-                border: Border.all(color: XpColors.buttonBorder),
-                borderRadius: BorderRadius.circular(3),
-              ),
-              child: CustomPaint(
-                painter: _ButtonRingPainter(
-                  isDefault: widget.isDefault,
-                  hovered: _hovered && enabled,
-                  focused: _focused,
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: enabled,
+      label: widget.label,
+      focusable: enabled,
+      focused: _focused,
+      onTap: widget.onPressed,
+      excludeSemantics: true,
+      child: Focus(
+        focusNode: _focusNode,
+        autofocus: widget.autofocus,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        onKeyEvent: _onKey,
+        child: MouseRegion(
+          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() {
+            _hovered = false;
+            _pressed = false;
+          }),
+          child: GestureDetector(
+            onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+            onTapCancel: () => setState(() => _pressed = false),
+            onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+            onTap: widget.onPressed,
+            child: SizedBox(
+              width: widget.width,
+              height: XpMetrics.buttonHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: _pressed
+                      ? XpGradients.buttonPressed
+                      : XpGradients.buttonFace,
+                  border: Border.all(color: XpColors.buttonBorder),
+                  borderRadius: BorderRadius.circular(3),
                 ),
-                child: Center(
-                  child: Text(
-                    widget.label,
-                    style: XpText.ui(
-                      color: enabled ? XpColors.text : XpColors.grayText,
+                child: CustomPaint(
+                  painter: _ButtonRingPainter(
+                    isDefault: widget.isDefault,
+                    hovered: _hovered && enabled,
+                    focused: _focused,
+                  ),
+                  child: Center(
+                    child: Text(
+                      widget.label,
+                      style: XpText.ui(
+                        color: enabled ? XpColors.text : XpColors.grayText,
+                      ),
                     ),
                   ),
                 ),

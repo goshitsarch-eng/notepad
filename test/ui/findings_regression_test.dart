@@ -41,7 +41,11 @@ class LoadingDocumentRepository implements DocumentRepository {
   }
 
   @override
-  Future<Result<void>> write(String path, String text, FileEncoding encoding) async {
+  Future<Result<void>> write(
+    String path,
+    String text,
+    FileEncoding encoding,
+  ) async {
     return const Success<void>(null);
   }
 }
@@ -93,11 +97,15 @@ void main() {
     await tester.pump();
   }
 
-  Finder editorField() =>
-      find.descendant(of: find.byType(XpEditor), matching: find.byType(EditableText));
+  Finder editorField() => find.descendant(
+    of: find.byType(XpEditor),
+    matching: find.byType(EditableText),
+  );
 
-  Finder dialogField(Type dialog) =>
-      find.descendant(of: find.byType(dialog), matching: find.byType(EditableText));
+  Finder dialogField(Type dialog) => find.descendant(
+    of: find.byType(dialog),
+    matching: find.byType(EditableText),
+  );
 
   /// True when keyboard focus sits inside one of the app's dialogs or the Find box.
   bool focusInsideDialog() {
@@ -118,7 +126,8 @@ void main() {
 
   bool focusInside<T extends Widget>() {
     final context = FocusManager.instance.primaryFocus?.context;
-    return context != null && context.findAncestorWidgetOfExactType<T>() != null;
+    return context != null &&
+        context.findAncestorWidgetOfExactType<T>() != null;
   }
 
   group('F-01: a size typed into the Font Size box is applied by OK', () {
@@ -152,78 +161,90 @@ void main() {
     });
   });
 
-  group('F-02: dialogs take keyboard focus, so typing cannot edit the document', () {
-    testWidgets('the Font dialog takes focus when it opens', (tester) async {
-      final vm = await pumpNotepad(tester);
-      unawaited(vm.showFont());
-      await tester.pump();
-
-      expect(focusInside<FontDialog>(), isTrue);
-    });
-
-    testWidgets('typing while the Font dialog is open leaves the document alone', (
-      tester,
-    ) async {
-      final vm = await pumpNotepad(tester);
-      unawaited(vm.showFont());
-      await tester.pump();
-
-      if (tester.testTextInput.hasAnyClients) {
-        tester.testTextInput.enterText('zz');
+  group(
+    'F-02: dialogs take keyboard focus, so typing cannot edit the document',
+    () {
+      testWidgets('the Font dialog takes focus when it opens', (tester) async {
+        final vm = await pumpNotepad(tester);
+        unawaited(vm.showFont());
         await tester.pump();
-      }
-      expect(vm.text.text, isEmpty);
-    });
 
-    testWidgets('Escape closes the Font dialog and keeps the font', (tester) async {
-      final vm = await pumpNotepad(tester);
-      unawaited(vm.showFont());
-      await tester.pump();
+        expect(focusInside<FontDialog>(), isTrue);
+      });
 
-      await press(tester, LogicalKeyboardKey.escape);
+      testWidgets(
+        'typing while the Font dialog is open leaves the document alone',
+        (tester) async {
+          final vm = await pumpNotepad(tester);
+          unawaited(vm.showFont());
+          await tester.pump();
 
-      expect(vm.modal, isNull);
-      expect(vm.font.sizePoints, 10);
-    });
+          if (tester.testTextInput.hasAnyClients) {
+            tester.testTextInput.enterText('zz');
+            await tester.pump();
+          }
+          expect(vm.text.text, isEmpty);
+        },
+      );
 
-    testWidgets('the arrow keys choose a family in the Font list', (tester) async {
-      final vm = await pumpNotepad(tester);
-      unawaited(vm.showFont());
-      await tester.pump();
-
-      await press(tester, LogicalKeyboardKey.arrowDown);
-      await tester.tap(find.text('OK'));
-      await tester.pump();
-
-      final current = EditorFont.families.indexOf('Lucida Console');
-      expect(vm.font.family, EditorFont.families[current + 1]);
-    });
-
-    testWidgets('every dialog and the Find box take focus when they open', (
-      tester,
-    ) async {
-      final vm = await pumpNotepad(tester);
-      final openers = <String, Future<void> Function()>{
-        'Font': () async => unawaited(vm.showFont()),
-        'Page Setup': () async => unawaited(vm.editPageSetup()),
-        'Go To': () async => unawaited(vm.showGoTo()),
-        'About': () async => unawaited(vm.showAbout()),
-        'Help': () async => unawaited(vm.showHelp()),
-        'Open': () async => unawaited(vm.openDocument()),
-        'Save As': () async => unawaited(vm.saveAs()),
-        'Find': () async => vm.showFind(replace: false),
-        'Replace': () async => vm.showFind(replace: true),
-      };
-      for (final entry in openers.entries) {
-        await entry.value();
+      testWidgets('Escape closes the Font dialog and keeps the font', (
+        tester,
+      ) async {
+        final vm = await pumpNotepad(tester);
+        unawaited(vm.showFont());
         await tester.pump();
-        expect(focusInsideDialog(), isTrue, reason: '${entry.key} has no focus');
+
         await press(tester, LogicalKeyboardKey.escape);
-        if (vm.find != null) vm.closeFind();
+
+        expect(vm.modal, isNull);
+        expect(vm.font.sizePoints, 10);
+      });
+
+      testWidgets('the arrow keys choose a family in the Font list', (
+        tester,
+      ) async {
+        final vm = await pumpNotepad(tester);
+        unawaited(vm.showFont());
         await tester.pump();
-      }
-    });
-  });
+
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        await tester.tap(find.text('OK'));
+        await tester.pump();
+
+        final current = EditorFont.families.indexOf('Lucida Console');
+        expect(vm.font.family, EditorFont.families[current + 1]);
+      });
+
+      testWidgets('every dialog and the Find box take focus when they open', (
+        tester,
+      ) async {
+        final vm = await pumpNotepad(tester);
+        final openers = <String, Future<void> Function()>{
+          'Font': () async => unawaited(vm.showFont()),
+          'Page Setup': () async => unawaited(vm.editPageSetup()),
+          'Go To': () async => unawaited(vm.showGoTo()),
+          'About': () async => unawaited(vm.showAbout()),
+          'Help': () async => unawaited(vm.showHelp()),
+          'Open': () async => unawaited(vm.openDocument()),
+          'Save As': () async => unawaited(vm.saveAs()),
+          'Find': () async => vm.showFind(replace: false),
+          'Replace': () async => vm.showFind(replace: true),
+        };
+        for (final entry in openers.entries) {
+          await entry.value();
+          await tester.pump();
+          expect(
+            focusInsideDialog(),
+            isTrue,
+            reason: '${entry.key} has no focus',
+          );
+          await press(tester, LogicalKeyboardKey.escape);
+          if (vm.find != null) vm.closeFind();
+          await tester.pump();
+        }
+      });
+    },
+  );
 
   group('F-03: Find keeps focus in its box', () {
     testWidgets('Enter runs Find Next and leaves focus in the Find box', (
@@ -243,24 +264,25 @@ void main() {
       expect(focusInside<FindDialog>(), isTrue);
     });
 
-    testWidgets('after a Cannot find message closes, focus returns to the Find box', (
-      tester,
-    ) async {
-      final vm = await pumpNotepad(tester);
-      vm.showFind(replace: false);
-      await tester.pump();
+    testWidgets(
+      'after a Cannot find message closes, focus returns to the Find box',
+      (tester) async {
+        final vm = await pumpNotepad(tester);
+        vm.showFind(replace: false);
+        await tester.pump();
 
-      await tester.enterText(dialogField(FindDialog).first, 'zzz');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(vm.modal, isA<MessageRequest>());
+        await tester.enterText(dialogField(FindDialog).first, 'zzz');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        expect(vm.modal, isA<MessageRequest>());
 
-      await tester.tap(find.text('OK'));
-      await tester.pump();
+        await tester.tap(find.text('OK'));
+        await tester.pump();
 
-      expect(vm.modal, isNull);
-      expect(focusInside<FindDialog>(), isTrue);
-    });
+        expect(vm.modal, isNull);
+        expect(focusInside<FindDialog>(), isTrue);
+      },
+    );
   });
 
   group('F-04: the editor accepts text after the document is replaced', () {
@@ -283,7 +305,10 @@ void main() {
       tester,
     ) async {
       final documents = FakeDocumentRepository()
-        ..files['/notes/start.txt'] = encodeText('from file', FileEncoding.ansi);
+        ..files['/notes/start.txt'] = encodeText(
+          'from file',
+          FileEncoding.ansi,
+        );
       final vm = await pumpNotepad(
         tester,
         documents: documents,
@@ -301,28 +326,29 @@ void main() {
   });
 
   group('F-05: text typed while a file loads is not replaced silently', () {
-    testWidgets('edits made during the load are kept, and the save prompt decides', (
-      tester,
-    ) async {
-      final documents = LoadingDocumentRepository();
-      final vm = await pumpNotepad(
-        tester,
-        documents: documents,
-        initialPath: '/data/big.txt',
-      );
-      await tester.enterText(editorField(), 'typed');
-      await tester.pump();
+    testWidgets(
+      'edits made during the load are kept, and the save prompt decides',
+      (tester) async {
+        final documents = LoadingDocumentRepository();
+        final vm = await pumpNotepad(
+          tester,
+          documents: documents,
+          initialPath: '/data/big.txt',
+        );
+        await tester.enterText(editorField(), 'typed');
+        await tester.pump();
 
-      documents.finish('from file');
-      await tester.pump();
-      await tester.pump();
+        documents.finish('from file');
+        await tester.pump();
+        await tester.pump();
 
-      expect(vm.modal, isA<MessageRequest>());
-      await tester.tap(find.text('Cancel'));
-      await tester.pump();
-      expect(vm.text.text, 'typed');
-      expect(vm.fileName, 'Untitled');
-    });
+        expect(vm.modal, isA<MessageRequest>());
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+        expect(vm.text.text, 'typed');
+        expect(vm.fileName, 'Untitled');
+      },
+    );
 
     testWidgets('a file that loads without edits replaces the empty document', (
       tester,

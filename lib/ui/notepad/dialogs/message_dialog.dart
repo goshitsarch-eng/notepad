@@ -38,6 +38,7 @@ class MessageDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return XpDialogWindow(
       title: request.title,
+      alert: true,
       width: 340,
       onClose: () => request.complete(_cancelChoice),
       child: CallbackShortcuts(

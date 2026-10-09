@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:xp_notepad/config/app_info.dart';
 import 'package:xp_notepad/ui/core/xp_button.dart';
 import 'package:xp_notepad/ui/core/xp_dialog.dart';
 import 'package:xp_notepad/ui/core/xp_icons.dart';
@@ -47,6 +48,8 @@ class AboutDialog extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Text('Version $appVersion', style: XpText.ui()),
                       const SizedBox(height: 6),
                       Text(
                         'An unofficial Flutter recreation of Windows XP Notepad.',

@@ -120,6 +120,7 @@ class _FontDialogState extends State<FontDialog> {
                       Text('Font:', style: XpText.ui()),
                       const SizedBox(height: 4),
                       XpListBox<String>(
+                        semanticLabel: 'Font',
                         options: [
                           for (final family in EditorFont.families)
                             XpOption(family, family),
@@ -142,6 +143,7 @@ class _FontDialogState extends State<FontDialog> {
                       Text('Font style:', style: XpText.ui()),
                       const SizedBox(height: 4),
                       XpListBox<FontFaceStyle>(
+                        semanticLabel: 'Font style',
                         options: [
                           for (final style in FontFaceStyle.values)
                             XpOption(style.label, style),
@@ -164,11 +166,13 @@ class _FontDialogState extends State<FontDialog> {
                       XpTextBox(
                         controller: _sizeText,
                         focusNode: _sizeFocus,
+                        semanticLabel: 'Size',
                         inputFormatters: [_numeric],
                         onSubmitted: _typedSize,
                       ),
                       const SizedBox(height: 4),
                       XpListBox<double>(
+                        semanticLabel: 'Size',
                         options: [
                           for (final size in EditorFont.sizes)
                             XpOption('$size', size.toDouble()),
@@ -214,6 +218,7 @@ class _FontDialogState extends State<FontDialog> {
                       Text('Script:', style: XpText.ui()),
                       const SizedBox(height: 4),
                       XpComboBox<String>(
+                        semanticLabel: 'Script',
                         options: const [XpOption('Western', 'Western')],
                         value: 'Western',
                         width: 120,

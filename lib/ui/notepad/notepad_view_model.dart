@@ -19,9 +19,15 @@ import 'package:xp_notepad/ui/notepad/dialog_requests.dart';
 import 'package:xp_notepad/ui/notepad/editor/notepad_text_controller.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
 import 'package:xp_notepad/utils/command.dart';
+import 'package:xp_notepad/utils/file_error.dart';
 import 'package:xp_notepad/utils/result.dart';
 
 typedef _SaveRequest = ({String path, String text, FileEncoding encoding});
+
+/// Documents longer than this many characters get a warning before they open. The
+/// platform's text input carries the whole text across on every edit, so typing in a
+/// document this size takes seconds per key and can use gigabytes of memory.
+const kLargeDocumentCharacters = 2 * 1024 * 1024;
 
 /// State and commands of the Notepad window. The view reads it and calls its methods. It
 /// reaches files, settings, printing and the window only through their interfaces.
@@ -148,7 +154,12 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   }
 
   Future<void> openDocument() async {
+    final asked = text.text;
     if (!await _confirmDiscardChanges()) return;
+    // The user has just agreed to lose these edits, so the load does not ask again.
+    // Text typed since the question was asked, such as while the Yes answer was still
+    // saving, is different text and was never agreed to, so it is left to ask.
+    final agreed = text.text == asked ? asked : null;
     final choice = await _showModal(
       FileRequest(
         mode: FileDialogMode.open,
@@ -157,7 +168,7 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
       ),
     );
     if (choice == null) return;
-    await _openPath(choice.path);
+    await _openPath(choice.path, discardAgreedFor: agreed);
   }
 
   Future<bool> save() async {
@@ -375,12 +386,7 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   }
 
   Future<void> showGoTo() async {
-    final result = await _showModal(
-      GoToRequest(
-        currentLine: caret.line,
-        lineCount: TextMetrics.lineCount(text.text),
-      ),
-    );
+    final result = await _showModal(GoToRequest(currentLine: caret.line));
     if (result != null) goToLine(result);
   }
 
@@ -593,26 +599,38 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     revealSerial.value++;
   }
 
-  Future<void> _openPath(String path) async {
+  /// Reads [path] and shows it. [discardAgreedFor] is the text the user has already
+  /// agreed to lose, from the save prompt shown before the file dialog. While the text is
+  /// still that, the replacement needs no second prompt.
+  Future<void> _openPath(String path, {String? discardAgreedFor}) async {
     final request = ++_documentRequest;
     final result = await documents.read(path);
     // A newer New, Open or start-up file has taken over, so this result is no longer wanted.
     if (request != _documentRequest) return;
     if (result is Success<TextFile>) {
       // Text typed while the file was read is not in the file. Ask before it is replaced.
-      if (!await _confirmDiscardChanges()) return;
+      final agreed = discardAgreedFor != null && text.text == discardAgreedFor;
+      if (!agreed && !await _confirmDiscardChanges()) return;
       final file = result.value;
+      if (file.text.length > kLargeDocumentCharacters &&
+          !await _confirmLargeDocument(name: p.basename(path), file: file)) {
+        return;
+      }
       _settings = _settings.copyWith(lastDirectory: p.dirname(path));
       _persistSettings();
       _setDocument(file.text, path: path, encoding: file.encoding);
     } else if (result is Failure<TextFile>) {
       final name = p.basename(path);
-      final missing = !await fileSystem.fileExists(path);
+      final reason = describeFileError(result.error);
+      // A missing file has its own XP wording. Any other reason is told as it is.
+      final missing =
+          result.error is PathNotFoundException ||
+          (reason.isEmpty && !await fileSystem.fileExists(path));
       await _message(
         'Notepad',
         missing
             ? 'Cannot find "$name". Make sure the path and file name are correct.'
-            : 'Cannot open "$name".',
+            : 'Cannot open "$name".${reason.isEmpty ? '' : '\n\n$reason'}',
         MessageIcon.error,
         [MessageChoice.ok],
       );
@@ -643,9 +661,11 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     ));
     if (result == null) return false;
     if (result is Failure<void>) {
+      final reason = describeFileError(result.error);
       await _message(
         'Notepad',
-        'Cannot save "${p.basename(path)}".',
+        'Cannot save "${p.basename(path)}" in "${p.dirname(path)}".'
+            '${reason.isEmpty ? '' : '\n\n$reason'}',
         MessageIcon.error,
         [MessageChoice.ok],
       );
@@ -660,6 +680,25 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     _syncTitle();
     notifyListeners();
     return true;
+  }
+
+  /// Warns that a large file is slow to edit and asks whether to open it anyway. Reading
+  /// and searching such a file is fine, so the choice is the user's.
+  Future<bool> _confirmLargeDocument({
+    required String name,
+    required TextFile file,
+  }) async {
+    final millions = (file.text.length / 1000000).toStringAsFixed(1);
+    final answer = await _message(
+      'Notepad',
+      'The file "$name" is large ($millions million characters).\n\n'
+          'Editing a file this size is very slow and can use a lot of memory. '
+          'Reading and searching it are fine.\n\n'
+          'Do you want to open it anyway?',
+      MessageIcon.warning,
+      [MessageChoice.yes, MessageChoice.no],
+    );
+    return answer == MessageChoice.yes;
   }
 
   /// Asks whether to save changes before the text is replaced or the window closes.
@@ -704,6 +743,8 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     }
   }
 
+  /// The folder the file dialogs start in. The dialog itself moves up to the nearest
+  /// folder that exists, if the last one has been deleted or moved since.
   String _startDirectory() =>
       _settings.lastDirectory ?? fileSystem.homeDirectory;
 
