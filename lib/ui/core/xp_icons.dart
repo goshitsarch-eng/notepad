@@ -3,7 +3,7 @@ import 'package:xp_notepad/ui/theme/xp_palette.dart';
 import 'package:xp_notepad/ui/theme/xp_text.dart';
 
 /// Icons drawn with canvas primitives. They evoke the XP shell icons without copying them.
-enum XpMessageIconKind { question, information, warning, error }
+enum XpMessageIconKind { information, warning, error }
 
 /// A notepad: a ruled page with a blue binding. Drawn on a 16×16 grid, scaled to [size].
 class NotepadIconPainter extends CustomPainter {
@@ -109,8 +109,6 @@ class MessageIconPainter extends CustomPainter {
     canvas.save();
     canvas.scale(size.width / 32, size.height / 32);
     switch (kind) {
-      case XpMessageIconKind.question:
-        _disc(canvas, const Color(0xFF2A6BD6), '?');
       case XpMessageIconKind.information:
         _disc(canvas, const Color(0xFF2A6BD6), 'i');
       case XpMessageIconKind.warning:

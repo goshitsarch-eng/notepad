@@ -32,7 +32,7 @@ class LoadingDocumentRepository implements DocumentRepository {
   Completer<Result<TextFile>>? pending;
 
   @override
-  Future<Result<TextFile>> read(String path) {
+  Future<Result<TextFile>> read(String path, {FileEncoding? encoding}) {
     return (pending = Completer<Result<TextFile>>()).future;
   }
 

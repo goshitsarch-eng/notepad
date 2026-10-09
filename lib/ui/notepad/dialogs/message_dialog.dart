@@ -21,7 +21,6 @@ class MessageDialog extends StatelessWidget {
   }
 
   XpMessageIconKind get _iconKind => switch (request.icon) {
-    MessageIcon.question => XpMessageIconKind.question,
     MessageIcon.information => XpMessageIconKind.information,
     MessageIcon.warning => XpMessageIconKind.warning,
     MessageIcon.error => XpMessageIconKind.error,

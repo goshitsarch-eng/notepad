@@ -26,6 +26,7 @@ const _shortcuts = <(String, String)>[
   ('F5', 'Insert time and date'),
   ('F1', 'Help topics'),
   ('Alt + letter', 'Open a menu, e.g. Alt+F for File'),
+  ('Alt+Space', 'Open the window menu: minimize, maximize, close'),
   ('Esc', 'Close a menu or dialog'),
   ('Tab', 'Insert a tab character'),
   ('Enter', 'Press the highlighted button in a dialog'),

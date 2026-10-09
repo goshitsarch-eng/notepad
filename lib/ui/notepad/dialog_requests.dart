@@ -15,7 +15,7 @@ sealed class ModalRequest<R> {
   }
 }
 
-enum MessageIcon { question, information, warning, error }
+enum MessageIcon { information, warning, error }
 
 enum MessageChoice { yes, no, cancel, ok }
 
@@ -57,10 +57,15 @@ enum FileDialogMode { open, save }
 
 /// The file a user picked in the Open or Save As dialog, and the encoding to save with.
 class FileChoice {
-  const FileChoice(this.path, this.encoding);
+  const FileChoice(this.path, this.encoding, {this.openAs});
 
   final String path;
+
+  /// The encoding Save As writes the file in.
   final FileEncoding encoding;
+
+  /// The encoding the Open dialog was told to read the file as, or null to detect it.
+  final FileEncoding? openAs;
 }
 
 final class FileRequest extends ModalRequest<FileChoice> {

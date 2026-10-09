@@ -17,7 +17,17 @@ class LongestLineMeter {
 
   double measure(String text, TextStyle style) {
     if (identical(text, _text) && style == _style) return _width;
-    final line = TextMetrics.longestLine(text);
+    return _layOut(text, TextMetrics.longestLine(text), style);
+  }
+
+  /// The width of [line], which the caller has already found to be the longest. Used when
+  /// the whole document is not at hand to search.
+  double measureLine(String line, TextStyle style) {
+    if (identical(line, _text) && style == _style) return _width;
+    return _layOut(line, line, style);
+  }
+
+  double _layOut(String key, String line, TextStyle style) {
     final painter = TextPainter(
       text: TextSpan(text: line.isEmpty ? ' ' : line, style: style),
       textDirection: TextDirection.ltr,
@@ -25,7 +35,7 @@ class LongestLineMeter {
     final width = painter.width;
     painter.dispose();
     computations++;
-    _text = text;
+    _text = key;
     _style = style;
     _width = width;
     return width;

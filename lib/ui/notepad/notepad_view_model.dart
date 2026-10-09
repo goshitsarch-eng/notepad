@@ -12,11 +12,14 @@ import 'package:xp_notepad/data/services/printing_service.dart';
 import 'package:xp_notepad/data/services/window_service.dart';
 import 'package:xp_notepad/domain/models/file_encoding.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
+import 'package:xp_notepad/domain/text/edit_history.dart';
 import 'package:xp_notepad/domain/text/text_metrics.dart';
+import 'package:xp_notepad/domain/text/text_scan.dart';
 import 'package:xp_notepad/domain/text/text_search.dart';
 import 'package:xp_notepad/domain/text/time_date.dart';
 import 'package:xp_notepad/ui/notepad/dialog_requests.dart';
 import 'package:xp_notepad/ui/notepad/editor/notepad_text_controller.dart';
+import 'package:xp_notepad/ui/notepad/editor/windowed_text.dart';
 import 'package:xp_notepad/ui/theme/xp_palette.dart';
 import 'package:xp_notepad/utils/command.dart';
 import 'package:xp_notepad/utils/file_error.dart';
@@ -24,10 +27,15 @@ import 'package:xp_notepad/utils/result.dart';
 
 typedef _SaveRequest = ({String path, String text, FileEncoding encoding});
 
-/// Documents longer than this many characters get a warning before they open. The
-/// platform's text input carries the whole text across on every edit, so typing in a
-/// document this size takes seconds per key and can use gigabytes of memory.
-const kLargeDocumentCharacters = 2 * 1024 * 1024;
+/// The value of [NotepadViewModel.openMenu] while the window menu of the title bar is open.
+/// The menus of the menu bar are numbered from 0.
+const kSystemMenu = -1;
+
+/// Documents longer than this many characters get a warning before they open. Past this
+/// size opening takes several seconds, and the text, the copies that editing makes of it
+/// and the document's window together use a lot of memory. Editing itself stays quick,
+/// because the editor holds only a window of the text.
+const kLargeDocumentCharacters = 16 * 1024 * 1024;
 
 /// State and commands of the Notepad window. The view reads it and calls its methods. It
 /// reaches files, settings, printing and the window only through their interfaces.
@@ -62,6 +70,10 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   final NotepadTextController text = NotepadTextController();
   final UndoHistoryController undoHistory = UndoHistoryController();
 
+  /// Set while the document is large. The editor then shows only a window of the text, and
+  /// this keeps the window and [text] in step. [text] always holds the whole document.
+  WindowedText? _windowed;
+
   /// Bumps when the caret should be scrolled into view.
   final ValueNotifier<int> revealSerial = ValueNotifier<int>(0);
 
@@ -78,6 +90,7 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   FileEncoding _encoding = FileEncoding.ansi;
   bool _modified = false;
   String _lastText = '';
+  TextSelection _lastSelection = const TextSelection.collapsed(offset: 0);
   bool _active = true;
   bool _maximized = false;
   bool _exiting = false;
@@ -136,9 +149,13 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
 
   bool get hasText => text.text.isNotEmpty;
 
-  bool get canUndo => undoHistory.value.canUndo;
+  /// The window of a large document, or null while the editor holds all the text.
+  WindowedText? get windowed => _windowed;
+
+  bool get canUndo => _windowed?.canUndo ?? undoHistory.value.canUndo;
 
   CaretPosition get caret =>
+      _windowed?.caretAt(text.selection.extentOffset) ??
       TextMetrics.caretAt(text.text, text.selection.extentOffset);
 
   String get statusText {
@@ -168,7 +185,11 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
       ),
     );
     if (choice == null) return;
-    await _openPath(choice.path, discardAgreedFor: agreed);
+    await _openPath(
+      choice.path,
+      discardAgreedFor: agreed,
+      encoding: choice.openAs,
+    );
   }
 
   Future<bool> save() async {
@@ -248,6 +269,12 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   // ---- Editing ----
 
   void undo() {
+    final windowed = _windowed;
+    if (windowed != null) {
+      // The window has its own undo list, which survives the window moving.
+      if (windowed.undo()) revealSerial.value++;
+      return;
+    }
     if (canUndo) undoHistory.undo();
   }
 
@@ -279,6 +306,18 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
       baseOffset: 0,
       extentOffset: text.text.length,
     );
+  }
+
+  /// Ctrl+Home and Ctrl+End. The editor moves only within the window it holds, so for a
+  /// large document the move is made here, in the whole text. [extend] keeps the other end
+  /// of the selection, as Shift does.
+  void moveToDocumentEdge({required bool end, bool extend = false}) {
+    final target = end ? text.text.length : 0;
+    final base = extend && text.selection.isValid
+        ? text.selection.baseOffset
+        : target;
+    text.selection = TextSelection(baseOffset: base, extentOffset: target);
+    revealSerial.value++;
   }
 
   void insertTimeDate() => insertText(formatTimeDate(clock()));
@@ -541,6 +580,13 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   void dispose() {
     _resizeSettle?.cancel();
     text.removeListener(_onTextChanged);
+    _disposed = true;
+    for (final waiter in _modalWaiters) {
+      waiter.complete();
+    }
+    _modalWaiters.clear();
+    _windowed?.dispose();
+    _windowed = null;
     text.dispose();
     undoHistory.dispose();
     revealSerial.dispose();
@@ -556,12 +602,50 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
 
   void _onTextChanged() {
     final current = text.text;
+    final selectionBefore = _lastSelection;
+    _lastSelection = text.selection;
     if (current == _lastText) return;
+    final previous = _lastText;
     _lastText = current;
+    var changed = false;
     if (!_modified) {
       _modified = true;
-      notifyListeners();
+      changed = true;
     }
+    changed = _startWindowIfLarge(previous, selectionBefore) || changed;
+    if (changed) notifyListeners();
+  }
+
+  /// A document that grows past the size where the editor slows down, by a paste for
+  /// example, is edited through a window from then on, until another document replaces it.
+  /// It stays that way if it shrinks again: leaving the window would have to happen in the
+  /// middle of an edit, and would lose the undo list. The edit that made the document
+  /// large is the first entry of the window's undo list, so it can be taken back.
+  /// Returns true when the editor has to be built again.
+  bool _startWindowIfLarge(String previous, TextSelection before) {
+    if (_windowed != null) return false;
+    final current = text.text;
+    if (current.length < kWindowedDocumentCharacters) return false;
+    final history = EditHistory();
+    final change = TextScan.diff(previous, current);
+    if (!change.isEmpty &&
+        change.removedLength + change.insertedLength <= history.maxCharacters) {
+      final after = text.selection;
+      history.record(
+        offset: change.start,
+        removed: previous.substring(change.start, change.oldEnd),
+        inserted: current.substring(change.start, change.newEnd),
+        before: before.isValid
+            ? SelectionOffsets(before.baseOffset, before.extentOffset)
+            : SelectionOffsets(change.start, change.start),
+        after: after.isValid
+            ? SelectionOffsets(after.baseOffset, after.extentOffset)
+            : SelectionOffsets(change.newEnd, change.newEnd),
+      );
+    }
+    _windowed = WindowedText(master: text, history: history);
+    _editorGeneration++;
+    return true;
   }
 
   void _setDocument(
@@ -573,10 +657,16 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     _path = path;
     _encoding = encoding;
     _lastText = content;
+    // The old window goes first, so it does not try to follow the new document.
+    _windowed?.dispose();
+    _windowed = null;
     text.value = TextEditingValue(
       text: content,
       selection: const TextSelection.collapsed(offset: 0),
     );
+    if (content.length >= kWindowedDocumentCharacters) {
+      _windowed = WindowedText(master: text);
+    }
     _modified = false;
     _editorGeneration++;
     _syncTitle();
@@ -599,23 +689,36 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     revealSerial.value++;
   }
 
-  /// Reads [path] and shows it. [discardAgreedFor] is the text the user has already
-  /// agreed to lose, from the save prompt shown before the file dialog. While the text is
-  /// still that, the replacement needs no second prompt.
-  Future<void> _openPath(String path, {String? discardAgreedFor}) async {
+  /// Reads [path] and shows it, as [encoding] when the Open dialog was told to, and by
+  /// detecting it otherwise. [discardAgreedFor] is the text the user has already agreed to
+  /// lose, from the save prompt shown before the file dialog. While the text is still that,
+  /// the replacement needs no second prompt.
+  Future<void> _openPath(
+    String path, {
+    String? discardAgreedFor,
+    FileEncoding? encoding,
+  }) async {
     final request = ++_documentRequest;
-    final result = await documents.read(path);
+    final result = await documents.read(path, encoding: encoding);
     // A newer New, Open or start-up file has taken over, so this result is no longer wanted.
     if (request != _documentRequest) return;
     if (result is Success<TextFile>) {
       // Text typed while the file was read is not in the file. Ask before it is replaced.
       final agreed = discardAgreedFor != null && text.text == discardAgreedFor;
-      if (!agreed && !await _confirmDiscardChanges()) return;
+      bool wanted() => request == _documentRequest;
+      if (!agreed && !await _confirmDiscardChanges(stillWanted: wanted)) return;
       final file = result.value;
       if (file.text.length > kLargeDocumentCharacters &&
-          !await _confirmLargeDocument(name: p.basename(path), file: file)) {
+          !await _confirmLargeDocument(
+            name: p.basename(path),
+            file: file,
+            stillWanted: wanted,
+          )) {
         return;
       }
+      // A question may have waited behind another dialog, and the user may have opened
+      // something else meanwhile.
+      if (!wanted()) return;
       _settings = _settings.copyWith(lastDirectory: p.dirname(path));
       _persistSettings();
       _setDocument(file.text, path: path, encoding: file.encoding);
@@ -633,6 +736,7 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
             : 'Cannot open "$name".${reason.isEmpty ? '' : '\n\n$reason'}',
         MessageIcon.error,
         [MessageChoice.ok],
+        stillWanted: () => request == _documentRequest,
       );
     }
   }
@@ -682,34 +786,37 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     return true;
   }
 
-  /// Warns that a large file is slow to edit and asks whether to open it anyway. Reading
-  /// and searching such a file is fine, so the choice is the user's.
+  /// Warns that a large file takes a while to open and uses a lot of memory, and asks
+  /// whether to open it anyway.
   Future<bool> _confirmLargeDocument({
     required String name,
     required TextFile file,
+    bool Function()? stillWanted,
   }) async {
     final millions = (file.text.length / 1000000).toStringAsFixed(1);
     final answer = await _message(
       'Notepad',
       'The file "$name" is large ($millions million characters).\n\n'
-          'Editing a file this size is very slow and can use a lot of memory. '
-          'Reading and searching it are fine.\n\n'
+          'It takes a while to open a file this size, and it uses a lot of '
+          'memory.\n\n'
           'Do you want to open it anyway?',
       MessageIcon.warning,
       [MessageChoice.yes, MessageChoice.no],
+      stillWanted: stillWanted,
     );
     return answer == MessageChoice.yes;
   }
 
   /// Asks whether to save changes before the text is replaced or the window closes.
   /// Returns true when the caller may go ahead.
-  Future<bool> _confirmDiscardChanges() async {
+  Future<bool> _confirmDiscardChanges({bool Function()? stillWanted}) async {
     if (!_modified) return true;
     final answer = await _message(
       'Notepad',
       'The text in the $fileName file has changed.\n\nDo you want to save the changes?',
       MessageIcon.warning,
       [MessageChoice.yes, MessageChoice.no, MessageChoice.cancel],
+      stillWanted: stillWanted,
     );
     return switch (answer) {
       MessageChoice.yes => await save(),
@@ -722,25 +829,59 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
     String title,
     String message,
     MessageIcon icon,
-    List<MessageChoice> choices,
-  ) {
+    List<MessageChoice> choices, {
+    bool Function()? stillWanted,
+  }) {
     return _showModal(
       MessageRequest(title: title, text: message, icon: icon, choices: choices),
+      stillWanted: stillWanted,
     );
   }
 
-  /// Shows one modal dialog and waits for its answer. Only one is shown at a time. While
-  /// one is open, a second request is refused with null, which counts as a cancel.
-  Future<R?> _showModal<R>(ModalRequest<R> request) async {
-    if (_modal != null) return null;
+  /// True from the moment a dialog is shown until the last one waiting has closed. A dialog
+  /// that closes hands the screen straight to the next one, so none slips in between.
+  bool _modalBusy = false;
+  final List<Completer<void>> _modalWaiters = [];
+  bool _disposed = false;
+
+  /// Shows one modal dialog and waits for its answer. Only one is shown at a time. A
+  /// dialog asked for while another is open waits for its turn, as a message that is ready
+  /// while About is open, instead of being refused. [stillWanted] is asked once its turn
+  /// has come: when it says no, because the request has been replaced meanwhile, the dialog
+  /// is not shown and the answer is null, which counts as a cancel.
+  Future<R?> _showModal<R>(
+    ModalRequest<R> request, {
+    bool Function()? stillWanted,
+  }) async {
+    if (_modalBusy) {
+      final turn = Completer<void>();
+      _modalWaiters.add(turn);
+      await turn.future;
+      if (_disposed || !(stillWanted?.call() ?? true)) {
+        _endModalTurn();
+        return null;
+      }
+    }
+    _modalBusy = true;
     _modal = request;
     notifyListeners();
     try {
       return await request.result;
     } finally {
-      _modal = null;
-      notifyListeners();
+      _endModalTurn();
     }
+  }
+
+  /// Gives the screen to the next dialog in line, or clears it.
+  void _endModalTurn() {
+    if (_modalWaiters.isNotEmpty) {
+      _modalWaiters.removeAt(0).complete();
+      return;
+    }
+    final shown = _modal != null;
+    _modal = null;
+    _modalBusy = false;
+    if (shown && !_disposed) notifyListeners();
   }
 
   /// The folder the file dialogs start in. The dialog itself moves up to the nearest
