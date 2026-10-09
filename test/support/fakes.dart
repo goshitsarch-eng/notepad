@@ -71,6 +71,9 @@ class FakeFileSystemService implements FileSystemService {
   /// Folders that cannot be read, with the reason their listing fails with.
   final Map<String, String> unreadable = {};
 
+  /// What [listDirectory] returns for a folder. Folders not named here are empty.
+  final Map<String, List<DirectoryEntry>> listings = {};
+
   @override
   String get homeDirectory => '/home/tester';
 
@@ -94,7 +97,7 @@ class FakeFileSystemService implements FileSystemService {
     }
     final reason = unreadable[directory];
     if (reason != null) throw FileSystemException(reason, directory);
-    return const [];
+    return listings[directory] ?? const [];
   }
 }
 

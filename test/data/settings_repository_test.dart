@@ -98,6 +98,28 @@ void main() {
       }
     });
 
+    test('a settings file that is a symbolic link is written through, and the link kept', () async {
+      if (Platform.isWindows) {
+        return;
+      }
+      final target = File(p.join(folder.path, 'dotfiles', 'settings.json'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('{}');
+      final link = Link(p.join(folder.path, 'xp', 'settings.json'))
+        ..createSync(target.path, recursive: true);
+      final repository = JsonFileSettingsRepository(File(link.path));
+
+      await repository.save(const NotepadSettings(darkMode: true));
+
+      expect(
+        FileSystemEntity.isLinkSync(link.path),
+        isTrue,
+        reason: 'the link must survive',
+      );
+      expect((await repository.load()).darkMode, isTrue);
+      expect(target.readAsStringSync(), contains('"darkMode": true'));
+    });
+
     test('a failed save does not stop the saves after it, and leaves nothing behind', () async {
       // The settings folder cannot be created because a file is in the way.
       final blocker = File(p.join(folder.path, 'blocked'))

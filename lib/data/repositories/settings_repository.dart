@@ -80,12 +80,17 @@ class JsonFileSettingsRepository implements SettingsRepository {
   /// during the write leaves the old settings, never half of the new ones.
   static Future<void> _write(File file, String json) async {
     await file.parent.create(recursive: true);
+    // A settings file that is a symbolic link, as a dotfile manager makes it, is written
+    // through to its target, so the link itself is kept.
+    final target = await file.exists()
+        ? File(await file.resolveSymbolicLinks())
+        : file;
     final temporary = File(
-      '${file.path}.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp',
+      '${target.path}.$pid.${DateTime.now().microsecondsSinceEpoch}.tmp',
     );
     try {
       await temporary.writeAsString(json, flush: true);
-      await temporary.rename(file.path);
+      await temporary.rename(target.path);
     } on Object {
       if (await temporary.exists()) await temporary.delete();
       rethrow;

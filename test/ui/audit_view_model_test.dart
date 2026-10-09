@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -7,10 +8,26 @@ import 'package:xp_notepad/domain/models/file_encoding.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
 import 'package:xp_notepad/ui/notepad/dialog_requests.dart';
 import 'package:xp_notepad/ui/notepad/notepad_view_model.dart';
+import 'package:xp_notepad/utils/result.dart';
 
 import '../support/fakes.dart';
 
 /// Regressions found in the second audit, at the level of the view model.
+/// A repository whose writes wait for the test, to model a slow disk.
+class _GatedWrites extends FakeDocumentRepository {
+  Completer<void>? gate;
+
+  @override
+  Future<Result<void>> write(
+    String path,
+    String text,
+    FileEncoding encoding,
+  ) async {
+    await gate?.future;
+    return super.write(path, text, encoding);
+  }
+}
+
 void main() {
   late FakeDocumentRepository documents;
   late FakeFileSystemService fileSystem;
@@ -161,6 +178,58 @@ void main() {
         expect(vm.text.text, 'unsaved, and more');
       },
     );
+  });
+
+  test('text typed while the save before an open is still running gets its own prompt', () async {
+    final gated = _GatedWrites();
+    final slow = NotepadViewModel(
+      documents: gated,
+      settingsRepository: FakeSettingsRepository(),
+      fileSystem: fileSystem,
+      printing: FakePrintingService(),
+      window: FakeWindowService(),
+      settings: const NotepadSettings(),
+    )..start();
+    addTearDown(slow.dispose);
+    gated.files['/home/tester/b.txt'] = encodeText('other', FileEncoding.ansi);
+
+    // A document that has a name and unsaved changes.
+    slow.text.value = const TextEditingValue(text: 'first');
+    final naming = slow.saveAs();
+    await settle();
+    (slow.modal! as FileRequest).complete(
+      const FileChoice('/home/tester/a.txt', FileEncoding.ansi),
+    );
+    await naming;
+    slow.text.value = const TextEditingValue(text: 'second');
+
+    // Open, answer Yes, and keep typing while the write is in flight.
+    gated.gate = Completer<void>();
+    final opening = slow.openDocument();
+    await settle();
+    (slow.modal! as MessageRequest).complete(MessageChoice.yes);
+    await settle();
+    slow.text.value = const TextEditingValue(
+      text: 'second, and more typed during the save',
+    );
+    gated.gate!.complete();
+    await settle();
+    await settle();
+    (slow.modal! as FileRequest).complete(
+      const FileChoice('/home/tester/b.txt', FileEncoding.ansi),
+    );
+    await settle();
+    await settle();
+
+    // The typing is in no file, so replacing it needs a prompt of its own.
+    expect(slow.modal, isA<MessageRequest>());
+    expect(
+      (slow.modal! as MessageRequest).text,
+      contains('Do you want to save the changes?'),
+    );
+    (slow.modal! as MessageRequest).complete(MessageChoice.cancel);
+    await opening;
+    expect(slow.text.text, 'second, and more typed during the save');
   });
 
   group('error messages give the reason (F-12)', () {

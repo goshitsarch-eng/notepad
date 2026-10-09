@@ -77,11 +77,11 @@ void main() {
   );
 
   test(
-    'one entry that cannot be read does not hide the others (F-11)',
+    'a link to nothing is left out and does not hide the rest (F-11)',
     () async {
       if (Platform.isWindows) return;
       File(p.join(folder.path, 'good.txt')).writeAsStringSync('g');
-      // A link to nothing: listing it works, examining it fails.
+      // A link to nothing: listing it works, and examining it finds nothing there.
       Link(p.join(folder.path, 'dangling.txt'))
           .createSync(p.join(folder.path, 'gone'));
       Directory(p.join(folder.path, 'sub')).createSync();
@@ -125,6 +125,25 @@ void main() {
     );
   });
 
+  test('a folder that can be read but not searched reports it instead of listing nothing (F-11)', () async {
+    if (Platform.isWindows) {
+      return;
+    }
+    // The case from the first audit: the names can be listed, but no entry can be examined.
+    final closed = Directory(p.join(folder.path, 'closed'))..createSync();
+    File(p.join(closed.path, 'inside.txt')).writeAsStringSync('i');
+    Process.runSync('chmod', ['400', closed.path]);
+    if (_canExamineInside(closed)) {
+      markTestSkipped('running as a user that can search every folder');
+      return;
+    }
+
+    await expectLater(
+      service.listDirectory(closed.path, textDocumentsFilter),
+      throwsA(isA<FileSystemException>()),
+    );
+  });
+
   test('directoryExists tells folders from files and from nothing', () async {
     final file = File(p.join(folder.path, 'a.txt'))..writeAsStringSync('a');
 
@@ -146,4 +165,15 @@ bool _canList(Directory directory) {
   } on FileSystemException {
     return false;
   }
+}
+
+bool _canExamineInside(Directory directory) {
+  try {
+    for (final entity in directory.listSync()) {
+      return entity.statSync().type != FileSystemEntityType.notFound;
+    }
+  } on FileSystemException {
+    return false;
+  }
+  return true;
 }

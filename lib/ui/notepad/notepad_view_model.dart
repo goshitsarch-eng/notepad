@@ -154,10 +154,12 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   }
 
   Future<void> openDocument() async {
+    final asked = text.text;
     if (!await _confirmDiscardChanges()) return;
     // The user has just agreed to lose these edits, so the load does not ask again.
-    // Anything typed while a large file is read is different text, and still asks.
-    final agreed = text.text;
+    // Text typed since the question was asked, such as while the Yes answer was still
+    // saving, is different text and was never agreed to, so it is left to ask.
+    final agreed = text.text == asked ? asked : null;
     final choice = await _showModal(
       FileRequest(
         mode: FileDialogMode.open,

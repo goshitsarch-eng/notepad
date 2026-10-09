@@ -158,14 +158,16 @@ class FileDocumentRepository implements DocumentRepository {
 
   /// Copies the POSIX permission bits, which Dart cannot set itself, with chmod. A
   /// failure fails the save, so the file never silently changes its permissions. The
-  /// `--` keeps a folder name that starts with a dash from being read as an option.
+  /// `--` comes before the mode, where strict option parsing (BSD and POSIXLY_CORRECT)
+  /// needs it, and keeps a folder name that starts with a dash from being read as an
+  /// option.
   static Future<void> _copyMode(int mode, File file) async {
     if (Platform.isWindows) return;
     final ProcessResult result;
     try {
       result = await Process.run('chmod', [
-        (mode & 0x1FF).toRadixString(8),
         '--',
+        (mode & 0x1FF).toRadixString(8),
         file.path,
       ]);
     } on ProcessException {

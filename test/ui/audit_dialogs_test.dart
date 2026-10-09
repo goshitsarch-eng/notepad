@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:xp_notepad/app.dart';
 import 'package:xp_notepad/config/app_dependencies.dart';
+import 'package:xp_notepad/data/services/file_system_service.dart';
 import 'package:xp_notepad/domain/models/file_encoding.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
 import 'package:xp_notepad/domain/text/text_search.dart';
@@ -159,6 +160,39 @@ void main() {
 
         expect(chosen!.path, '/home/tester/docs/a.txt');
         expect(chosen!.encoding, FileEncoding.ansi);
+        await saving;
+      },
+    );
+
+    testWidgets(
+      'entering a folder from the list keeps the file name that was typed',
+      (tester) async {
+        final vm = await pump(tester);
+        fileSystem.listings['/home/tester'] = [
+          DirectoryEntry(
+            name: 'docs',
+            path: '/home/tester/docs',
+            isDirectory: true,
+            size: 0,
+            modified: DateTime(2026, 10, 9),
+          ),
+        ];
+        final saving = vm.saveAs();
+        await frames(tester);
+        await tester.enterText(nameBox(), 'report');
+
+        await tester.tap(find.text('docs'));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.text('docs'));
+        await frames(tester);
+
+        expect(fileSystem.listed.last, '/home/tester/docs');
+        expect(
+          tester.widget<EditableText>(nameBox()).controller.text,
+          'report',
+          reason: 'XP keeps what you typed while you move between folders',
+        );
+        (vm.modal! as FileRequest).complete(null);
         await saving;
       },
     );

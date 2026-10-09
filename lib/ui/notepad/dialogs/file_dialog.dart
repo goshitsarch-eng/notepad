@@ -110,8 +110,8 @@ class _FileDialogState extends State<FileDialog> {
     unawaited(_load());
   }
 
-  /// Opens [directory] from the list or from the File name box. The name typed to get
-  /// here is cleared, so it is not taken for a file name in the new folder.
+  /// Opens a folder that was named in the File name box. The name typed to get here is
+  /// cleared, so it is not taken for a file name in the new folder.
   void _enter(String directory) {
     _name.clear();
     _navigate(directory);
@@ -126,7 +126,8 @@ class _FileDialogState extends State<FileDialog> {
 
   void _activate(DirectoryEntry entry) {
     if (entry.isDirectory) {
-      _enter(entry.path);
+      // Going into a folder from the list keeps what was typed, as Up and Look in do.
+      _navigate(entry.path);
       // Keep typing in the file name box after entering a folder, as XP does.
       _nameFocus.requestFocus();
       return;

@@ -81,10 +81,10 @@ flutter analyze
 flutter test
 ```
 
-On Linux, `flutter analyze` reports no issues and `flutter test` runs 251 tests (the progress line it prints counts a few setup steps too, so it reads
-higher). Run as root, 2 of them
+On Linux, `flutter analyze` reports no issues and `flutter test` runs 255 tests (the progress line it prints counts a few setup steps too, so it reads
+higher). Run as root, 3 of them
 skip themselves, because they test file permissions and root ignores permissions; run as an ordinary
-user, all 251 run and pass. The 137 tests of 0.1.1 are unchanged. The 114 added in 0.1.2 are in
+user, all 255 run and pass. The 137 tests of 0.1.1 are unchanged. The 118 added in 0.1.2 are in
 `test/ui/audit_*_test.dart`, `test/ui/semantics_test.dart`, `test/data/*_test.dart` (the new ones),
 `test/domain/print_text_test.dart` and `test/config/app_info_test.dart`. Each one names the finding it
 guards. The last one fails when the version in `pubspec.yaml`, the About box, the Flatpak metadata, the
