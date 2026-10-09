@@ -479,4 +479,74 @@ void main() {
       expect(rig.master.text, '$text!');
     });
   });
+
+  group('keys that read the text the box was last built with', () {
+    // Flutter's Up, Down, PageUp and PageDown take the text from the last build of the text
+    // box and write it back with the new selection. When the window has moved since, that
+    // is the old window, and it must not be taken for an edit of the new one.
+    for (final key in [
+      LogicalKeyboardKey.arrowDown,
+      LogicalKeyboardKey.arrowUp,
+      LogicalKeyboardKey.pageDown,
+      LogicalKeyboardKey.pageUp,
+    ]) {
+      testWidgets(
+        '${key.keyLabel} after scrolling away from the caret leaves the document alone',
+        (tester) async {
+          final text = _document(30000);
+          final caret = _offsetOfLine(text, 100);
+          final rig = await _pump(tester, text, caret: caret);
+          await tester.showKeyboard(find.byType(EditableText));
+          _vertical(tester).jumpTo(20000 * 13);
+          await tester.pump();
+          await tester.pump();
+          expect(rig.windowed.caretOutside, isTrue);
+
+          await tester.sendKeyEvent(key);
+          await tester.pump();
+          await tester.pump();
+
+          expect(rig.master.text.length, text.length);
+          expect(rig.master.text == text, isTrue);
+        },
+      );
+    }
+
+    testWidgets('a key pressed before the box has built a moved window', (
+      tester,
+    ) async {
+      final text = _document(30000);
+      final rig = await _pump(tester, text, caret: _offsetOfLine(text, 5));
+      await tester.showKeyboard(find.byType(EditableText));
+      final w = rig.windowed;
+      // What the editor does when it moves the window, and then a key arrives before the
+      // frame that builds the box again.
+      w.moveWindow(w.start, w.end + 6000);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.pump();
+      expect(rig.master.text.length, text.length);
+      expect(rig.master.text == text, isTrue);
+    });
+
+    testWidgets('holding Down for a long time never changes the document', (
+      tester,
+    ) async {
+      final text = _document(30000);
+      final rig = await _pump(tester, text, caret: _offsetOfLine(text, 5));
+      await tester.showKeyboard(find.byType(EditableText));
+      for (var i = 0; i < 400; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await tester.pump();
+        if (rig.master.text.length != text.length) break;
+      }
+      expect(rig.master.text.length, text.length);
+      expect(rig.master.text == text, isTrue);
+      expect(
+        rig.master.selection.extentOffset,
+        greaterThan(_offsetOfLine(text, 100)),
+        reason: 'the key still moves the caret, apart from a press that came too early',
+      );
+    });
+  });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
@@ -11,11 +12,6 @@ import 'package:xp_notepad/ui/notepad/editor/notepad_text_controller.dart';
 /// the whole text out again after every key, so past this size a key press takes tens of
 /// milliseconds and soon much longer.
 const kWindowedDocumentCharacters = 128 * 1024;
-
-/// A document goes back to plain editing when it shrinks below this. It is lower than
-/// [kWindowedDocumentCharacters], so a document near the limit does not switch back and
-/// forth while it is edited.
-const kPlainDocumentCharacters = 64 * 1024;
 
 /// The window of a document that has moved, with the text that left it and entered it. The
 /// editor measures that text to keep the visible lines where they were.
@@ -99,6 +95,14 @@ class WindowedText extends ChangeNotifier {
   bool _undoing = false;
   TextChange? _expected;
   bool _disposed = false;
+
+  /// Texts the window held before it was moved or rebuilt. The text box keeps the text it
+  /// was last built with until the next frame, and Flutter's vertical caret keys (Up,
+  /// Down, PageUp, PageDown) write that text back with a new selection. Such a write is
+  /// the old window, not an edit of the new one, and is undone. The texts are compared by
+  /// identity: an edit makes a new string, while the text box hands back the very string
+  /// it was given.
+  final List<String> _retired = [];
 
   /// Where the window begins in the document, and where it ends.
   int get start => _start;
@@ -284,6 +288,8 @@ class WindowedText extends ChangeNotifier {
   }
 
   void _setView(String text, TextSelection masterSelection) {
+    if (_disposed) return;
+    _retire(view.value.text, replacedBy: text);
     _applying = true;
     try {
       _viewSelection = _project(masterSelection);
@@ -292,6 +298,20 @@ class WindowedText extends ChangeNotifier {
       _applying = false;
     }
   }
+
+  /// Remembers [text], which the text box may still be holding, unless it is not worth
+  /// guarding: the window text that stays, or one too short to tell from an empty box.
+  void _retire(String text, {required String replacedBy}) {
+    if (identical(text, replacedBy) || text.length < 16) return;
+    if (_retired.any((old) => identical(old, text))) return;
+    _retired.add(text);
+    if (_retired.length > _retiredLimit) _retired.removeAt(0);
+  }
+
+  bool _isRetired(String text) => _retired.any((old) => identical(old, text));
+
+  /// Far more than the window can change between two frames.
+  static const _retiredLimit = 24;
 
   TextSelection _project(TextSelection selection) {
     if (!selection.isValid) return const TextSelection.collapsed(offset: 0);
@@ -310,6 +330,11 @@ class WindowedText extends ChangeNotifier {
     if (_applying || _disposed) return;
     final value = view.value;
     if (value.text != _viewText) {
+      if (_isRetired(value.text)) {
+        // The old window, written back by a key before the box was built again.
+        _setView(_viewText, _masterSelection);
+        return;
+      }
       _syncText(value);
     } else {
       _syncSelection(value.selection);
@@ -381,8 +406,13 @@ class WindowedText extends ChangeNotifier {
       _applying = false;
     }
     _trackLongest(inserted);
+    // The document may have become short enough to be edited as a whole, which discards
+    // this window while the change is still being written.
+    if (_disposed) return;
 
-    if (overSelection || newView.length > maxViewCharacters) {
+    if (overSelection ||
+        (newView.length > maxViewCharacters &&
+            _rebuildShrinks(newMaster, caret.extentOffset, newView.length))) {
       _load(caret.extentOffset, forgetWindow: true);
       _generation++;
       _notify();
@@ -554,10 +584,17 @@ class WindowedText extends ChangeNotifier {
 
     final oldEnd = _start + _viewText.length;
     var rebuilt = false;
+    final newViewLength = _viewText.length - removed.length + inserted.length;
     if (change.start >= _start &&
         change.oldEnd <= oldEnd &&
-        _viewText.length - removed.length + inserted.length <=
-            maxViewCharacters) {
+        (newViewLength <= maxViewCharacters ||
+            !_rebuildShrinks(
+              after,
+              value.selection.isValid
+                  ? value.selection.extentOffset
+                  : change.start,
+              newViewLength,
+            ))) {
       _viewText = _viewText.replaceRange(
         change.start - _start,
         change.oldEnd - _start,
@@ -583,6 +620,17 @@ class WindowedText extends ChangeNotifier {
       _setView(_viewText, _masterSelection);
     }
     _notify();
+  }
+
+  /// True when a window rebuilt around [around] would be smaller than one of
+  /// [currentLength] characters. The window holds whole lines, so when the lines around
+  /// the caret are longer than the limit it cannot be made smaller, and rebuilding it
+  /// would only move the text on screen with every key.
+  bool _rebuildShrinks(String text, int around, int currentLength) {
+    final at = around < 0 ? 0 : (around > text.length ? text.length : around);
+    final from = TextScan.lineStartBefore(text, at, marginCharacters);
+    final to = TextScan.lineEndAfter(text, at, marginCharacters);
+    return to - from < currentLength;
   }
 
   void _trackLongest(String inserted) {
@@ -649,12 +697,19 @@ class WindowedText extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  /// Stops following the document at once. The notifiers go a moment later, because this
+  /// can be called from inside a notification of [view]: typing over a selection of the
+  /// whole window leaves the document short enough to be edited as a whole, which is
+  /// decided while the window's own change is still being delivered.
   @override
   void dispose() {
+    if (_disposed) return;
     _disposed = true;
     master.removeListener(_onMasterChanged);
     view.removeListener(_onViewChanged);
-    view.dispose();
-    super.dispose();
+    scheduleMicrotask(() {
+      view.dispose();
+      super.dispose();
+    });
   }
 }

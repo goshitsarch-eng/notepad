@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -353,12 +352,11 @@ class _NotepadScreenState extends State<NotepadScreen> {
     if (openIndex != null) return _handleMenuKey(key, openIndex);
 
     // Ctrl+Alt is how Windows reports AltGr, which types characters on many keyboard
-    // layouts. It must reach the text instead of opening a menu. Windows may also drop
-    // the Ctrl that comes with AltGr, so a key that produced a character there is text
-    // too: an Alt accelerator produces none.
-    if (_altHeld &&
-        !keyboard.isControlPressed &&
-        !_typedACharacterOnWindows(event)) {
+    // layouts. It must reach the text instead of opening a menu. The engine sends a Ctrl
+    // down before the AltGr key and releases it only after AltGr is released, so Ctrl is
+    // held while the character is typed. Whether the key produced a character cannot tell
+    // the two apart: the engine gives Alt+F the character f as well.
+    if (_altHeld && !keyboard.isControlPressed) {
       final letter = _letterOf(key);
       final index = letter == null ? null : _menuIndexFor(letter);
       if (index != null) {
@@ -368,13 +366,6 @@ class _NotepadScreenState extends State<NotepadScreen> {
       }
     }
     return KeyEventResult.ignored;
-  }
-
-  bool _typedACharacterOnWindows(KeyEvent event) {
-    final character = event.character;
-    return defaultTargetPlatform == TargetPlatform.windows &&
-        character != null &&
-        character.isNotEmpty;
   }
 
   KeyEventResult _handleMenuKey(LogicalKeyboardKey key, int openIndex) {

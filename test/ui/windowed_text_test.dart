@@ -647,4 +647,153 @@ void main() {
       );
     });
   });
+
+  group('a line longer than the window may be', () {
+    // The window holds whole lines, so a line of 10,000 characters makes a window bigger
+    // than the 3,000 this one is allowed. Rebuilding it around the caret cannot make it
+    // smaller, and would only move the text on screen with every key.
+    String huge() => '${_document(40)}\n${'x' * 10000}\n${_document(40)}';
+
+    test('does not rebuild the window on every key', () {
+      final text = huge();
+      final inside = _document(40).length + 1 + 5000;
+      final w = _open(text, caret: inside);
+      expect(w.end - w.start, greaterThan(3000));
+      final generation = w.generation;
+
+      var expected = text;
+      var at = inside;
+      for (var i = 0; i < 6; i++) {
+        final view = w.view.text;
+        final local = at - w.start;
+        _userSets(w, view.replaceRange(local, local, 'Q'), local + 1);
+        expected = expected.replaceRange(at, at, 'Q');
+        at++;
+      }
+
+      expect(w.master.text == expected, isTrue);
+      expect(w.generation, generation, reason: 'nothing moved under the user');
+      _expectConsistent(w);
+    });
+
+    test('still rebuilds when the window can get smaller', () {
+      final text = _document(2000);
+      final w = _open(text, caret: _offsetOfLine(text, 1000));
+      final generation = w.generation;
+      // A paste that makes the window bigger than it may be.
+      final view = w.view.text;
+      final pasted = _document(300);
+      final at = view.length ~/ 2;
+      _userSets(w, view.replaceRange(at, at, pasted), at + pasted.length);
+      expect(w.generation, greaterThan(generation));
+      expect(w.end - w.start, lessThanOrEqualTo(3000));
+      _expectConsistent(w);
+    });
+  });
+
+  group('disposal inside a notification', () {
+    test(
+      'a window can be thrown away while its own text box is announcing',
+      () async {
+        final text = _document(12);
+        final w = _open(text);
+        expect(w.end, text.length, reason: 'the window is the whole document');
+        final errors = <FlutterErrorDetails>[];
+        final previous = FlutterError.onError;
+        FlutterError.onError = errors.add;
+        addTearDown(() => FlutterError.onError = previous);
+        // What the view model once did when a typed letter left the document short.
+        w.master.addListener(() {
+          if (w.master.text.length < 10) w.dispose();
+        });
+
+        _userSets(w, 'x', 1);
+        await Future<void>.delayed(Duration.zero);
+        w.teleportTo(0);
+        w.moveWindow(0, 5);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+        expect(w.master.text, 'x');
+      },
+    );
+  });
+
+  group('the text box handing back a window that has been replaced', () {
+    // Flutter's Up, Down, PageUp and PageDown write back the text the box was last built
+    // with, with a new selection. After the window moved, that is the old window.
+    test('after the window moved, the old text is not an edit', () {
+      final text = _document(2000);
+      final w = _open(text, caret: _offsetOfLine(text, 50));
+      final old = w.view.value;
+      w.moveWindow(w.start, w.end + 800);
+      final moved = w.view.text;
+
+      w.view.value = old.copyWith(
+        selection: const TextSelection.collapsed(offset: 40),
+      );
+
+      expect(w.master.text == text, isTrue);
+      expect(
+        w.view.text,
+        moved,
+        reason: 'the box is given the real window again',
+      );
+      expect(w.view.selection.baseOffset, isNot(40));
+      _expectConsistent(w);
+    });
+
+    test('after the window was rebuilt somewhere else', () {
+      final text = _document(2000);
+      final w = _open(text, caret: _offsetOfLine(text, 50));
+      final old = w.view.value;
+      w.teleportTo(_offsetOfLine(text, 1500));
+
+      w.view.value = old.copyWith(
+        selection: const TextSelection.collapsed(offset: 10),
+      );
+
+      expect(w.master.text == text, isTrue);
+      _expectConsistent(w);
+      expect(w.start, greaterThan(_offsetOfLine(text, 1000)));
+    });
+
+    test('after several moves before the box was built again', () {
+      final text = _document(2000);
+      final w = _open(text, caret: _offsetOfLine(text, 50));
+      final built = w.view.value;
+      for (var i = 0; i < 5; i++) {
+        w.moveWindow(w.start, w.end + 400);
+      }
+      w.teleportTo(_offsetOfLine(text, 900));
+
+      w.view.value = built.copyWith(
+        selection: const TextSelection.collapsed(offset: 5),
+      );
+
+      expect(w.master.text == text, isTrue);
+      _expectConsistent(w);
+    });
+
+    test('typing in the window that is current is still an edit', () {
+      final text = _document(2000);
+      final w = _open(text, caret: _offsetOfLine(text, 50));
+      w.moveWindow(w.start, w.end + 800);
+      final at = _offsetOfLine(text, 50) - w.start;
+
+      _userSets(w, w.view.text.replaceRange(at, at, 'Q'), at + 1);
+
+      expect(w.master.text, text.replaceRange(at + w.start, at + w.start, 'Q'));
+      _expectConsistent(w);
+    });
+
+    test('a window text that is short is not guarded', () {
+      final w = _open('abc\ndef');
+      final before = w.view.value;
+      w.teleportTo(0);
+      _userSets(w, 'abc\ndefg', 8);
+      expect(w.master.text, 'abc\ndefg');
+      expect(before.text, 'abc\ndef');
+    });
+  });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xp_notepad/data/encoding/text_codec.dart';
@@ -141,20 +142,35 @@ void main() {
       expect(vm.text.text.length, greaterThan(kWindowedDocumentCharacters));
     });
 
-    test('a document that shrinks goes back to editing as a whole', () async {
-      await open(_document(7000));
+    test('a paste that makes a document large can be taken back', () async {
+      final small = _document(50);
+      await open(small);
+      clipboard = _document(8000);
+      await vm.paste();
       expect(vm.windowed, isNotNull);
-      vm.selectAll();
-      vm.deleteSelection();
-      expect(vm.text.text, '');
-      expect(vm.windowed, isNull);
+      expect(vm.canUndo, isTrue);
+      vm.undo();
+      expect(vm.text.text == small, isTrue);
     });
 
-    test('a document near the limit does not flip back and forth', () async {
+    test('a document that shrinks keeps its window, and the deletion can be undone', () async {
       final text = _document(7000);
       await open(text);
       final window = vm.windowed;
-      // Drop just under the size that starts a window, but above the one that ends it.
+      expect(window, isNotNull);
+      vm.selectAll();
+      vm.deleteSelection();
+      expect(vm.text.text, '');
+      expect(vm.windowed, same(window));
+      vm.undo();
+      expect(vm.text.text == text, isTrue);
+    });
+
+    test('a document near the limit keeps its window', () async {
+      final text = _document(7000);
+      await open(text);
+      final window = vm.windowed;
+      // Drop just under the size that starts a window.
       final cut = text.length - kWindowedDocumentCharacters + 100;
       vm.text.selection = TextSelection(baseOffset: 0, extentOffset: cut);
       vm.deleteSelection();
@@ -328,5 +344,60 @@ void main() {
         expect(vm.isModified, isFalse);
       },
     );
+  });
+
+  group('a document that gets short while it is edited', () {
+    /// The errors Flutter reports while [body] runs; a plain test would not fail on them.
+    Future<List<FlutterErrorDetails>> reported(
+      Future<void> Function() body,
+    ) async {
+      final errors = <FlutterErrorDetails>[];
+      final previous = FlutterError.onError;
+      FlutterError.onError = errors.add;
+      try {
+        await body();
+      } finally {
+        FlutterError.onError = previous;
+      }
+      return errors;
+    }
+
+    test('select all, then typing a letter, works and can be undone', () async {
+      final text = _document(7000);
+      await open(text);
+      final errors = await reported(() async {
+        vm.selectAll();
+        vm.windowed!.view.value = const TextEditingValue(
+          text: 'q',
+          selection: TextSelection.collapsed(offset: 1),
+        );
+        await settle();
+      });
+      expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+      expect(vm.text.text, 'q');
+      expect(vm.windowed, isNotNull);
+      vm.undo();
+      expect(vm.text.text == text, isTrue);
+    });
+
+    test('select all, then Delete in the text box', () async {
+      final text = _document(7000);
+      await open(text);
+      final errors = await reported(() async {
+        vm.selectAll();
+        vm.windowed!.view.value = const TextEditingValue(
+          text: '',
+          selection: TextSelection.collapsed(offset: 0),
+        );
+        await settle();
+      });
+      expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+      expect(vm.text.text, '');
+      vm.windowed!.view.value = const TextEditingValue(
+        text: 'abc',
+        selection: TextSelection.collapsed(offset: 3),
+      );
+      expect(vm.text.text, 'abc');
+    });
   });
 }

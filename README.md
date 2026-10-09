@@ -82,10 +82,10 @@ flutter analyze
 flutter test
 ```
 
-On Linux, `flutter analyze` reports no issues and `flutter test` runs 477 tests. Run as root, 3 of them
+On Linux, `flutter analyze` reports no issues and `flutter test` runs 506 tests. Run as root, 3 of them
 skip themselves, because they test file permissions and root ignores permissions (the progress line then
-ends `+474 ~3`); run as an ordinary user, all 477 run and pass. The 137 tests of 0.1.1 are unchanged.
-The 340 added since are in
+ends `+503 ~3`); run as an ordinary user, all 506 run and pass. The 137 tests of 0.1.1 are unchanged.
+The 369 added since are in
 `test/ui/audit_*_test.dart`, `test/ui/semantics_test.dart`, `test/data/*_test.dart` (the new ones),
 `test/domain/print_text_test.dart`, `test/config/app_info_test.dart` and, for editing large documents,
 the dialog queue, the window menu and the Open dialog's encoding, `test/ui/windowed_*_test.dart`,
@@ -116,7 +116,7 @@ Encoding list, and the Font dialog's Script box is greyed. Regenerate goldens wi
   quick however large the file is (see Large documents).
 - **Files.** Open and Save As in an XP-style dialog. ANSI (Windows-1252), Unicode (UTF-16 LE),
   Unicode big endian and UTF-8, with byte order marks where XP writes them and CRLF line endings
-  on disk. A byte order mark says what a file is. Without one, UTF-16 is recognised by its zero bytes,
+  on disk. A byte order mark says what a file is. Without one, UTF-16 is recognised by its zero bytes (and only when the other bytes look like text, so ASCII with a NUL in it is left alone),
   valid UTF-8 is read as UTF-8 and the rest as ANSI. The Open dialog's Encoding list reads a file as a
   chosen encoding instead, for the files that cannot be told apart, such as UTF-16 Japanese text
   without a mark. Saving text that ANSI cannot hold asks first. Files over 64 MB are refused, and files
@@ -157,7 +157,7 @@ Ctrl+End reach the ends of it, and a key typed while the caret is out of sight s
 | 1 MB | 0.5 s of processor time | 0.01 s |
 | 5 MB | 3 to 6 s, 2.3 GB of memory | 0.03 s, 0.25 GB |
 | 20 MB | not measured (minutes, many gigabytes) | 0.06 s |
-| 60 MB | not measured | 0.12 s |
+| 60 MB | not measured | 0.13 s |
 
 The figures are the processor time of the application's main thread over the idle baseline, from release
 builds of the merged 0.1.2 and of this version under Xvfb, on a four-core virtual machine.
@@ -175,12 +175,13 @@ fixed, and Windows has not been checked:
   the window behind a dialog is hidden. This was checked through Flutter's semantics tree only. For a
   large document the editor's text is the window of lines, so a screen reader is told only those.
 - **Windows is unverified.** The build, the runtime and printing have not been run there. Two things
-  were written for Windows and tested only by simulating its behaviour: the key events of AltGr (a
-  key that typed a character is never taken for a menu accelerator) and a short wait and retry when a
+  were written for Windows and tested only by simulating its behaviour: the key events of AltGr (the
+  engine holds a Ctrl down while it is pressed, and Alt with Ctrl is never taken for a menu accelerator;
+  the order of events was read in the engine's source, not run) and a short wait and retry when a
   virus scanner or indexer holds the file at the moment a save moves it into place.
 - **Limits of large documents.** The window holds whole lines, so a line of many tens of thousands
   of characters is laid out whole and a file made of enormous lines (minified JSON, say) is still slow to
-  edit, in proportion to the length of the line. Each key copies the whole text, which is about 0.12 s
+  edit, in proportion to the length of the line. Each key copies the whole text, which is about 0.13 s
   at 60 MB. With word wrap on, the size and place of the scroll bar's thumb are estimates, because lines
   wrap to different heights; the text on screen stays exactly where it is. The window does not move
   while a mouse button is held down in the text, so a selection that is being dragged is not disturbed,

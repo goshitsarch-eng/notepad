@@ -12,7 +12,9 @@ import 'package:xp_notepad/data/services/printing_service.dart';
 import 'package:xp_notepad/data/services/window_service.dart';
 import 'package:xp_notepad/domain/models/file_encoding.dart';
 import 'package:xp_notepad/domain/models/notepad_settings.dart';
+import 'package:xp_notepad/domain/text/edit_history.dart';
 import 'package:xp_notepad/domain/text/text_metrics.dart';
+import 'package:xp_notepad/domain/text/text_scan.dart';
 import 'package:xp_notepad/domain/text/text_search.dart';
 import 'package:xp_notepad/domain/text/time_date.dart';
 import 'package:xp_notepad/ui/notepad/dialog_requests.dart';
@@ -88,6 +90,7 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
   FileEncoding _encoding = FileEncoding.ansi;
   bool _modified = false;
   String _lastText = '';
+  TextSelection _lastSelection = const TextSelection.collapsed(offset: 0);
   bool _active = true;
   bool _maximized = false;
   bool _exiting = false;
@@ -599,30 +602,48 @@ class NotepadViewModel extends ChangeNotifier implements WindowEventHandler {
 
   void _onTextChanged() {
     final current = text.text;
+    final selectionBefore = _lastSelection;
+    _lastSelection = text.selection;
     if (current == _lastText) return;
+    final previous = _lastText;
     _lastText = current;
     var changed = false;
     if (!_modified) {
       _modified = true;
       changed = true;
     }
-    changed = _adjustEditingMode(current.length) || changed;
+    changed = _startWindowIfLarge(previous, selectionBefore) || changed;
     if (changed) notifyListeners();
   }
 
   /// A document that grows past the size where the editor slows down, by a paste for
-  /// example, is edited through a window from then on, and one that shrinks back is edited
-  /// as a whole again. Returns true when the editor has to be built again.
-  bool _adjustEditingMode(int length) {
-    final windowed = _windowed;
-    if (windowed == null && length >= kWindowedDocumentCharacters) {
-      _windowed = WindowedText(master: text);
-    } else if (windowed != null && length < kPlainDocumentCharacters) {
-      windowed.dispose();
-      _windowed = null;
-    } else {
-      return false;
+  /// example, is edited through a window from then on, until another document replaces it.
+  /// It stays that way if it shrinks again: leaving the window would have to happen in the
+  /// middle of an edit, and would lose the undo list. The edit that made the document
+  /// large is the first entry of the window's undo list, so it can be taken back.
+  /// Returns true when the editor has to be built again.
+  bool _startWindowIfLarge(String previous, TextSelection before) {
+    if (_windowed != null) return false;
+    final current = text.text;
+    if (current.length < kWindowedDocumentCharacters) return false;
+    final history = EditHistory();
+    final change = TextScan.diff(previous, current);
+    if (!change.isEmpty &&
+        change.removedLength + change.insertedLength <= history.maxCharacters) {
+      final after = text.selection;
+      history.record(
+        offset: change.start,
+        removed: previous.substring(change.start, change.oldEnd),
+        inserted: current.substring(change.start, change.newEnd),
+        before: before.isValid
+            ? SelectionOffsets(before.baseOffset, before.extentOffset)
+            : SelectionOffsets(change.start, change.start),
+        after: after.isValid
+            ? SelectionOffsets(after.baseOffset, after.extentOffset)
+            : SelectionOffsets(change.newEnd, change.newEnd),
+      );
     }
+    _windowed = WindowedText(master: text, history: history);
     _editorGeneration++;
     return true;
   }

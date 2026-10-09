@@ -170,6 +170,53 @@ void main() {
     });
   });
 
+  group('detectEncoding leaves NUL-terminated text alone', () {
+    // ASCII with a NUL here and there has zero bytes at one kind of place too. In UTF-16
+    // text those zeros are the high bytes of letters; here the other bytes at the same
+    // places are letters, which no UTF-16 text of an alphabetic script has.
+    final samples = <String, String>{
+      'one word and its NUL': 'hello\u0000',
+      'a sentence and its NUL': 'Hello, world!\u0000',
+      'paths from find -print0': 'a/b\u0000c/d\u0000',
+      'two settings': 'key=1\u0000k2=2\u0000',
+      'four bytes': 'ab\u0000c',
+      'twenty bytes': 'twenty bytes of text\u0000',
+      'a long list of names': List.generate(
+        60,
+        (i) => 'file$i.txt',
+      ).join('\u0000'),
+    };
+    samples.forEach((name, text) {
+      test(name, () {
+        final bytes = Uint8List.fromList(text.codeUnits);
+        expect(detectEncoding(bytes), FileEncoding.ansi);
+        expect(readText(bytes).text, text);
+      });
+    });
+  });
+
+  group('detectEncoding still finds UTF-16 text of other kinds', () {
+    for (final entry in <String, String>{
+      'Greek': 'Καλημέρα κόσμε, αυτό είναι ένα κείμενο.\n',
+      'Hebrew': 'שלום עולם, זה טקסט לדוגמה.\n',
+      'Hindi': 'नमस्ते दुनिया, यह एक परीक्षण है।\n',
+      'curly quotes, dashes and the euro sign':
+          '\u201cQuoted\u201d \u2014 it costs \u20ac5.\n',
+      'an emoji among words': 'Fine work \u{1F600} on this one, thank you.\n',
+    }.entries) {
+      test(entry.key, () {
+        expect(
+          detectEncoding(_utf16(entry.value, bigEndian: false)),
+          FileEncoding.unicode,
+        );
+        expect(
+          detectEncoding(_utf16(entry.value, bigEndian: true)),
+          FileEncoding.unicodeBigEndian,
+        );
+      });
+    }
+  });
+
   group('readText with a chosen encoding', () {
     test('reads a file with no byte order mark as the encoding asked for', () {
       // Japanese text in UTF-16 has hardly any zero bytes, so it cannot be recognised.

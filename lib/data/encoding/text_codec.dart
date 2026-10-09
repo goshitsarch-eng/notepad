@@ -67,27 +67,53 @@ const _utf16SampleBytes = 4096;
 /// the zero bytes sit at every other place, all odd (little endian) or all even (big
 /// endian). Other text files have no zero bytes at all, and UTF-32 and binary data have
 /// them at both kinds of place, so a file that fits is UTF-16 with very little room for
-/// doubt. A file that holds mostly Chinese, Japanese or Korean has hardly any zero bytes
-/// and cannot be told this way. The user chooses its encoding in the Open dialog.
+/// doubt. The other bytes at those places are the high bytes of the other characters, and
+/// in text of an alphabetic script they are small: Latin, Greek, Cyrillic, Hebrew, Arabic
+/// and the Indian scripts all lie below U+2C00, together with punctuation and symbols. A
+/// file whose bytes there are letters or digits is ASCII with a NUL here and there, such
+/// as the output of `find -print0`, and is left alone. A file that holds mostly Chinese,
+/// Japanese or Korean has hardly any zero bytes and cannot be told this way either. The
+/// user chooses its encoding in the Open dialog.
 FileEncoding? _guessUtf16WithoutMark(Uint8List bytes) {
   final length = math.min(bytes.length, _utf16SampleBytes) & ~1;
   if (length < 2) return null;
-  var evenZeros = 0;
-  var oddZeros = 0;
+  // For each byte order: zeros where the high bytes are, zeros where they are not, and
+  // high bytes that no alphabetic script has.
+  var littleHigh = 0, littleLow = 0, littleBad = 0;
+  var bigHigh = 0, bigLow = 0, bigBad = 0;
   for (var i = 0; i < length; i += 2) {
-    if (bytes[i] == 0) evenZeros++;
-    if (bytes[i + 1] == 0) oddZeros++;
+    final first = bytes[i];
+    final second = bytes[i + 1];
+    // Little endian: the second byte is the high one.
+    if (second == 0) littleHigh++;
+    if (first == 0 && !_isLowSurrogateHighByte(second)) littleLow++;
+    if (!_isPlausibleHighByte(second)) littleBad++;
+    // Big endian: the first byte is the high one.
+    if (first == 0) bigHigh++;
+    if (second == 0 && !_isLowSurrogateHighByte(first)) bigLow++;
+    if (!_isPlausibleHighByte(first)) bigBad++;
   }
   final pairs = length ~/ 2;
   final stray = pairs ~/ 100;
-  final little = oddZeros * 10 >= pairs && evenZeros <= stray;
-  final big = evenZeros * 10 >= pairs && oddZeros <= stray;
+  final little =
+      littleHigh * 10 >= pairs && littleLow <= stray && littleBad <= stray;
+  final big = bigHigh * 10 >= pairs && bigLow <= stray && bigBad <= stray;
   if (little == big) return null;
   final cut = bytes.length > length;
   return _looksLikeUtf16Text(bytes, length, bigEndian: big, cut: cut)
       ? (big ? FileEncoding.unicodeBigEndian : FileEncoding.unicode)
       : null;
 }
+
+/// The high byte of a UTF-16 unit in text of an alphabetic script, with punctuation and
+/// symbols: zero, up to 0x2B, or a surrogate half, which is how characters beyond U+FFFF
+/// such as emoji are written.
+bool _isPlausibleHighByte(int byte) =>
+    byte <= 0x2B || (byte >= 0xD8 && byte <= 0xDF);
+
+/// A low surrogate has a high byte of 0xDC to 0xDF, and its low byte can be zero, as in
+/// U+1F600, which is 0xD83D 0xDE00. That zero does not say the file is not UTF-16.
+bool _isLowSurrogateHighByte(int byte) => byte >= 0xDC && byte <= 0xDF;
 
 /// True when the first [length] bytes read as UTF-16 text: surrogates come in pairs, and
 /// the only control characters are the ones a text file has. [cut] is set when the sample

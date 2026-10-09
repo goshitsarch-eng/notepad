@@ -221,19 +221,29 @@ void main() {
     },
   );
 
-  testWidgets('a document that shrinks goes back to a plain editor', (
+  testWidgets('a document that shrinks keeps its window and goes on working', (
     tester,
   ) async {
     final vm = await pumpNotepad(tester, _document(30000));
-    expect(vm.windowed, isNotNull);
+    final window = vm.windowed;
+    expect(window, isNotNull);
     vm.selectAll();
     vm.deleteSelection();
     await tester.pump();
     await tester.pump();
 
-    expect(vm.windowed, isNull);
+    expect(vm.windowed, same(window));
     final box = tester.widget<EditableText>(find.byType(EditableText));
-    expect(box.controller, same(vm.text));
+    expect(box.controller, same(window!.view));
+    await tester.showKeyboard(find.byType(EditableText));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'abc',
+        selection: TextSelection.collapsed(offset: 3),
+      ),
+    );
+    await tester.pump();
+    expect(vm.text.text, 'abc');
     expect(tester.takeException(), isNull);
   });
 
