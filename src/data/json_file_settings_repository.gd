@@ -57,9 +57,11 @@ func load_settings() -> NotepadSettings:
 	# A file that is not valid UTF-8 is damaged, as one that is not valid JSON is.
 	if not TextCodec._is_valid_utf8(bytes):
 		return NotepadSettings.new()
-	var decoded: Variant = JSON.parse_string(bytes.get_string_from_utf8())
-	if decoded is Dictionary:
-		return NotepadSettings.from_json(decoded)
+	# JSON.parse reports a damaged file as an error code, where parse_string logs an engine
+	# error for it.
+	var parser := JSON.new()
+	if parser.parse(bytes.get_string_from_utf8()) == OK and parser.data is Dictionary:
+		return NotepadSettings.from_json(parser.data)
 	# A damaged file is replaced by defaults on the next save.
 	return NotepadSettings.new()
 

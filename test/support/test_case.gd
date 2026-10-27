@@ -106,6 +106,19 @@ func assert_bytes(actual: PackedByteArray, expected: Array, message: String = ""
 	return true
 
 
+## The dialog the view model has open, which must be a [param type] (such as
+## DialogRequests.MessageRequest). Fails the test and returns null when it is not.
+func modal_of(vm: NotepadViewModel, type: Variant) -> Variant:
+	var request: Variant = vm.modal()
+	if request == null:
+		fail("expected a %s to be open, but no dialog is" % type.get_global_name() if type.has_method("get_global_name") else "expected a dialog to be open, but none is")
+		return null
+	if not is_instance_of(request, type):
+		fail("expected another kind of dialog, got %s" % request)
+		return null
+	return request
+
+
 # ---- Waiting ----
 
 func wait_frames(count: int = 1) -> void:

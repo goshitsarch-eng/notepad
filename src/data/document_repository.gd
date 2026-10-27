@@ -95,7 +95,17 @@ func _describe_size(bytes: int) -> String:
 func _is_not_regular_file(path: String) -> bool:
 	if is_windows:
 		return false
-	return OS.execute("sh", ["-c", "test -p \"$1\" || test -S \"$1\"", "sh", path]) == 0
+	# execute_with_pipe, not OS.execute: in Godot 4.7 OS.execute hands its arguments to a
+	# shell inside double quotes, so a `$` or a quote in a file name would be expanded, or
+	# run as a command, and the `$1` below would be expanded before this script saw it.
+	var started := OS.execute_with_pipe(
+		"sh", ["-c", "test -p \"$1\" || test -S \"$1\"", "sh", path], false)
+	if started.is_empty():
+		return false
+	var process_id: int = started["pid"]
+	while OS.is_process_running(process_id):
+		OS.delay_usec(500)
+	return OS.get_process_exit_code(process_id) == 0
 
 
 ## Runs [param work] on a worker thread and waits for it without blocking the window.

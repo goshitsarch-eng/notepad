@@ -27,7 +27,7 @@ func directory_exists(path: String) -> bool:
 func list_directory(directory: String, filter: FileTypeFilter) -> Result:
 	var access := DirAccess.open(directory)
 	if access == null:
-		return Result.failure(FileError.from_godot(DirAccess.get_open_error(), directory))
+		return Result.failure(_open_failure(directory, DirAccess.get_open_error()))
 	access.include_hidden = false
 	access.include_navigational = false
 	var listing_error := access.list_dir_begin()
@@ -76,6 +76,19 @@ func list_directory(directory: String, filter: FileTypeFilter) -> Result:
 	if first_failure != null and failures == examined:
 		return Result.failure(first_failure)
 	return Result.success(_sorted(folders) + _sorted(files))
+
+
+## Why a folder could not be opened. DirAccess.open answers ERR_INVALID_PARAMETER for every
+## cause, so the cause is looked up: a folder that is there but cannot be opened is a matter
+## of permission, a file is not a folder, and anything else is not found.
+static func _open_failure(directory: String, code: int) -> FileError:
+	if DirAccess.dir_exists_absolute(directory):
+		return FileError.from_godot(ERR_FILE_NO_PERMISSION, directory)
+	if FileAccess.file_exists(directory):
+		return FileError.make("This is not a folder", directory)
+	if code == ERR_INVALID_PARAMETER:
+		return FileError.from_godot(ERR_FILE_NOT_FOUND, directory)
+	return FileError.from_godot(code, directory)
 
 
 ## Sorts on a lower-cased name made once per entry, not once per comparison.

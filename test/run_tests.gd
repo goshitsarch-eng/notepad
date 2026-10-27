@@ -1,20 +1,29 @@
 extends SceneTree
 ## Runs every test file under res://test, or the ones chosen on the command line:
 ##   godot --headless --path . -s test/run_tests.gd -- [--filter=text] [--file=name] [--list]
-## --filter keeps the tests whose "file:test" name contains the text; --file keeps one file.
+## --filter keeps the tests whose "file:test" name contains the text, --skip leaves those
+## out, and --file keeps one file.
 ## The exit code is 1 when a test failed, and 0 when all passed.
 
 var _filter := ""
 var _only_file := ""
+var _skip := ""
 var _list_only := false
 
 
 func _initialize() -> void:
+	# The window the app runs in. A headless window is 64 by 64 pixels whatever is asked, so
+	# the content is given the size of the app's window and scaled to it.
+	root.content_scale_size = Vector2i(600, 404)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_IGNORE
 	for argument in OS.get_cmdline_user_args():
 		if argument.begins_with("--filter="):
 			_filter = argument.substr(9)
 		elif argument.begins_with("--file="):
 			_only_file = argument.substr(7)
+		elif argument.begins_with("--skip="):
+			_skip = argument.substr(7)
 		elif argument == "--list":
 			_list_only = true
 	_run()
@@ -45,6 +54,8 @@ func _run() -> void:
 		for test_name in tests:
 			var full_name := "%s:%s" % [file_name, test_name]
 			if not _filter.is_empty() and not full_name.contains(_filter):
+				continue
+			if not _skip.is_empty() and full_name.contains(_skip):
 				continue
 			if _list_only:
 				print(full_name)

@@ -6,15 +6,10 @@ extends TestCase
 func test_every_script_loads() -> void:
 	var broken: Array[String] = []
 	for path in _scripts("res://src"):
-		var script := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
-		if script == null or not (script is GDScript) or not (script as GDScript).can_instantiate() and not _is_abstract(script):
+		var script := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as GDScript
+		if script == null or not script.can_instantiate():
 			broken.append(path)
 	assert_eq(broken, [], "scripts that do not compile")
-
-
-func _is_abstract(script: Variant) -> bool:
-	# A script of static helpers with no instance members still compiles.
-	return script is GDScript
 
 
 func _scripts(folder: String) -> Array[String]:
