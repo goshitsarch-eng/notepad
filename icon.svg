@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>XP Notepad</title>
+  <defs>
+    <linearGradient id="title" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0997FF"/>
+      <stop offset="0.35" stop-color="#0066FF"/>
+      <stop offset="0.7" stop-color="#0053EE"/>
+      <stop offset="1" stop-color="#003DD7"/>
+    </linearGradient>
+    <linearGradient id="menu" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6F6F2"/>
+      <stop offset="1" stop-color="#ECEBE5"/>
+    </linearGradient>
+    <linearGradient id="button" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5C9BFF"/>
+      <stop offset="1" stop-color="#1F57E8"/>
+    </linearGradient>
+    <linearGradient id="close" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F08A6B"/>
+      <stop offset="1" stop-color="#C2401F"/>
+    </linearGradient>
+  </defs>
+
+  <!-- window frame -->
+  <path d="M24 52 Q24 40 36 40 H220 Q232 40 232 52 V218 Q232 224 226 224 H30 Q24 224 24 218 Z"
+        fill="#0831D9" stroke="#001EA1" stroke-width="3"/>
+
+  <!-- title bar -->
+  <path d="M24 52 Q24 40 36 40 H220 Q232 40 232 52 V80 H24 Z" fill="url(#title)"/>
+  <!-- small page in the title bar -->
+  <rect x="33" y="47" width="12" height="16" rx="1.5" fill="#FFFFFF"/>
+  <path d="M36 52 H42 M36 56 H42 M36 60 H42" stroke="#0053EE" stroke-width="1.6"/>
+  <!-- title text, drawn as a bar so the icon does not depend on fonts -->
+  <rect x="51" y="52" width="72" height="9" rx="4.5" fill="#FFFFFF" opacity="0.95"/>
+
+  <!-- caption buttons -->
+  <rect x="160" y="47" width="18" height="16" rx="3" fill="url(#button)" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M166 60 H172" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <rect x="181" y="47" width="18" height="16" rx="3" fill="url(#button)" stroke="#FFFFFF" stroke-width="1.5"/>
+  <rect x="186" y="51" width="8" height="6" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <rect x="202" y="47" width="22" height="16" rx="3" fill="url(#close)" stroke="#FFFFFF" stroke-width="1.5"/>
+  <path d="M208 51 L218 59 M218 51 L208 59" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- menu bar -->
+  <rect x="24" y="80" width="208" height="16" fill="url(#menu)"/>
+  <rect x="33" y="86" width="12" height="3" rx="1.5" fill="#3A4250"/>
+  <rect x="51" y="86" width="12" height="3" rx="1.5" fill="#3A4250"/>
+  <rect x="69" y="86" width="18" height="3" rx="1.5" fill="#3A4250"/>
+  <line x1="24" y1="96" x2="232" y2="96" stroke="#D8D0C4" stroke-width="1.5"/>
+
+  <!-- editor area -->
+  <rect x="30" y="100" width="196" height="118" fill="#FFFFFF" stroke="#8CA5E4" stroke-width="1.5"/>
+  <path d="M42 120 H170 M42 138 H192 M42 156 H150" stroke="#4B5563" stroke-width="7" stroke-linecap="round"/>
+  <!-- text caret -->
+  <rect x="156" y="149" width="3.5" height="14" fill="#0053EE"/>
+</svg>
