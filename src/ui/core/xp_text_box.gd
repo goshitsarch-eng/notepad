@@ -12,6 +12,9 @@ func _init(allowed: String = "", box_width: float = 0.0) -> void:
 	allowed_characters = allowed
 	custom_minimum_size = Vector2(box_width, XpMetrics.FIELD_HEIGHT)
 	context_menu_enabled = false
+	# Enter submits a dialog's box, and the box must go on taking keys: the engine would
+	# otherwise leave edit mode on Enter and ignore typing until it was clicked again.
+	keep_editing_on_text_submit = true
 	caret_blink = true
 	select_all_on_focus = false
 	deselect_on_focus_loss_enabled = false

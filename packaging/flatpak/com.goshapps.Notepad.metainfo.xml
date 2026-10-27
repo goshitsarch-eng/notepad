@@ -8,7 +8,7 @@
   <description>
     <p>
       XP Notepad is an unofficial recreation of the classic Windows XP Notepad, drawn
-      entirely in Flutter. It opens, edits and saves plain text files, with Find, Replace,
+      entirely in the Godot engine. It opens, edits and saves plain text files, with Find, Replace,
       Go To, Time and Date, word wrap, font choice, and light and dark modes.
     </p>
     <p>
@@ -24,6 +24,7 @@
   </developer>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.0" date="2026-10-27"/>
     <release version="0.1.2" date="2026-10-09"/>
     <release version="0.1.1" date="2026-10-07"/>
     <release version="0.1.0" date="2026-10-07"/>

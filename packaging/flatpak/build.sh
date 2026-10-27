@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
-# Builds a single-file Flatpak bundle from a Flutter Linux release bundle.
+# Builds a single-file Flatpak bundle from the Godot Linux export.
 #
-# Usage: packaging/flatpak/build.sh <bundle-dir> <version> <arch> <output-dir>
-#   bundle-dir  build/linux/<arch>/release/bundle, from `flutter build linux --release`
-#   version     the app version, for example 0.1.0
+# Usage: packaging/flatpak/build.sh <executable> <version> <arch> <output-dir>
+#   executable  the exported xp_notepad file, from `godot --export-release "Linux x86_64"`
+#   version     the app version, for example 0.2.0
 #   arch        x64 or arm64, used in the file name
 #   output-dir  receives xp-notepad-<version>-<arch>.flatpak
 #
-# The build runs in a scratch folder, so nothing in the repository changes. The GNOME
-# runtime and SDK come from Flathub and must be built for the host architecture.
+# The build runs in a scratch folder, so nothing in the repository changes. The
+# freedesktop runtime and SDK come from Flathub and must be built for the host architecture.
 set -euo pipefail
 
 if [ "$#" -ne 4 ]; then
-  echo "usage: $0 <bundle-dir> <version> <arch> <output-dir>" >&2
+  echo "usage: $0 <executable> <version> <arch> <output-dir>" >&2
   exit 2
 fi
 
-bundle_dir=$(realpath "$1")
+executable=$(realpath "$1")
 version=$2
 arch=$3
 output_dir=$(realpath -m "$4")
 here=$(cd "$(dirname "$0")" && pwd)
-gnome_version=51
+runtime_version=25.08
 flathub_repo=https://dl.flathub.org/repo/
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
-cp -a "$bundle_dir" "$work/bundle"
+cp "$executable" "$work/xp_notepad"
 cp "$here/com.goshapps.Notepad.yml" \
    "$here/com.goshapps.Notepad.desktop" \
    "$here/com.goshapps.Notepad.metainfo.xml" \
@@ -36,7 +36,7 @@ cp "$here/com.goshapps.Notepad.yml" \
 
 flatpak remote-add --user --if-not-exists flathub "${flathub_repo}flathub.flatpakrepo"
 flatpak install --user --noninteractive flathub \
-  "org.gnome.Platform//${gnome_version}" "org.gnome.Sdk//${gnome_version}"
+  "org.freedesktop.Platform//${runtime_version}" "org.freedesktop.Sdk//${runtime_version}"
 
 # The state directory must be on the same filesystem as the build folder. flatpak-builder's
 # default, .flatpak-builder in the current folder, would put files in the repository.

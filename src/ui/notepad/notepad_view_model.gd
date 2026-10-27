@@ -102,7 +102,7 @@ func window_title() -> String:
 
 
 func is_modified() -> bool:
-	if not _modified and text.get_version() != _clean_version:
+	if not _modified and text.document_version() != _clean_version:
 		_modified = true
 	return _modified
 
@@ -184,7 +184,7 @@ func encoding() -> int:
 
 
 func has_selection() -> bool:
-	return text.has_selection()
+	return text.has_document_selection()
 
 
 func has_text() -> bool:
@@ -192,16 +192,13 @@ func has_text() -> bool:
 
 
 func can_undo() -> bool:
-	return text.has_undo()
+	return text.can_undo_edit()
 
 
 ## The caret's 1-based line and column, as a Vector2i. The column counts UTF-16 units, as the
 ## status bar of XP Notepad does.
 func caret_position() -> Vector2i:
-	# While the text is being replaced the caret can briefly name a line that is gone.
-	var line := clampi(text.get_caret_line(), 0, text.get_line_count() - 1)
-	var prefix := text.get_line(line).substr(0, text.get_caret_column())
-	return Vector2i(line + 1, TextMetrics.utf16_length(prefix) + 1)
+	return Vector2i(text.caret_document_line() + 1, TextMetrics.utf16_length(text.caret_prefix()) + 1)
 
 
 func status_text() -> String:
@@ -218,13 +215,13 @@ func new_document() -> void:
 
 
 func open_document() -> void:
-	var asked_version := text.get_version()
+	var asked_version := text.document_version()
 	if not await _confirm_discard_changes():
 		return
 	# The user has just agreed to lose these edits, so the load does not ask again. Text
 	# typed since the question was asked, such as while the Yes answer was still saving, is
 	# different text and was never agreed to, so it is left to ask.
-	var agreed := text.get_version() == asked_version
+	var agreed := text.document_version() == asked_version
 	var request := DialogRequests.FileRequest.new(
 		DialogRequests.FileDialogMode.OPEN, _start_directory(), _encoding)
 	var choice: DialogRequests.FileChoice = await _show_modal(request)
@@ -268,7 +265,7 @@ func edit_page_setup() -> void:
 
 func print_document() -> void:
 	var result: Result = await printing.print_document(
-		text.get_text(), file_name(), _settings.page_setup)
+		text.document_text(), file_name(), _settings.page_setup)
 	if not result.ok:
 		await _message(
 			"Notepad", "Notepad cannot print the document.",
@@ -297,7 +294,7 @@ func request_exit() -> void:
 
 func undo() -> void:
 	if can_undo():
-		text.undo()
+		text.undo_edit()
 
 
 func cut() -> void:
@@ -318,7 +315,7 @@ func delete_selection() -> void:
 
 
 func select_all() -> void:
-	text.select_all()
+	text.select_all_document()
 
 
 func insert_time_date() -> void:
@@ -342,7 +339,7 @@ func refresh_clipboard() -> void:
 
 func show_find(replace: bool) -> void:
 	if has_selection():
-		var selected := text.get_selected_text()
+		var selected := text.selected_document_text()
 		if not selected.contains("\n"):
 			_last_search = _last_search.copy_with({"query": selected})
 	_find = DialogRequests.FindState.new(replace)
@@ -365,7 +362,7 @@ func focus_find() -> void:
 ## Selects the next match from the caret. Returns false and says so when nothing matches.
 func find_next(options: SearchOptions) -> bool:
 	_last_search = options
-	var full := text.get_text()
+	var full := text.document_text()
 	var selection := text.selection_offsets(full)
 	var from := selection.y if options.forward else selection.x
 	var found := TextSearch.find(full, options, from)
@@ -384,7 +381,7 @@ func repeat_find() -> void:
 func replace_current(options: SearchOptions, replacement: String) -> bool:
 	_last_search = options
 	if has_selection():
-		var selected := text.get_selected_text()
+		var selected := text.selected_document_text()
 		var exact := TextSearch.find(selected, options.copy_with({"forward": true}), 0)
 		if exact != null and exact.start == 0 and exact.end == selected.length():
 			text.replace_selection(replacement)
@@ -394,18 +391,11 @@ func replace_current(options: SearchOptions, replacement: String) -> bool:
 ## Replace All. Reports when nothing matched, as XP does.
 func replace_all_matches(options: SearchOptions, replacement: String) -> bool:
 	_last_search = options
-	var result := TextSearch.replace_all(text.get_text(), options, replacement)
+	var result := TextSearch.replace_all(text.document_text(), options, replacement)
 	if result.count == 0:
 		_say_cannot_find(options.query)
 		return false
-	text.begin_complex_operation()
-	text.select_all()
-	text.replace_selection(result.text)
-	text.set_caret_line(0)
-	text.set_caret_column(0)
-	text.deselect()
-	text.end_complex_operation()
-	text.adjust_viewport_to_caret()
+	text.replace_document(result.text)
 	return true
 
 
@@ -416,12 +406,7 @@ func show_go_to() -> void:
 
 
 func go_to_line(line: int) -> void:
-	var lines := text.get_line_count()
-	var target := clampi(line, 1, lines)
-	text.deselect()
-	text.set_caret_line(target - 1)
-	text.set_caret_column(0)
-	text.adjust_viewport_to_caret()
+	text.go_to_document_line(line)
 
 
 func _say_cannot_find(query: String) -> void:
@@ -620,7 +605,7 @@ func _set_document(content: String, new_path: String, new_encoding: int) -> void
 	_path = new_path
 	_encoding = new_encoding
 	text.load_document(content)
-	_clean_version = text.get_version()
+	_clean_version = text.document_version()
 	_modified = false
 	_sync_title()
 	changed.emit()
@@ -645,7 +630,7 @@ func _open_path(
 		return
 	if result.ok:
 		# Text typed while the file was read is not in the file. Ask before it is replaced.
-		var agreed := discard_agreed_at >= 0 and text.get_version() == discard_agreed_at
+		var agreed := discard_agreed_at >= 0 and text.document_version() == discard_agreed_at
 		var wanted := func() -> bool: return request == _document_request
 		if not agreed and not await _confirm_discard_changes(wanted):
 			return
@@ -675,7 +660,7 @@ func _open_path(
 
 func _write_to(file_path: String, new_encoding: int) -> bool:
 	# XP warns before ANSI silently replaces characters Windows-1252 cannot hold.
-	if new_encoding == FileEncoding.ANSI and not TextCodec.can_encode_ansi(text.get_text()):
+	if new_encoding == FileEncoding.ANSI and not TextCodec.can_encode_ansi(text.document_text()):
 		var answer: Variant = await _message(
 			"Notepad",
 			"%s\nThis file contains Unicode characters which will be lost if\n"
@@ -691,8 +676,8 @@ func _write_to(file_path: String, new_encoding: int) -> bool:
 	if _saving:
 		return false
 	_saving = true
-	var saved_version := text.get_version()
-	var result: Result = await documents.write(file_path, text.get_text(), new_encoding)
+	var saved_version := text.document_version()
+	var result: Result = await documents.write(file_path, text.document_text(), new_encoding)
 	_saving = false
 	if not result.ok:
 		var reason := FileError.describe(result.error)
@@ -707,7 +692,7 @@ func _write_to(file_path: String, new_encoding: int) -> bool:
 	_encoding = new_encoding
 	# Typing during the save is not in the file, so the document stays modified.
 	_clean_version = saved_version
-	_modified = text.get_version() != saved_version
+	_modified = text.document_version() != saved_version
 	_settings = _settings.copy_with({"last_directory": file_path.get_base_dir()})
 	_persist_settings()
 	_sync_title()

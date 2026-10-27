@@ -29,7 +29,8 @@ func read(path: String, encoding: int = FileEncoding.DETECT) -> Result:
 	if read_failures.has(path):
 		return Result.failure(read_failures[path])
 	if not files.has(path):
-		return Result.failure(FileError.make("missing %s" % path, path))
+		# No reason is given, as for the Dart fake, so the view model words it as a missing file.
+		return Result.failure(FileError.make("", path))
 	return Result.success(TextCodec.read_text(files[path], encoding))
 
 

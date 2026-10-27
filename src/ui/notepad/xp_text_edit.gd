@@ -1,16 +1,30 @@
 class_name XpTextEdit
 extends TextEdit
 ## The XP edit control, on Godot's TextEdit, which does the editing, undo, caret, selection,
-## scrolling and wrapping, and copes with documents of tens of megabytes. This adds what is
-## particular to Notepad: Tab types a tab, Insert does not switch to overtype, text is pasted
-## with LF line ends, and selected text is drawn in white over the blue highlight.
+## scrolling and wrapping. This adds what is particular to Notepad: Tab types a tab, Insert does
+## not switch to overtype, text is pasted with LF line ends, and selected text is drawn in white
+## over the blue highlight.
+##
+## A document of 128 thousand characters or more is edited through a window of its lines (see
+## [LargeDocument]), because TextEdit shapes every line it holds. Everything outside this class
+## asks the document methods below, which answer for the whole document either way.
 
 ## F5 was pressed in the text.
 signal time_date_requested
+## The document is shown through a window now, or no longer is.
+signal windowed_changed(active: bool)
+## The window moved, the scroll position changed or the document changed size, so a scroll bar of
+## the whole document should be read again.
+signal document_changed
+
+## A document of at least this many characters is edited through a window.
+const LARGE_DOCUMENT_CHARACTERS := 128 * 1024
 
 const _PAD_LEFT := 2.0
 const _PAD_TOP := 1.0
 const _PAD_RIGHT := 2.0
+
+var _large: LargeDocument = null
 
 
 func _init() -> void:
@@ -32,6 +46,8 @@ func _init() -> void:
 	# The engine runs its own handling of a key after this signal and skips it when the event
 	# is marked as handled here, which is how the keys below are taken over.
 	gui_input.connect(_intercept)
+	lines_edited_from.connect(_on_lines_edited)
+	get_v_scroll_bar().value_changed.connect(_on_scrolled)
 
 
 ## Sets the font and the wrapping, and the colours of the current palette.
@@ -75,6 +91,9 @@ func xp_theme_changed() -> void:
 # ---- Keys that are not the engine's own ----
 
 func _intercept(event: InputEvent) -> void:
+	if _large != null and _intercept_windowed(event):
+		accept_event()
+		return
 	if event is InputEventKey and event.pressed:
 		var key := event as InputEventKey
 		var command := key.ctrl_pressed or key.meta_pressed
@@ -87,7 +106,7 @@ func _intercept(event: InputEvent) -> void:
 					return
 			KEY_BACKSPACE:
 				if key.alt_pressed and not command and not key.shift_pressed:
-					undo()
+					undo_edit()
 					accept_event()
 					return
 			KEY_INSERT:
@@ -120,10 +139,222 @@ func _intercept(event: InputEvent) -> void:
 					return
 
 
-# ---- Editing ----
+## The keys and clicks that a window of the document must see before the control does. Returns
+## true when it took the event.
+func _intercept_windowed(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		if event.pressed:
+			# A click puts the caret where it is, and ends any selection bigger than the window.
+			_large.virtual_caret = null
+			_large.clear_wide()
+		return false
+	if not (event is InputEventKey) or not event.pressed:
+		return false
+	var key := event as InputEventKey
+	var command := key.ctrl_pressed or key.meta_pressed
+	if command and not key.alt_pressed:
+		match key.keycode:
+			KEY_A:
+				_large.select_all()
+				return true
+			KEY_Z:
+				undo_edit()
+				return true
+			KEY_HOME, KEY_END:
+				# The control moves only within its window, so the ends of the document are
+				# reached here.
+				_go_to_edge(key.keycode == KEY_END, key.shift_pressed)
+				return true
+			KEY_C, KEY_INSERT, KEY_X:
+				return false
+	if key.keycode in [KEY_CTRL, KEY_SHIFT, KEY_ALT, KEY_META, KEY_CAPSLOCK, KEY_NUMLOCK, KEY_SCROLLLOCK]:
+		return false
+	# A key that edits or moves the caret acts at the caret, so the window first goes back to it if
+	# the view was scrolled away.
+	if _large.virtual_caret != null and _acts_at_caret(key, command):
+		_large.restore_caret()
+	if _large.wide != null and not command:
+		return _act_on_wide_selection(key)
+	return false
+
+
+## True for a key that types, deletes or moves the caret.
+func _acts_at_caret(key: InputEventKey, command: bool) -> bool:
+	if key.keycode in [KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_HOME, KEY_END, KEY_PAGEUP, KEY_PAGEDOWN,
+			KEY_BACKSPACE, KEY_DELETE, KEY_ENTER, KEY_KP_ENTER, KEY_TAB]:
+		return true
+	return key.unicode >= 32 and not command and not key.alt_pressed
+
+
+## What a key does while a selection bigger than the window is active: typing or deleting replaces
+## the whole of it, and moving the caret ends it.
+func _act_on_wide_selection(key: InputEventKey) -> bool:
+	match key.keycode:
+		KEY_BACKSPACE, KEY_DELETE:
+			replace_selection("")
+			return true
+		KEY_ENTER, KEY_KP_ENTER:
+			replace_selection("\n")
+			return true
+		KEY_TAB:
+			return false
+		KEY_LEFT, KEY_RIGHT, KEY_UP, KEY_DOWN, KEY_HOME, KEY_END, KEY_PAGEUP, KEY_PAGEDOWN:
+			var caret := _large.caret_document()
+			_large.clear_wide()
+			deselect()
+			_large.set_caret_document(caret)
+			return false
+	if key.unicode >= 32 and not key.alt_pressed:
+		replace_selection(String.chr(key.unicode))
+		return true
+	return false
+
+
+func _go_to_edge(end: bool, extend: bool) -> void:
+	var target := _large.end_position() if end else Vector2i.ZERO
+	if extend:
+		var anchor: Vector2i = _large.wide["anchor"] if _large.wide != null else _large.caret_document()
+		_large.set_wide(anchor, target)
+		adjust_viewport_to_caret()
+		return
+	_large.clear_wide()
+	_large.go_to(target.x)
+	if end:
+		set_caret_line(get_line_count() - 1)
+		set_caret_column(get_line(get_line_count() - 1).length())
+		adjust_viewport_to_caret()
+
+
+func _on_lines_edited(from_line: int, to_line: int) -> void:
+	if _large != null:
+		_large.on_edited(from_line, to_line)
+
+
+func _on_scrolled(_value: float) -> void:
+	if _large != null:
+		_large.on_scrolled()
+
+
+# ---- The document: the same answers for a small one and for one shown through a window ----
+
+func is_windowed() -> bool:
+	return _large != null
+
+
+## The window of a large document, or null while the control holds all the text.
+func large_document() -> LargeDocument:
+	return _large
+
+
+## The number of edits so far. It moves on with every edit, and the view model compares it with
+## what it was when the document was opened or saved.
+func document_version() -> int:
+	return _large.version if _large != null else get_version()
+
+
+## The whole text of the document, with LF line ends.
+func document_text() -> String:
+	return _large.full_text() if _large != null else get_text()
+
+
+func document_line_count() -> int:
+	return _large.total_lines() if _large != null else get_line_count()
+
+
+## Whether the document has any text at all, without copying it.
+func has_text() -> bool:
+	if _large != null:
+		return true
+	return get_line_count() > 1 or get_line(0).length() > 0
+
+
+## The caret's line in the document, counted from 0.
+func caret_document_line() -> int:
+	return _large.caret_document().x if _large != null else get_caret_line()
+
+
+## The text of the caret's line that lies before the caret.
+func caret_prefix() -> String:
+	if _large != null:
+		var position := _large.caret_document()
+		return _large.line_at(position.x).substr(0, position.y)
+	# While the text is being replaced the caret can briefly name a line that is gone.
+	var line := clampi(get_caret_line(), 0, get_line_count() - 1)
+	return get_line(line).substr(0, get_caret_column())
+
+
+func has_document_selection() -> bool:
+	return has_selection() or (_large != null and _large.wide != null)
+
+
+func selected_document_text() -> String:
+	if _large != null and _large.wide != null:
+		var full := _large.full_text()
+		var offsets := selection_offsets(full)
+		return full.substr(offsets.x, offsets.y - offsets.x)
+	return get_selected_text()
+
+
+func can_undo_edit() -> bool:
+	return _large.can_undo() if _large != null else has_undo()
+
+
+func undo_edit() -> void:
+	if _large != null:
+		_large.undo()
+	elif has_undo():
+		undo()
+
+
+func select_all_document() -> void:
+	if _large != null:
+		_large.select_all()
+	else:
+		select_all()
+
+
+## Puts the caret at the start of line [param line] (counted from 1, and kept within the document).
+func go_to_document_line(line: int) -> void:
+	if _large != null:
+		_large.go_to(line - 1)
+		return
+	var target := clampi(line, 1, get_line_count())
+	deselect()
+	set_caret_line(target - 1)
+	set_caret_column(0)
+	adjust_viewport_to_caret()
+
+
+## Replaces the whole document by [param value], as Replace All does, with the caret at its start.
+func replace_document(value: String) -> void:
+	if _large == null and value.length() >= LARGE_DOCUMENT_CHARACTERS:
+		_enter_windowed()
+	if _large != null:
+		_large.restore_caret()
+		_large.replace_range(Vector2i.ZERO, _large.end_position(), value)
+		_large.go_to(0)
+		return
+	begin_complex_operation()
+	select_all()
+	replace_selection(value)
+	set_caret_line(0)
+	set_caret_column(0)
+	deselect()
+	end_complex_operation()
+	adjust_viewport_to_caret()
+
 
 ## Replaces the selection, or inserts at the caret, as one step of the undo list.
 func replace_selection(value: String) -> void:
+	if _large == null and value.length() >= LARGE_DOCUMENT_CHARACTERS:
+		_enter_windowed()
+	if _large != null:
+		_large.restore_caret()
+		if _large.wide != null or value.length() > LargeDocument.WINDOW_CHARS:
+			var full := _large.full_text()
+			var offsets := selection_offsets(full)
+			_large.replace_range(position_of(full, offsets.x), position_of(full, offsets.y), value)
+			return
 	begin_complex_operation()
 	if has_selection():
 		delete_selection()
@@ -133,14 +364,14 @@ func replace_selection(value: String) -> void:
 
 
 func copy_selection() -> void:
-	if has_selection():
-		Clipboard.set_text(get_selected_text())
+	if has_document_selection():
+		Clipboard.set_text(selected_document_text())
 
 
 func cut_selection() -> void:
-	if not has_selection():
+	if not has_document_selection():
 		return
-	Clipboard.set_text(get_selected_text())
+	Clipboard.set_text(selected_document_text())
 	replace_selection("")
 
 
@@ -151,14 +382,15 @@ func paste_clipboard() -> void:
 	replace_selection(pasted.replace("\r\n", "\n"))
 
 
-## Whether the document has any text at all, without copying it.
-func has_text() -> bool:
-	return get_line_count() > 1 or get_line(0).length() > 0
-
-
-## Replaces the whole document without touching the undo list, for a document that is
-## opened or started: the list starts empty, and nothing counts as an edit.
+## Replaces the whole document without touching the undo list, for a document that is opened or
+## started: the list starts empty, and nothing counts as an edit. A big document is shown through
+## a window.
 func load_document(content: String) -> void:
+	if content.length() >= LARGE_DOCUMENT_CHARACTERS:
+		_start_windowed(content.split("\n"))
+		return
+	if _large != null:
+		_stop_windowed()
 	text = content
 	clear_undo_history()
 	set_caret_line(0)
@@ -168,31 +400,75 @@ func load_document(content: String) -> void:
 	scroll_horizontal = 0
 
 
+## Moves what the control holds into a window of a large document, as when a big paste has made a
+## small document large.
+func _enter_windowed() -> void:
+	if _large != null:
+		return
+	var full := get_text()
+	var offsets := selection_offsets(full)
+	var start := position_of(full, offsets.x)
+	_start_windowed(full.split("\n"), start)
+	if offsets.y > offsets.x:
+		_large.select_range(start, position_of(full, offsets.y))
+
+
+func _start_windowed(lines: PackedStringArray, caret: Vector2i = Vector2i.ZERO) -> void:
+	var first := _large == null
+	var base_version := document_version()
+	if first:
+		_large = LargeDocument.new(self)
+	_large.build(lines, caret.x, caret.y)
+	# The count of edits goes on from where it was, so a document that was changed is still
+	# changed, and an earlier count is never reached again.
+	_large.version = base_version + 1
+	if first:
+		windowed_changed.emit(true)
+
+
+func _stop_windowed() -> void:
+	_large = null
+	windowed_changed.emit(false)
+
+
 # ---- Offsets ----
-# The document's characters are numbered from zero through all its lines, with one for each
-# line feed. These conversions work on the document's text, which the caller has fetched.
+# The document's characters are numbered from zero through all its lines, with one for each line
+# feed. These conversions work on the document's text, which the caller has fetched.
 
 ## The offset of the caret within [param full_text].
 func caret_offset(full_text: String) -> int:
+	if _large != null:
+		var position := _large.caret_document()
+		return offset_of(full_text, position.x, position.y)
 	return offset_of(full_text, get_caret_line(), get_caret_column())
 
 
-## The start and end of the selection as offsets, or the caret twice when nothing is
-## selected, as a Vector2i.
+## The start and end of the selection as offsets, or the caret twice when nothing is selected, as a
+## Vector2i.
 func selection_offsets(full_text: String) -> Vector2i:
+	if _large != null and _large.wide != null:
+		var anchor: Vector2i = _large.wide["anchor"]
+		var caret: Vector2i = _large.wide["caret"]
+		var first := offset_of(full_text, anchor.x, anchor.y)
+		var second := offset_of(full_text, caret.x, caret.y)
+		return Vector2i(mini(first, second), maxi(first, second))
+	var shift := _large.win_start if _large != null else 0
 	if not has_selection():
-		var caret := caret_offset(full_text)
-		return Vector2i(caret, caret)
-	var start := offset_of(full_text, get_selection_from_line(), get_selection_from_column())
-	var end := offset_of(full_text, get_selection_to_line(), get_selection_to_column())
+		var caret_at := caret_offset(full_text)
+		return Vector2i(caret_at, caret_at)
+	var start := offset_of(full_text, get_selection_from_line() + shift, get_selection_from_column())
+	var end := offset_of(full_text, get_selection_to_line() + shift, get_selection_to_column())
 	return Vector2i(mini(start, end), maxi(start, end))
 
 
-## Selects the characters from [param start] to [param end], with the caret at the end, and
-## scrolls them into view.
+## Selects the characters from [param start] to [param end], with the caret at the end, and scrolls
+## them into view.
 func select_offsets(full_text: String, start: int, end: int) -> void:
 	var from := position_of(full_text, start)
 	var to := position_of(full_text, end)
+	if _large != null:
+		_large.select_range(from, to)
+		return
 	select(from.x, from.y, to.x, to.y)
 	set_caret_line(to.x)
 	set_caret_column(to.y)
@@ -212,8 +488,10 @@ static func offset_of(full_text: String, line: int, column: int) -> int:
 ## The line and column, as a Vector2i, of the character at [param offset].
 static func position_of(full_text: String, offset: int) -> Vector2i:
 	var clamped := clampi(offset, 0, full_text.length())
-	var line := full_text.count("\n", 0, clamped)
+	# String.count treats an end of 0 as "to the end of the string", so offset 0 is its own case.
+	var line := 0
 	var line_start := 0
 	if clamped > 0:
+		line = full_text.count("\n", 0, clamped)
 		line_start = full_text.rfind("\n", clamped - 1) + 1
 	return Vector2i(line, clamped - line_start)

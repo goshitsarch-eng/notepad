@@ -1,7 +1,10 @@
 name: Release
 
-# A version tag such as v0.1.0 builds every download and publishes them as a GitHub
-# release. A manual run builds the same files as workflow artifacts and creates no release.
+# A version tag such as v0.2.0 builds every download and publishes them as a GitHub release.
+# A manual run builds the same files as workflow artifacts and creates no release.
+#
+# One job exports all four executables with Godot, which exports every platform from Linux.
+# The packaging jobs then run on the architecture they package for.
 
 on:
   push:
@@ -26,63 +29,117 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Read the version from pubspec.yaml
+      - name: Read the version from project.godot
         id: read
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          version=$(sed -n 's/^version: *//p' pubspec.yaml | cut -d+ -f1 | tr -d '[:space:]')
+          version=$(sed -n 's/^config\/version="\(.*\)"$/\1/p' project.godot | tr -d '[:space:]')
           if [ -z "$version" ]; then
-            echo "pubspec.yaml has no version" >&2
+            echo "project.godot has no config/version" >&2
             exit 1
           fi
           if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "v$version" ]; then
-            echo "Tag $REF_NAME does not match the pubspec.yaml version $version" >&2
+            echo "Tag $REF_NAME does not match the project.godot version $version" >&2
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Building XP Notepad $version"
 
+  export:
+    name: Export with Godot
+    needs: version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Godot 4.7.2 and its export templates
+        run: tools/install_godot.sh "$RUNNER_TEMP/godot" --templates
+      - name: Run the tests
+        env:
+          GODOT: ${{ runner.temp }}/godot/godot
+        run: tools/run_tests.sh
+      - name: Export the four executables
+        env:
+          GODOT: ${{ runner.temp }}/godot/godot
+        run: |
+          mkdir -p build/linux-x86_64 build/linux-arm64 build/windows-x64 build/windows-arm64
+          "$GODOT" --headless --path . --import
+          "$GODOT" --headless --path . --export-release "Linux x86_64" build/linux-x86_64/xp_notepad
+          "$GODOT" --headless --path . --export-release "Linux arm64" build/linux-arm64/xp_notepad
+          "$GODOT" --headless --path . --export-release "Windows x64" build/windows-x64/xp_notepad.exe
+          "$GODOT" --headless --path . --export-release "Windows arm64" build/windows-arm64/xp_notepad.exe
+      - name: Check the architecture of each executable
+        run: |
+          python3 - <<'PY'
+          import struct
+
+          def pe_machine(path):
+              data = open(path, "rb").read(4096)
+              offset = struct.unpack_from("<I", data, 0x3C)[0]
+              return struct.unpack_from("<H", data, offset + 4)[0]
+
+          def elf_machine(path):
+              data = open(path, "rb").read(32)
+              return struct.unpack_from("<H", data, 18)[0]
+
+          checks = [
+              ("build/windows-x64/xp_notepad.exe", pe_machine, 0x8664),
+              ("build/windows-arm64/xp_notepad.exe", pe_machine, 0xAA64),
+              ("build/linux-x86_64/xp_notepad", elf_machine, 62),
+              ("build/linux-arm64/xp_notepad", elf_machine, 183),
+          ]
+          bad = False
+          for path, reader, expected in checks:
+              actual = reader(path)
+              print(f"{path}: machine {actual:#06x}, expected {expected:#06x}")
+              bad = bad or actual != expected
+          raise SystemExit(1 if bad else 0)
+          PY
+      - name: Upload the executables
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: exports
+          path: build/
+          if-no-files-found: error
+
   linux:
     name: Linux ${{ matrix.arch }}
-    needs: version
+    needs: [version, export]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x64
+            folder: linux-x86_64
             runner: ubuntu-24.04
           - arch: arm64
+            folder: linux-arm64
             runner: ubuntu-24.04-arm
     env:
       VERSION: ${{ needs.version.outputs.version }}
       ARCH: ${{ matrix.arch }}
+      FOLDER: ${{ matrix.folder }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      - name: Download the executables
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          flutter-version: '3.47.6'
-          channel: stable
-          architecture: ${{ matrix.arch }}
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev
-      - name: Build the release bundle
-        run: |
-          flutter pub get --enforce-lockfile
-          flutter build linux --release
+          name: exports
+          path: build
       - name: Package the tarball
         run: |
+          chmod +x "build/${FOLDER}/xp_notepad"
           name="xp-notepad-${VERSION}-linux-${ARCH}"
           mkdir -p "dist/${name}"
-          cp -a "build/linux/${ARCH}/release/bundle/." "dist/${name}/"
-          cp LICENSE README.md "dist/${name}/"
+          cp "build/${FOLDER}/xp_notepad" LICENSE README.md "dist/${name}/"
           tar -C dist -czf "dist/${name}.tar.gz" "${name}"
           rm -rf "dist/${name}"
       - name: Allow the Flatpak builder to create sandboxes
@@ -91,9 +148,9 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
       - name: Install the Flatpak tools
-        run: sudo apt-get install -y flatpak flatpak-builder
+        run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder
       - name: Build the Flatpak bundle
-        run: packaging/flatpak/build.sh "build/linux/${ARCH}/release/bundle" "${VERSION}" "${ARCH}" dist
+        run: packaging/flatpak/build.sh "build/${FOLDER}/xp_notepad" "${VERSION}" "${ARCH}" dist
       - name: Upload the Linux files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -103,47 +160,32 @@ jobs:
 
   windows:
     name: Windows ${{ matrix.arch }}
-    needs: version
+    needs: [version, export]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x64
+            folder: windows-x64
             runner: windows-latest
           - arch: arm64
+            folder: windows-arm64
             runner: windows-11-arm
     env:
       VERSION: ${{ needs.version.outputs.version }}
       ARCH: ${{ matrix.arch }}
+      FOLDER: ${{ matrix.folder }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      - name: Download the executables
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          flutter-version: '3.47.6'
-          channel: stable
-          architecture: ${{ matrix.arch }}
-      - name: Build the release
-        shell: pwsh
-        run: |
-          flutter pub get --enforce-lockfile
-          if ($LASTEXITCODE -ne 0) { throw "flutter pub get failed" }
-          flutter build windows --release
-          if ($LASTEXITCODE -ne 0) { throw "flutter build windows failed" }
-      - name: Check the executable architecture
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $exe = Join-Path $PWD "build\windows\$env:ARCH\runner\Release\xp_notepad.exe"
-          $bytes = [System.IO.File]::ReadAllBytes($exe)
-          $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
-          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
-          $expected = if ($env:ARCH -eq 'arm64') { 0xAA64 } else { 0x8664 }
-          Write-Host ('xp_notepad.exe machine type 0x{0:X4}, expected 0x{1:X4}' -f $machine, $expected)
-          if ($machine -ne $expected) { throw 'xp_notepad.exe is not built for the requested architecture' }
+          name: exports
+          path: build
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -155,7 +197,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
           if (-not (Test-Path $iscc)) { throw "ISCC not found at $iscc" }
-          $source = Join-Path $PWD "build\windows\$env:ARCH\runner\Release"
+          $source = Join-Path $PWD "build\$env:FOLDER"
           $output = Join-Path $PWD 'dist'
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           & $iscc "/DAppVersion=$env:VERSION" "/DTargetArch=$env:ARCH" "/DSourceDir=$source" "/DOutputDir=$output" 'packaging\windows\xp-notepad.iss'

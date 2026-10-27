@@ -1,12 +1,14 @@
 extends TestCase
 ## Every script of the app must load. A script that does not compile is silently left out by
-## the engine until something uses it, so this finds the ones nothing has used yet.
+## the engine until something uses it, so this finds the ones nothing has used yet. The
+## scripts are loaded as the app loads them, not again: a second copy of a class would
+## replace the live one under the tests that follow.
 
 
 func test_every_script_loads() -> void:
 	var broken: Array[String] = []
 	for path in _scripts("res://src"):
-		var script := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as GDScript
+		var script := load(path) as GDScript
 		if script == null or not script.can_instantiate():
 			broken.append(path)
 	assert_eq(broken, [], "scripts that do not compile")

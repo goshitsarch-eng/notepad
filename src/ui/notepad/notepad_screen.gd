@@ -255,7 +255,14 @@ func _restore_focus() -> void:
 	if vm.find_state() != null:
 		vm.focus_find()
 	else:
-		vm.text.call_deferred("grab_focus")
+		_grab_editor_focus.call_deferred()
+
+
+## Gives the text focus, unless a dialog has opened in the meantime: the text cannot take
+## focus while one is over it.
+func _grab_editor_focus() -> void:
+	if vm.modal() == null and is_instance_valid(vm.text):
+		vm.text.grab_focus()
 
 
 # ---- Menus ----

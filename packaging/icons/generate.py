@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the XP Notepad icon files from packaging/icons/com.goshapps.Notepad.svg.
 
-  windows/runner/resources/app_icon.ico   Windows: executable, window, taskbar and installer icon
+  packaging/windows/app_icon.ico          Windows: executable, window, taskbar and installer icon
   packaging/macos/AppIcon.icns            macOS: app icon, for when a macOS build exists
 
 The Linux icon is the SVG itself. The Flatpak installs it as the scalable hicolor icon, which
@@ -18,7 +18,7 @@ from PIL import Image
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SVG = HERE / "com.goshapps.Notepad.svg"
-ICO_OUT = ROOT / "windows" / "runner" / "resources" / "app_icon.ico"
+ICO_OUT = ROOT / "packaging" / "windows" / "app_icon.ico"
 ICNS_OUT = ROOT / "packaging" / "macos" / "AppIcon.icns"
 
 ICO_SIZES = [16, 24, 32, 48, 64, 128, 256]
