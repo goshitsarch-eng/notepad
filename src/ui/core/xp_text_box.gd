@@ -5,7 +5,10 @@ extends LineEdit
 
 ## Characters outside this set are dropped as they are typed. Empty allows anything.
 var allowed_characters: String = ""
-var accessible_name: String = ""
+var accessible_name: String = "":
+	set(value):
+		accessible_name = value
+		accessibility_name = value
 
 
 func _init(allowed: String = "", box_width: float = 0.0) -> void:

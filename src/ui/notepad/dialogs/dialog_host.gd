@@ -29,12 +29,20 @@ func _init(modal_request: DialogRequests.Request, view_model: NotepadViewModel) 
 
 
 func _ready() -> void:
+	XpAccessibility.modal_root = self
+	XpAccessibility.refresh_all(get_tree())
 	resized.connect(_place)
 	# The size of the window is not known until the first frame has been laid out.
 	_place.call_deferred()
 	# Each dialog opens with its own field focused, so typing goes to it and not the text.
 	XpDraw.keyboard_active = true
 	(dialog.call("focus_target") as Control).grab_focus()
+
+
+func _exit_tree() -> void:
+	if XpAccessibility.modal_root == self:
+		XpAccessibility.modal_root = null
+		XpAccessibility.refresh_all(get_tree())
 
 
 func _place() -> void:

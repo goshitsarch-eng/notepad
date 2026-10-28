@@ -28,6 +28,7 @@ var _large: LargeDocument = null
 
 
 func _init() -> void:
+	accessibility_name = "Text editor"
 	context_menu_enabled = false
 	empty_selection_clipboard_enabled = false
 	middle_mouse_paste_enabled = false

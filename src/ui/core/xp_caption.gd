@@ -17,6 +17,7 @@ var title: String = "":
 		title = value
 		if _title_label != null:
 			_title_label.text = value
+		XpAccessibility.changed(self)
 var active: bool = true:
 	set(value):
 		active = value
@@ -39,11 +40,14 @@ var _dragging := false
 func _init() -> void:
 	custom_minimum_size = Vector2(0, XpMetrics.CAPTION_HEIGHT)
 	size = Vector2(0, XpMetrics.CAPTION_HEIGHT)
-	_icon = Control.new()
+	var icon := XpPlainControl.new()
+	_icon = icon
 	_icon.position = Vector2(6, 7)
 	_icon.size = Vector2(16, 16)
 	_icon.mouse_default_cursor_shape = Control.CURSOR_ARROW
-	_icon.draw.connect(func() -> void: XpIcons.draw_notepad(_icon, Vector2.ZERO, 16.0))
+	icon.drawer = func() -> void: XpIcons.draw_notepad(icon, Vector2.ZERO, 16.0)
+	icon.info = {"role": "button", "name": "Window menu",
+		"action": func(_data: Variant) -> void: window_menu_requested.emit()}
 	_icon.gui_input.connect(_on_icon_input)
 	add_child(_icon)
 
@@ -94,6 +98,17 @@ func title_label() -> Label:
 func xp_theme_changed() -> void:
 	_apply_state()
 	queue_redraw()
+
+
+func accessibility_info() -> Dictionary:
+	return {"role": "title_bar", "name": title}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _apply_state() -> void:

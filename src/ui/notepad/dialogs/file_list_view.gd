@@ -16,6 +16,7 @@ var selected: int = -1:
 	set(value):
 		selected = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 ## Shown in place of the rows when the folder could not be listed.
 var problem: String = "":
 	set(value):
@@ -43,11 +44,33 @@ func xp_theme_changed() -> void:
 	queue_redraw()
 
 
+func accessibility_info() -> Dictionary:
+	var rows: Array[Dictionary] = []
+	var top := int(_scroll.value)
+	for index in range(entries.size()):
+		var entry: DirectoryEntry = entries[index]
+		var row_index := index
+		var detail := type_of(entry) if entry.is_directory else "%s, %s" % [type_of(entry), size_of(entry)]
+		rows.append({"role": "list_option", "name": entry.name, "value": detail,
+			"selected": index == selected,
+			"rect": Rect2(1, _HEADER_HEIGHT + 1.0 + (index - top) * _ROW_HEIGHT, size.x - 2, _ROW_HEIGHT),
+			"action": func(_data: Variant) -> void: row_selected.emit(row_index)})
+	return {"role": "list", "name": "Files", "value": problem, "children": rows}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
+
+
 func set_entries(new_entries: Array) -> void:
 	entries = new_entries
 	selected = -1
 	_scroll.value = 0
 	queue_redraw()
+	XpAccessibility.changed(self)
 
 
 func _visible_rows() -> int:

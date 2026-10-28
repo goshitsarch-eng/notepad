@@ -10,6 +10,7 @@ var highlight: int = -1:
 	set(value):
 		highlight = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 var show_mnemonics: bool = false:
 	set(value):
 		show_mnemonics = value
@@ -26,10 +27,40 @@ func set_items(menu_items: Array[XpMenuItem]) -> void:
 	size = Vector2(XpMenuLayout.popup_width(items), XpMenuLayout.popup_height(items))
 	custom_minimum_size = size
 	queue_redraw()
+	XpAccessibility.changed(self)
 
 
 func xp_theme_changed() -> void:
 	queue_redraw()
+
+
+func accessibility_info() -> Dictionary:
+	var rows: Array[Dictionary] = []
+	var top := 3.0
+	for index in range(items.size()):
+		var item := items[index]
+		if item.is_separator:
+			top += XpMenuLayout.SEPARATOR_HEIGHT
+			continue
+		var row_index := index
+		var row := {"role": "menu_item_check" if item.checkable else "menu_item",
+			"name": MenuLabel.parse(item.label).text, "shortcut": item.shortcut,
+			"disabled": not item.enabled, "selected": index == highlight,
+			"rect": Rect2(1, top, size.x - 2, XpMetrics.MENU_ROW_HEIGHT)}
+		if item.checkable:
+			row["checked"] = item.checked
+		if item.enabled:
+			row["action"] = func(_data: Variant) -> void: activated.emit(row_index)
+		rows.append(row)
+		top += XpMetrics.MENU_ROW_HEIGHT
+	return {"role": "menu", "name": "Menu", "children": rows}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 ## The row under [param y], counted from the top of the popup, or -1.

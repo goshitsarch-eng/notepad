@@ -46,6 +46,19 @@ func xp_theme_changed() -> void:
 	_corner.queue_redraw()
 
 
+## The frame is an unnamed group, and the engine's text control inside it carries the name
+## "Text editor". While a dialog is open the whole frame is hidden, and the text with it.
+func accessibility_info() -> Dictionary:
+	return {"role": "group", "name": ""}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
+
+
 func _update_corner() -> void:
 	if text_edit == null:
 		return

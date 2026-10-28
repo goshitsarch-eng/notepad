@@ -10,6 +10,7 @@ var kind: int = Kind.CLOSE:
 	set(value):
 		kind = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 var active: bool = true:
 	set(value):
 		active = value
@@ -42,8 +43,17 @@ func xp_theme_changed() -> void:
 	queue_redraw()
 
 
+func accessibility_info() -> Dictionary:
+	return {"role": "button", "name": accessible_label(),
+		"action": func(_data: Variant) -> void: pressed.emit()}
+
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_ENTER:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
+	elif what == NOTIFICATION_MOUSE_ENTER:
 		_hovered = true
 		queue_redraw()
 	elif what == NOTIFICATION_MOUSE_EXIT:

@@ -15,6 +15,10 @@ func _init(group_legend: String = "", content: Control = null) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
+func accessibility_info() -> Dictionary:
+	return {"role": "group", "name": legend}
+
+
 func xp_theme_changed() -> void:
 	queue_redraw()
 
@@ -27,6 +31,10 @@ func _get_minimum_size() -> Vector2:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_SORT_CHILDREN and _content != null:
 		fit_child_in_rect(_content, Rect2(8, 8 + 14, size.x - 16, size.y - 8 - 14 - 8))
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _draw() -> void:

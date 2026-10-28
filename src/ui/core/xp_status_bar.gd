@@ -9,6 +9,7 @@ var text: String = "":
 	set(value):
 		text = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 
 var _grip_pressed := false
 
@@ -16,6 +17,17 @@ var _grip_pressed := false
 func _init() -> void:
 	custom_minimum_size = Vector2(0, XpMetrics.STATUS_BAR_HEIGHT)
 	size = Vector2(0, XpMetrics.STATUS_BAR_HEIGHT)
+
+
+func accessibility_info() -> Dictionary:
+	return {"role": "text", "name": text}
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func xp_theme_changed() -> void:

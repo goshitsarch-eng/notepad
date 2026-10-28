@@ -9,6 +9,7 @@ var value: bool = false:
 	set(new_value):
 		value = new_value
 		queue_redraw()
+		XpAccessibility.changed(self)
 
 
 func _init(box_label: String = "", checked: bool = false) -> void:
@@ -23,9 +24,18 @@ func xp_theme_changed() -> void:
 	queue_redraw()
 
 
+func accessibility_info() -> Dictionary:
+	return {"role": "check_box", "name": label, "checked": value,
+		"action": func(_data: Variant) -> void: _toggle()}
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:
 		queue_redraw()
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _toggle() -> void:

@@ -10,6 +10,7 @@ var open_index: int = -1:
 	set(value):
 		open_index = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 var show_mnemonics: bool = false:
 	set(value):
 		show_mnemonics = value
@@ -27,6 +28,7 @@ func _init() -> void:
 func set_menus(new_menus: Array[XpMenu]) -> void:
 	menus = new_menus
 	queue_redraw()
+	XpAccessibility.changed(self)
 
 
 func xp_theme_changed() -> void:
@@ -51,9 +53,24 @@ func _index_at(x: float) -> int:
 	return -1
 
 
+func accessibility_info() -> Dictionary:
+	var rows: Array[Dictionary] = []
+	for index in range(menus.size()):
+		var span := label_span(index)
+		var menu_index := index
+		rows.append({"role": "menu_item", "name": MenuLabel.parse(menus[index].label).text,
+			"expanded": index == open_index, "rect": Rect2(span.x, 0, span.y, size.y),
+			"action": func(_data: Variant) -> void: pressed.emit(menu_index)})
+	return {"role": "menu_bar", "name": "Application", "children": rows}
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_EXIT:
 		_hover_index = -1
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _gui_input(event: InputEvent) -> void:

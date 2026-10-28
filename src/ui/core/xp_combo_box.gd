@@ -12,12 +12,14 @@ var selected: int = 0:
 	set(value):
 		selected = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 ## A box that is not enabled shows its value, greyed, and cannot be opened. XP draws a choice
 ## that has nothing to choose from this way.
 var enabled: bool = true:
 	set(value):
 		enabled = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 var accessible_name: String = ""
 
 var _popup: Control
@@ -31,6 +33,22 @@ func _init(options: PackedStringArray = PackedStringArray(), box_width: float = 
 
 func xp_theme_changed() -> void:
 	queue_redraw()
+
+
+func accessibility_info() -> Dictionary:
+	var shown := labels[selected] if selected >= 0 and selected < labels.size() else ""
+	var info := {"role": "button", "name": accessible_name, "value": shown, "disabled": not enabled,
+		"expanded": is_open()}
+	if enabled:
+		info["action"] = func(_data: Variant) -> void: toggle()
+	return info
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func is_open() -> bool:

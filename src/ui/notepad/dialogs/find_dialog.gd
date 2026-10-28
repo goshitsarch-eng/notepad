@@ -21,6 +21,7 @@ var _down: bool
 
 func _init(view_model: NotepadViewModel, for_replace: bool) -> void:
 	super("Replace" if for_replace else "Find", 380.0)
+	modeless = true
 	vm = view_model
 	replace_mode = for_replace
 	close_requested.connect(cancel)

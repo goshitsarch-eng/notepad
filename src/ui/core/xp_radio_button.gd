@@ -13,6 +13,7 @@ var is_selected: bool = false:
 	set(value):
 		is_selected = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 
 
 func _init(button_label: String = "", chosen: bool = false) -> void:
@@ -27,9 +28,18 @@ func xp_theme_changed() -> void:
 	queue_redraw()
 
 
+func accessibility_info() -> Dictionary:
+	return {"role": "radio_button", "name": label, "checked": is_selected,
+		"action": func(_data: Variant) -> void: selected.emit()}
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:
 		queue_redraw()
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _gui_input(event: InputEvent) -> void:

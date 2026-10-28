@@ -16,6 +16,7 @@ var selected: int = -1:
 	set(value):
 		selected = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 var accessible_name: String = ""
 
 var _scroll := VScrollBar.new()
@@ -42,6 +43,7 @@ func xp_theme_changed() -> void:
 func set_rows(rows: PackedStringArray) -> void:
 	labels = rows
 	queue_redraw()
+	XpAccessibility.changed(self)
 
 
 ## Scrolls so that the selected row is in the middle, as a list box opens. The size is not
@@ -74,9 +76,24 @@ func _sync_scroll() -> void:
 			_scroll.value = maxf(0.0, selected - (_visible_rows() - 1) / 2.0)
 
 
+func accessibility_info() -> Dictionary:
+	var rows: Array[Dictionary] = []
+	var top := int(_scroll.value)
+	for index in range(labels.size()):
+		var row_index := index
+		rows.append({"role": "list_option", "name": labels[index], "selected": index == selected,
+			"rect": Rect2(1, 1.0 + (index - top) * ROW_HEIGHT, size.x - 2, ROW_HEIGHT),
+			"action": func(_data: Variant) -> void: _choose(row_index)})
+	return {"role": "list", "name": accessible_name, "children": rows}
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:
 		queue_redraw()
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
 
 
 func _row_at(position_y: float) -> int:

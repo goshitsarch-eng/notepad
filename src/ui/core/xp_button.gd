@@ -5,12 +5,17 @@ extends Control
 
 signal pressed
 
-var label: String = ""
+var label: String = "":
+	set(value):
+		label = value
+		queue_redraw()
+		XpAccessibility.changed(self)
 var is_default: bool = false
 var disabled: bool = false:
 	set(value):
 		disabled = value
 		queue_redraw()
+		XpAccessibility.changed(self)
 
 var _hovered := false
 var _held := false
@@ -28,8 +33,20 @@ func xp_theme_changed() -> void:
 	queue_redraw()
 
 
+func accessibility_info() -> Dictionary:
+	var info := {"role": "default_button" if is_default else "button", "name": label,
+		"disabled": disabled}
+	if not disabled:
+		info["action"] = func(_data: Variant) -> void: pressed.emit()
+	return info
+
+
 func _notification(what: int) -> void:
 	match what:
+		NOTIFICATION_ACCESSIBILITY_UPDATE:
+			XpAccessibility.apply(self, accessibility_info())
+		NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+			XpAccessibility.release(self)
 		NOTIFICATION_MOUSE_ENTER:
 			_hovered = true
 			queue_redraw()

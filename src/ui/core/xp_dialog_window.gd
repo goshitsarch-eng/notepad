@@ -12,6 +12,8 @@ var title: String = ""
 var dialog_width: float = 300.0
 ## True for a message box, which a screen reader announces as an alert.
 var alert: bool = false
+## True for a dialog that leaves the window usable, such as Find.
+var modeless: bool = false
 var content: Control
 
 var _title_bar: Control
@@ -86,8 +88,16 @@ func _get_minimum_size() -> Vector2:
 	return Vector2(dialog_width, XpMetrics.DIALOG_TITLE_HEIGHT + 11.0 + inner.y + 8.0 + XpMetrics.FRAME)
 
 
+func accessibility_info() -> Dictionary:
+	return {"role": "dialog", "name": title, "modal": not modeless, "alert": alert}
+
+
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_SORT_CHILDREN:
+	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+		XpAccessibility.apply(self, accessibility_info())
+	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
+		XpAccessibility.release(self)
+	elif what == NOTIFICATION_SORT_CHILDREN:
 		fit_child_in_rect(_title_bar, Rect2(0, 0, size.x, XpMetrics.DIALOG_TITLE_HEIGHT))
 		_title_label.position = Vector2(6, 0)
 		_title_label.size = Vector2(maxf(size.x - 6 - 26, 0.0), XpMetrics.DIALOG_TITLE_HEIGHT)
