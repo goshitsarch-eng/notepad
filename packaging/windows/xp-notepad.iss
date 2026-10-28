@@ -1,18 +1,19 @@
 ; Inno Setup script for the XP Notepad Windows installer.
 ;
 ; The release workflow (.github/workflows/release.yml) runs the Inno Setup compiler with:
-;   ISCC /DAppVersion=0.1.0 /DTargetArch=x64 /DSourceDir=<Flutter Release folder>
+;   ISCC /DAppVersion=0.2.0 /DTargetArch=x64 /DSourceDir=<folder holding xp_notepad.exe>
 ;        /DOutputDir=<output folder> packaging\windows\xp-notepad.iss
-; TargetArch is x64 or arm64. Each installer contains only that architecture.
+; TargetArch is x64 or arm64. Each installer contains only that architecture. The executable
+; is the Godot export with its data embedded, so it is the one file the installer installs.
 
 #ifndef AppVersion
-  #define AppVersion "0.1.2"
+  #define AppVersion "0.2.0"
 #endif
 #ifndef TargetArch
   #define TargetArch "x64"
 #endif
 #ifndef SourceDir
-  #error SourceDir must be given, for example /DSourceDir=build\windows\x64\runner\Release
+  #error SourceDir must be given, for example /DSourceDir=build\windows-x64
 #endif
 #ifndef OutputDir
   #define OutputDir "."
@@ -39,7 +40,7 @@ DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir={#OutputDir}
 OutputBaseFilename=xp-notepad-{#AppVersion}-windows-{#TargetArch}-setup
-SetupIconFile=..\..\windows\runner\resources\app_icon.ico
+SetupIconFile=app_icon.ico
 UninstallDisplayIcon={app}\xp_notepad.exe
 Compression=lzma2
 SolidCompression=yes
@@ -56,7 +57,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceDir}\xp_notepad.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\XP Notepad"; Filename: "{app}\xp_notepad.exe"

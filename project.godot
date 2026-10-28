@@ -1,0 +1,55 @@
+; Engine configuration file for XP Notepad, an unofficial Godot recreation of Windows XP
+; Notepad. Do not edit by hand unless you know what the setting does: the Godot editor
+; rewrites this file.
+
+config_version=5
+
+[application]
+
+config/name="XP Notepad"
+config/description="An unofficial Godot recreation of Windows XP Notepad."
+config/version="0.2.0"
+run/main_scene="res://src/main.tscn"
+run/low_processor_mode=true
+run/flush_stdout_on_print=true
+config/features=PackedStringArray("4.7", "GL Compatibility")
+run/max_fps=60
+config/icon="res://icon.svg"
+
+[audio]
+
+driver/driver="Dummy"
+
+[display]
+
+window/size/viewport_width=600
+window/size/viewport_height=404
+window/size/borderless=true
+window/size/resizable=true
+window/stretch/mode="disabled"
+window/subwindows/embed_subwindows=true
+window/energy_saving/keep_screen_on=false
+window/dpi/allow_hidpi=true
+
+[gui]
+
+common/drop_mouse_on_gui_input_disabled=true
+theme/default_font_antialiasing=1
+theme/default_font_hinting=2
+theme/default_font_subpixel_positioning=0
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=true
+
+[internationalization]
+
+rendering/force_right_to_left_layout_direction=false
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+environment/defaults/default_clear_color=Color(0.925, 0.914, 0.847, 1)
