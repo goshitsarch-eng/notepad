@@ -18,7 +18,8 @@ Dark mode:
 
 ![XP Notepad in dark mode, showing the same document](docs/screenshots/dark-mode.png)
 
-Both were captured on Linux with `tools/shoot.sh`, from the running app.
+Both were captured with `tools/shoot.sh` from the running app on macOS (with Tahoma and Lucida
+Console installed).
 
 ## Downloads
 
@@ -54,8 +55,12 @@ fetches them on Linux and macOS.
 godot --headless --path . --export-release "Linux x86_64" build/xp_notepad
 ```
 
-The result is one self-contained executable (about 70 MB, because it carries the engine). The
-project settings, the presets and the packaging files in `packaging/` (Flatpak, Inno Setup) all say
+The result is one self-contained executable (about 67–74 MB on Linux and 92–109 MB on Windows,
+because it carries the engine). All four Linux (`Linux x86_64`, `Linux arm64`) and Windows
+(`Windows x64`, `Windows arm64`) presets were exported and header-checked. Exporting the `macOS`
+universal preset requires adding `textures/vram_compression/import_etc2_astc=true` under
+`[rendering]` in `project.godot` first (recorded as finding `G-01` in the handbook). The project
+settings, the presets and the packaging files in `packaging/` (Flatpak, Inno Setup) all say
 version 0.2.0.
 
 ## Test
@@ -68,18 +73,22 @@ tools/run_tests.sh --list
 ```
 
 Set `GODOT` to the executable if it is not `godot` on the path. The suite runs headless and holds
-about 430 tests: the domain and data layers, the view model, the screen driven with simulated mouse
-and keyboard input, the dialogs, large-document editing (including a seeded fuzz test against a plain
-string), and the accessibility description of every control. Four tests check file permissions and
-skip themselves when run as root.
+454 tests across 35 test files: the domain and data layers, the view model, the screen driven with
+simulated mouse and keyboard input, the dialogs, large-document editing (including a seeded fuzz test
+against a plain string), and the accessibility description of every control. On macOS (as an ordinary
+user), 453 pass and 1 skips (it requires Linux `/proc/cpuinfo`); on Linux as root, 4 permission tests
+skip because root ignores file modes.
 
-It is a port of the 518 Dart tests of the Flutter version. Tests of that version that were not ported
-are named in the header of the file that replaces them: the golden image comparisons, which became
-checks of layout and colour, the Dart-specific text scanning helpers, and the semantics tree checks,
-which became `test/ui/test_accessibility.gd`.
+It is a port of the 518 Dart tests of the Flutter version, extended with tests for `.LOG` files,
+command-line switches, drag-and-drop, the context menu, `F10`/`Shift+F10`/`Alt+F4`, combo box and
+file list keyboard navigation, HiDPI scale clamping, and portable mode. Tests of the Flutter version
+that were not ported are named in the header of the file that replaces them: the golden image
+comparisons, which became checks of layout and colour, the Dart-specific text scanning helpers, and
+the semantics tree checks, which became `test/ui/test_accessibility.gd`.
 
-`tools/shoot.sh <scenario> <out.png>` saves a screenshot of a named state under Xvfb (scenarios are
-listed in `tools/shoot.gd`), and `tools/bench_large.gd` measures large documents.
+`tools/shoot.sh <scenario> <out.png>` saves a screenshot of a named state (using a native display
+when available or `xvfb-run` on headless Linux; scenarios are listed in `tools/shoot.gd`), and
+`tools/bench_large.gd` measures large documents.
 
 ## What it does
 
@@ -118,18 +127,29 @@ listed in `tools/shoot.gd`), and `tools/bench_large.gd` measures large documents
   status bar give assistive technology a name, a role and a state, through Godot's AccessKit
   support, and the window behind a dialog is hidden from it.
 
-The handbook (`docs/handbook/index.html`) describes each feature with its keyboard shortcut and its
-limits. It works straight from disk: no server and no internet connection.
+The interactive HTML handbook (`docs/handbook/index.html`) covers the full user manual, architecture,
+development workflow, build and release pipeline, troubleshooting, audit findings (`G-01`–`G-07` and
+historical `F-01`–`F-40`), and verification coverage. It works offline directly from disk (`file://`)
+with no server or internet connection:
+
+```sh
+open docs/handbook/index.html       # macOS
+xdg-open docs/handbook/index.html   # Linux
+start docs\handbook\index.html      # Windows
+```
 
 ## Settings
 
-Settings are JSON, in the same place and with the same keys as the Flutter version, so an existing
-file keeps working. On Linux they are in `$XDG_CONFIG_HOME/xp_notepad/settings.json`, or
-`~/.config/xp_notepad/settings.json` when `XDG_CONFIG_HOME` is unset, empty or not an absolute path.
-On Windows they are in `%APPDATA%\xp_notepad\settings.json` (not verified). With no usable folder,
-settings are not kept. A damaged value falls back to its default. The file is replaced through a
-temporary file, so a crash cannot leave half of it. To reset the settings, close the app and delete
-the file.
+Settings are JSON, in the same place and with the same 12 keys as the Flutter version plus
+`windowX`, `windowY` and `uiScale`, so an existing file keeps working. On Linux and macOS they are
+in `$XDG_CONFIG_HOME/xp_notepad/settings.json`, or `~/.config/xp_notepad/settings.json` when
+`XDG_CONFIG_HOME` is unset, empty or not an absolute path. On Windows they are in
+`%APPDATA%\xp_notepad\settings.json`. If a `portable.txt` file exists next to the executable,
+settings are stored in `settings.json` beside the executable instead. Print PDFs are written to
+`~/.cache/xp_notepad/print/` on Linux and `~/Library/Caches/xp_notepad/print/` on macOS, and PDFs
+older than 24 hours are cleaned up on the next print. With no usable folder, settings are not kept.
+A damaged value falls back to its default. The file is replaced through a temporary file, so a crash
+cannot leave half of it. To reset the settings, close the app and delete the file.
 
 ## Large documents
 
@@ -157,10 +177,12 @@ save or a Find does, takes about 2.1 s and is then kept until the next edit.
 
 ## Known issues
 
-- **Windows is unverified at runtime.** The Windows x64 export was built and its executable checked
-  (a PE file with the right machine type and version information), and `export_presets.cfg` defines
-  export presets for Linux (`x86_64`, `arm64`), Windows (`x64`, `arm64`), and macOS (`universal`,
-  with `packaging/macos/AppIcon.icns`). The application was verified interactively on Linux and macOS.
+- **Windows is unverified at runtime.** Both the Windows x64 (`109,416,600` bytes, PE `0x8664`) and
+  Windows arm64 (`91,810,456` bytes, PE `0xAA64`) executables were exported and header-checked, as
+  were the Linux x86-64 (`73,799,112` bytes, ELF `62`) and Linux arm64 (`67,359,128` bytes, ELF `183`)
+  executables. The application was verified interactively at runtime on macOS (Apple Silicon) and
+  Linux x86-64. Exporting the `macOS` universal preset in `export_presets.cfg` requires enabling
+  `textures/vram_compression/import_etc2_astc=true` in `project.godot` (`G-01`).
 - **No screen reader has been tried.** The descriptions are tested as what each control reports;
   how a particular reader presents them is not. For a large document the editor's text is the window
   of lines, so a screen reader is told only those.
