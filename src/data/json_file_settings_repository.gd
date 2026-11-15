@@ -13,12 +13,21 @@ func _init(path: String = "") -> void:
 
 
 ## %APPDATA%\xp_notepad\settings.json on Windows, otherwise
-## $XDG_CONFIG_HOME/xp_notepad/settings.json (or ~/.config). A variable that is empty, or a
-## relative path, is ignored, as the XDG Base Directory specification says. With no usable
-## folder at all, settings are not kept: a relative guess would put the file in whatever
-## folder the app was started from. [param environment] stands in for the process
-## environment, and [param windows] for the operating system, in tests.
-static func standard(environment: Variant = null, windows: Variant = null) -> JsonFileSettingsRepository:
+## $XDG_CONFIG_HOME/xp_notepad/settings.json (or ~/.config). When a file named portable.txt
+## sits beside the executable, settings.json is kept in that folder instead, so the app can
+## run self-contained from a removable drive. A variable that is empty, or a relative path,
+## is ignored, as the XDG Base Directory specification says. With no usable folder at all,
+## settings are not kept: a relative guess would put the file in whatever folder the app was
+## started from. [param environment] stands in for the process environment, [param windows]
+## for the operating system, and [param executable_dir] for the executable's folder in tests.
+static func standard(
+		environment: Variant = null, windows: Variant = null,
+		executable_dir: String = "") -> JsonFileSettingsRepository:
+	var portable_folder := executable_dir
+	if portable_folder.is_empty() and environment == null and windows == null and not OS.has_feature("editor"):
+		portable_folder = OS.get_executable_path().get_base_dir()
+	if not portable_folder.is_empty() and FileAccess.file_exists(portable_folder.path_join("portable.txt")):
+		return JsonFileSettingsRepository.new(portable_folder.path_join("settings.json"))
 	var is_windows: bool = (OS.get_name() == "Windows") if windows == null else windows
 	var base := ""
 	if is_windows:

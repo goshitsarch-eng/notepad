@@ -18,6 +18,8 @@ const NO_MENU := -2
 ## The value of [method open_menu] while the window menu of the title bar is open. The menus
 ## of the menu bar are numbered from 0.
 const SYSTEM_MENU := -1
+## The value of [method open_menu] while the editor's right-click context menu is open.
+const CONTEXT_MENU := -3
 
 ## Documents longer than this many characters get a warning before they open. Past this size
 ## opening takes several seconds, and the text and the copies that editing makes of it use a
@@ -48,6 +50,8 @@ var _has_normal_bounds := false
 ## The last size the window had while it was not maximized, in logical pixels. Saved at
 ## exit, so a maximized window does not persist its maximized size as the normal one.
 var _normal_bounds := Vector2.ZERO
+var _has_normal_position := false
+var _normal_position := Vector2i.ZERO
 var _path := ""
 var _encoding: int = FileEncoding.ANSI
 var _modified := false
@@ -280,11 +284,20 @@ func request_exit() -> void:
 		return
 	_exiting = true
 	_resize_serial += 1
+	var updates := {}
 	var normal := _normal_bounds if window.is_maximized() else window.current_size()
 	if window.is_maximized() and not _has_normal_bounds:
 		normal = Vector2.ZERO
 	if normal != Vector2.ZERO:
-		_settings = _settings.copy_with({"window_width": normal.x, "window_height": normal.y})
+		updates["window_width"] = normal.x
+		updates["window_height"] = normal.y
+	if window.has_position():
+		var pos := _normal_position if window.is_maximized() else window.current_position()
+		if not window.is_maximized() or _has_normal_position:
+			updates["window_x"] = float(pos.x)
+			updates["window_y"] = float(pos.y)
+	if not updates.is_empty():
+		_settings = _settings.copy_with(updates)
 	_save_settings()
 	window.set_prevent_close(false)
 	window.close_window()
@@ -507,16 +520,38 @@ func toggle_maximize() -> void:
 
 
 ## Connects the window events and sets the first title. Opens [param initial_path] if given.
-func start(initial_path: String = "") -> void:
-	window.close_requested.connect(on_close_requested)
-	window.active_changed.connect(on_active_changed)
-	window.maximized_changed.connect(on_maximized_changed)
-	window.resized.connect(on_resized)
+func start(
+		initial_path: String = "",
+		initial_encoding: int = FileEncoding.DETECT,
+		print_and_exit: bool = false) -> void:
+	if not window.close_requested.is_connected(on_close_requested):
+		window.close_requested.connect(on_close_requested)
+		window.active_changed.connect(on_active_changed)
+		window.maximized_changed.connect(on_maximized_changed)
+		window.resized.connect(on_resized)
+		window.files_dropped.connect(on_files_dropped)
 	window.set_prevent_close(true)
 	window.set_title(window_title())
 	refresh_clipboard()
 	if not initial_path.is_empty():
-		_open_path(initial_path)
+		await _open_path(initial_path, -1, initial_encoding)
+		if print_and_exit and not _path.is_empty():
+			await print_document()
+			window.set_prevent_close(false)
+			window.close_window()
+
+
+## Opens a file dropped onto the window from the desktop or file manager, asking to save
+## unsaved edits first just as File > Open does.
+func on_files_dropped(files: PackedStringArray) -> void:
+	if files.is_empty() or _modal != null:
+		return
+	close_menu()
+	var asked_version := text.document_version()
+	if not await _confirm_discard_changes():
+		return
+	var agreed := text.document_version() == asked_version
+	await _open_path(files[0], asked_version if agreed else -1)
 
 
 func on_close_requested() -> void:
@@ -567,6 +602,9 @@ func _settle_size() -> void:
 		return
 	_normal_bounds = size
 	_has_normal_bounds = true
+	if window.has_position():
+		_normal_position = window.current_position()
+		_has_normal_position = true
 
 
 func dispose() -> void:
@@ -645,6 +683,11 @@ func _open_path(
 		_settings = _settings.copy_with({"last_directory": file_path.get_base_dir()})
 		_persist_settings()
 		_set_document(file.text, file_path, file.encoding)
+		# In Windows XP Notepad, a file starting with ".LOG" on the first line automatically
+		# appends a newline and the current time and date when opened.
+		if file.text.begins_with(".LOG"):
+			text.move_caret_to_end()
+			insert_text("\n" + TimeDate.format_time_date(clock.call()) + "\n")
 	else:
 		var name := file_path.get_file()
 		var reason := FileError.describe(result.error)

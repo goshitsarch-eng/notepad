@@ -69,3 +69,26 @@ func test_a_font_size_the_font_dialog_cannot_choose_falls_back_to_10_points() ->
 	for size in [1, 12.5, 1638]:
 		var restored := NotepadSettings.from_json({"font": {"size": size}})
 		assert_eq(restored.font.size_points, float(size), "size %s" % size)
+
+
+func test_window_position_and_ui_scale_round_trip_and_validate() -> void:
+	var defaults := NotepadSettings.new()
+	assert_false(defaults.has_window_position())
+	assert_eq(defaults.ui_scale, 0.0)
+
+	var configured := defaults.copy_with({
+		"window_x": 120.0,
+		"window_y": 80.0,
+		"ui_scale": 1.5,
+	})
+	assert_true(configured.has_window_position())
+	var restored := NotepadSettings.from_json(configured.to_json())
+	assert_true(restored.has_window_position())
+	assert_eq(restored.window_x, 120.0)
+	assert_eq(restored.window_y, 80.0)
+	assert_eq(restored.ui_scale, 1.5)
+
+	# Out-of-range uiScale falls back to 0.0 (automatic HiDPI detection).
+	assert_eq(NotepadSettings.from_json({"uiScale": 0.1}).ui_scale, 0.0)
+	assert_eq(NotepadSettings.from_json({"uiScale": 99.0}).ui_scale, 0.0)
+	assert_eq(NotepadSettings.from_json({"uiScale": "auto"}).ui_scale, 0.0)

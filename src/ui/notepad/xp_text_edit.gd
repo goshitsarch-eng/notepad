@@ -99,6 +99,21 @@ func _intercept(event: InputEvent) -> void:
 		var key := event as InputEventKey
 		var command := key.ctrl_pressed or key.meta_pressed
 		match key.keycode:
+			KEY_A:
+				if command and not key.alt_pressed and not key.shift_pressed:
+					select_all_document()
+					accept_event()
+					return
+			KEY_Z:
+				if command and not key.alt_pressed and not key.shift_pressed:
+					undo_edit()
+					accept_event()
+					return
+			KEY_HOME, KEY_END:
+				if command and not key.alt_pressed:
+					_go_to_document_edge(key.keycode == KEY_END, key.shift_pressed)
+					accept_event()
+					return
 			KEY_TAB:
 				# Tab types a tab character, replacing the selection, as in Notepad.
 				if not command and not key.alt_pressed and not key.shift_pressed:
@@ -312,6 +327,29 @@ func select_all_document() -> void:
 		_large.select_all()
 	else:
 		select_all()
+
+
+## Moves the caret to the very end of the document without selecting text, as XP Notepad does
+## before appending a .LOG timestamp.
+func move_caret_to_end() -> void:
+	_go_to_document_edge(true, false)
+
+
+func _go_to_document_edge(end: bool, extend: bool) -> void:
+	if _large != null:
+		_go_to_edge(end, extend)
+		return
+	var target_line := get_line_count() - 1 if end else 0
+	var target_col := get_line(target_line).length() if end else 0
+	if extend:
+		var origin_line := get_selection_origin_line() if has_selection() else get_caret_line()
+		var origin_col := get_selection_origin_column() if has_selection() else get_caret_column()
+		select(origin_line, origin_col, target_line, target_col)
+	else:
+		deselect()
+	set_caret_line(target_line)
+	set_caret_column(target_col)
+	adjust_viewport_to_caret()
 
 
 ## Puts the caret at the start of line [param line] (counted from 1, and kept within the document).

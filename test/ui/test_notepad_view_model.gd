@@ -295,3 +295,69 @@ func test_saving_a_file_keeps_the_encoding_it_was_opened_with() -> void:
 	assert_true(await vm.save())
 	assert_eq(rig.documents.writes[0]["encoding"], FileEncoding.UNICODE_BIG_ENDIAN)
 	assert_eq(rig.documents.writes[0]["text"], "hi")
+
+
+func test_log_file_appends_time_and_date_on_open_and_can_be_undone() -> void:
+	rig.documents.files["/home/tester/diary.txt"] = TextCodec.encode_text(".LOG\nFirst entry", FileEncoding.ANSI)
+	var opening := Pending.start(vm.open_document)
+	var dialog: Requests.FileRequest = modal_of(vm, Requests.FileRequest)
+	if dialog == null:
+		return
+	dialog.complete(Requests.FileChoice.new("/home/tester/diary.txt", FileEncoding.ANSI))
+	await opening.wait()
+
+	assert_eq(rig.text(), ".LOG\nFirst entry\n3:05 PM 10/7/2026\n")
+	assert_true(vm.is_modified())
+	assert_true(vm.can_undo())
+	vm.undo()
+	assert_eq(rig.text(), ".LOG\nFirst entry")
+
+
+func test_files_dropped_opens_the_first_file_after_confirming_unsaved_changes() -> void:
+	rig.documents.files["/home/tester/dropped.txt"] = TextCodec.encode_text("Dropped content", FileEncoding.UTF8)
+	rig.type_text("unsaved")
+
+	var dropping := Pending.start(func() -> void: await vm.on_files_dropped(PackedStringArray(["/home/tester/dropped.txt"])))
+	var prompt: Requests.MessageRequest = modal_of(vm, Requests.MessageRequest)
+	assert_not_null(prompt)
+	if prompt == null:
+		return
+	prompt.complete(Requests.MessageChoice.NO)
+	await dropping.wait()
+
+	assert_eq(rig.text(), "Dropped content")
+	assert_eq(vm.file_name(), "dropped.txt")
+	assert_false(vm.is_modified())
+
+
+func test_command_line_switches_and_print_and_exit() -> void:
+	var MainScript = preload("res://src/main.gd")
+	var parsed_a: Dictionary = MainScript.parse_command_line(PackedStringArray(["/A", "/tmp/note.txt"]))
+	assert_eq(parsed_a["encoding"], FileEncoding.ANSI)
+	assert_eq(parsed_a["path"], "/tmp/note.txt")
+	assert_false(parsed_a["print"])
+
+	var parsed_w: Dictionary = MainScript.parse_command_line(PackedStringArray(["/W", "wide.txt"]))
+	assert_eq(parsed_w["encoding"], FileEncoding.UNICODE)
+	assert_eq(parsed_w["path"], "wide.txt")
+
+	var parsed_p: Dictionary = MainScript.parse_command_line(PackedStringArray(["/P", "/tmp/print.txt"]))
+	assert_true(parsed_p["print"])
+	assert_eq(parsed_p["path"], "/tmp/print.txt")
+
+	rig.documents.files["/tmp/print.txt"] = TextCodec.encode_text("Print and exit body", FileEncoding.ANSI)
+	var fresh_rig := ViewModelRig.new()
+	fresh_rig.documents.files["/tmp/print.txt"] = TextCodec.encode_text("Print and exit body", FileEncoding.ANSI)
+	await fresh_rig.vm.start("/tmp/print.txt", FileEncoding.ANSI, true)
+	assert_eq(fresh_rig.printing.printed, ["print.txt"])
+	assert_eq(fresh_rig.printing.printed_text, ["Print and exit body"])
+	assert_true(fresh_rig.window.closed)
+	fresh_rig.dispose()
+
+
+func test_window_position_is_saved_on_exit_when_supported() -> void:
+	rig.window.set_position(Vector2i(140, 220))
+	await vm.request_exit()
+	assert_not_null(rig.settings.saved)
+	assert_eq(rig.settings.saved.window_x, 140.0)
+	assert_eq(rig.settings.saved.window_y, 220.0)

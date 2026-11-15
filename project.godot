@@ -14,7 +14,11 @@ run/low_processor_mode=true
 run/flush_stdout_on_print=true
 config/features=PackedStringArray("4.7", "GL Compatibility")
 run/max_fps=60
+config/use_custom_user_dir=true
+config/custom_user_dir_name="xp_notepad"
 config/icon="res://icon.svg"
+config/macos_native_icon="res://packaging/macos/AppIcon.icns"
+config/windows_native_icon="res://packaging/windows/app_icon.ico"
 
 [audio]
 
@@ -27,7 +31,7 @@ window/size/viewport_height=404
 window/size/borderless=true
 window/size/resizable=true
 window/stretch/mode="disabled"
-window/subwindows/embed_subwindows=true
+window/subwindows/embed_subwindows=false
 window/energy_saving/keep_screen_on=false
 window/dpi/allow_hidpi=true
 
@@ -46,6 +50,11 @@ pointing/emulate_mouse_from_touch=true
 [internationalization]
 
 rendering/force_right_to_left_layout_direction=false
+
+[physics]
+
+2d/physics_engine="Dummy"
+3d/physics_engine="Dummy"
 
 [rendering]
 

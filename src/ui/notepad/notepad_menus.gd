@@ -64,3 +64,17 @@ static func build_system_menu(vm: NotepadViewModel) -> Array[XpMenuItem]:
 		XpMenuItem.separator(),
 		XpMenuItem.make("&Close", "Alt+F4", true, false, false, vm.request_exit),
 	] as Array[XpMenuItem]
+
+
+## The editor's right-click context menu (also opened with Shift+F10 or the Menu key).
+static func build_context_menu(vm: NotepadViewModel) -> Array[XpMenuItem]:
+	return [
+		XpMenuItem.make("&Undo", "", vm.can_undo(), false, false, vm.undo),
+		XpMenuItem.separator(),
+		XpMenuItem.make("Cu&t", "", vm.has_selection(), false, false, vm.cut),
+		XpMenuItem.make("&Copy", "", vm.has_selection(), false, false, vm.copy),
+		XpMenuItem.make("&Paste", "", vm.clipboard_has_text(), false, false, vm.paste),
+		XpMenuItem.make("&Delete", "", vm.has_selection(), false, false, vm.delete_selection),
+		XpMenuItem.separator(),
+		XpMenuItem.make("Select &All", "", vm.has_text(), false, false, vm.select_all),
+	] as Array[XpMenuItem]

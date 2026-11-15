@@ -11,6 +11,12 @@ func before_each() -> void:
 	history.clock = func() -> int: return now
 
 
+func after_each() -> void:
+	if history != null:
+		history.clock = Callable()
+		history = null
+
+
 func _lines(values: Array) -> PackedStringArray:
 	return PackedStringArray(values)
 

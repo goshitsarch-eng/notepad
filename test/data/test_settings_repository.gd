@@ -179,3 +179,28 @@ func test_the_settings_file_keeps_the_keys_of_the_flutter_version() -> void:
 	assert_eq(json["darkMode"], true)
 	assert_eq(json["wordWrap"], false)
 	assert_eq(json["lastDirectory"], "/x")
+
+
+func test_portable_mode_stores_settings_next_to_the_executable_when_portable_txt_exists() -> void:
+	var exec_dir := _folder + "/portable_app"
+	DirAccess.make_dir_recursive_absolute(exec_dir)
+	var without_marker := JsonFileSettingsRepository.standard(
+		{"HOME": "/home/me"}, false, exec_dir)
+	assert_eq(without_marker.file_path, "/home/me/.config/xp_notepad/settings.json")
+
+	write_text(exec_dir + "/portable.txt", "")
+	var with_marker := JsonFileSettingsRepository.standard(
+		{"HOME": "/home/me"}, false, exec_dir)
+	assert_eq(with_marker.file_path, exec_dir + "/settings.json")
+
+
+func test_hidpi_scale_detection_and_usable_screen_clamping() -> void:
+	assert_eq(GodotWindowService.detect_scale(-1, 1.75), 1.75)
+	assert_true(GodotWindowService.detect_scale(-1, 0.0) >= 1.0)
+	var usable := Rect2i(0, 25, 1920, 1055)
+	var clamped_low := GodotWindowService.clamp_to_usable_screen(
+		Vector2i(-500, -500), Vector2i(600, 404), -1, usable)
+	assert_eq(clamped_low, Vector2i(0, 25))
+	var clamped_high := GodotWindowService.clamp_to_usable_screen(
+		Vector2i(5000, 5000), Vector2i(600, 404), -1, usable)
+	assert_eq(clamped_high, Vector2i(1320, 676))

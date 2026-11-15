@@ -203,3 +203,66 @@ func test_alt_space_does_nothing_while_a_dialog_is_open() -> void:
 	assert_eq(rig.vm.open_menu(), NotepadViewModel.NO_MENU)
 	rig.vm.modal().complete(true)
 	await showing.wait()
+
+
+func test_right_click_in_editor_opens_context_menu_with_xp_commands() -> void:
+	rig.vm.text.load_document("Hello world")
+	await wait_frames(1)
+
+	await Sim.click(tree, Vector2(200, 200), MOUSE_BUTTON_RIGHT)
+	await wait_frames(1)
+
+	assert_eq(rig.vm.open_menu(), NotepadViewModel.CONTEXT_MENU)
+	assert_not_null(screen.popup)
+	var labels: Array[String] = []
+	for item in screen.popup.items:
+		if not item.is_separator:
+			labels.append(MenuLabel.parse(item.label).text)
+	assert_eq(labels, ["Undo", "Cut", "Copy", "Paste", "Delete", "Select All"] as Array[String])
+
+	# Choosing Select All by its mnemonic 'A' selects the text and closes the context menu.
+	await _press(KEY_A)
+	assert_eq(rig.vm.open_menu(), NotepadViewModel.NO_MENU)
+	assert_eq(rig.vm.text.selected_document_text(), "Hello world")
+
+
+func test_shift_f10_opens_the_editor_context_menu() -> void:
+	rig.vm.text.load_document("Sample")
+	await wait_frames(1)
+
+	await Sim.key(tree, KEY_F10, {"shift": true})
+	await wait_frames(1)
+
+	assert_eq(rig.vm.open_menu(), NotepadViewModel.CONTEXT_MENU)
+	assert_true(rig.vm.menu_cue())
+	await _press(KEY_ESCAPE)
+	assert_eq(rig.vm.open_menu(), NotepadViewModel.NO_MENU)
+
+
+func test_f10_toggles_menu_bar_cues_and_alt_f4_requests_exit() -> void:
+	assert_false(rig.vm.menu_cue())
+	await _press(KEY_F10)
+	assert_true(rig.vm.menu_cue())
+	await _press(KEY_F10)
+	assert_false(rig.vm.menu_cue())
+
+	await Sim.key(tree, KEY_F4, {"alt": true})
+	await wait_frames(2)
+	assert_true(rig.window.closed)
+
+
+func test_ctrl_home_and_ctrl_end_reach_document_edges_in_small_documents() -> void:
+	rig.vm.text.load_document("First line\nSecond line\nThird line")
+	await wait_frames(1)
+
+	await Sim.key(tree, KEY_END, {"ctrl": true})
+	await wait_frames(1)
+	assert_eq(rig.vm.caret_position(), Vector2i(3, 11))
+
+	await Sim.key(tree, KEY_HOME, {"ctrl": true})
+	await wait_frames(1)
+	assert_eq(rig.vm.caret_position(), Vector2i(1, 1))
+
+	await Sim.key(tree, KEY_END, {"ctrl": true, "shift": true})
+	await wait_frames(1)
+	assert_eq(rig.vm.text.selected_document_text(), "First line\nSecond line\nThird line")

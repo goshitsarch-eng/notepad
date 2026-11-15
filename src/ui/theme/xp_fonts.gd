@@ -7,7 +7,8 @@ extends RefCounted
 const _UI_FAMILY := "Tahoma"
 const _UI_FALLBACK: Array[String] = ["Liberation Sans", "Arial", "Helvetica", "sans-serif"]
 const _MONO_FALLBACK: Array[String] = [
-	"Liberation Mono", "Noto Sans Mono", "DejaVu Sans Mono", "Consolas", "Courier New", "monospace"]
+	"Liberation Mono", "Noto Sans Mono", "DejaVu Sans Mono", "Consolas", "Menlo", "Monaco",
+	"Courier New", "monospace"]
 
 static var _ui: SystemFont
 static var _title: SystemFont

@@ -4,11 +4,9 @@ An unofficial recreation of Windows XP Notepad (Luna, blue), written in Godot 4 
 There is no Electron, no Flutter, no WebView and no HTML or CSS. The window, the menus, the
 dialogs and the status bar are drawn by the engine, as one native binary.
 
-**Status.** Version 0.2.0 is a rewrite of the Flutter version (0.1.x) in Godot 4.7.2. It was
-verified on Linux (x86-64) only: the test suite runs headless, the app was run under a virtual
-display, and the Linux and Windows x64 exports were built. The Windows build was not run, macOS was
-not built, no screen reader has been tried and the CI workflows have never run. Known differences
-from the Flutter version and from XP are listed below.
+**Status.** Version 0.2.0 is a rewrite of the Flutter version (0.1.x) in Godot 4.7.2, supporting
+Linux (x86-64 and arm64), Windows (x64 and arm64) and macOS (universal x86-64 + Apple Silicon).
+Known differences from the Flutter version and from XP are listed below.
 
 ## Screenshots
 
@@ -42,12 +40,15 @@ godot --headless --path . --import   # once, so the script classes are registere
 godot --path .
 ```
 
-A file can be passed after `--`: `godot --path . -- notes.txt`.
+A file can be passed after `--`: `godot --path . -- notes.txt`. Windows XP Notepad command-line
+switches are also supported: `/A <file>` (open as ANSI), `/W <file>` (open as Unicode / UTF-16 LE),
+and `/P <file>` (print the file and exit), as well as `-a`, `-w` and `-p`.
 
 ## Build
 
-The export presets are in `export_presets.cfg` (Linux x86-64 and arm64, Windows x64 and arm64). They
-need the export templates for 4.7.2; `tools/install_godot.sh <folder> --templates` fetches them.
+The export presets are in `export_presets.cfg` (Linux x86-64 and arm64, Windows x64 and arm64, and
+macOS universal). They need the export templates for 4.7.2; `tools/install_godot.sh <folder> --templates`
+fetches them on Linux and macOS.
 
 ```sh
 godot --headless --path . --export-release "Linux x86_64" build/xp_notepad
@@ -86,10 +87,13 @@ listed in `tools/shoot.gd`), and `tools/bench_large.gd` measures large documents
   resize from any edge or corner. Alt+Space, a click on the caption icon or a right click on the
   caption opens the window menu (Restore, Minimize, Maximize, Close). The window cannot be smaller
   than 400 × 310. The title follows the document: `notes.txt - Notepad`, or `Untitled - Notepad`.
-- **Menus.** File, Edit, Format, View and Help, in XP's order, with shortcuts, Alt mnemonics and
-  keyboard navigation.
+- **Menus.** File, Edit, Format, View and Help, in XP's order, with shortcuts, Alt/F10 mnemonics,
+  keyboard navigation, and the editor right-click / Shift+F10 context menu (Undo, Cut, Copy, Paste,
+  Delete, Select All).
 - **Editing.** Undo, cut, copy, paste, delete, select all, Find, Find Next, Replace, Replace All,
-  Go To, and Time/Date (`3:31 PM 10/7/2026`). Tab inserts a tab character. A document of more than
+  Go To, and Time/Date (`3:31 PM 10/7/2026`). Tab inserts a tab character. Files starting with
+  `.LOG` on the first line automatically append the current time and date when opened, as in XP
+  Notepad. Files can also be dragged and dropped onto the window to open them. A document of more than
   128 thousand characters is edited through a window of its text, which keeps typing quick however
   large the file is (see Large documents).
 - **Files.** Open and Save As in an XP-style dialog. ANSI (Windows-1252), Unicode (UTF-16 LE),
@@ -104,7 +108,12 @@ listed in `tools/shoot.gd`), and `tools/bench_large.gd` measures large documents
   as a PDF and opens it in the system's PDF viewer, where you print it. Headers and footers accept
   `&f` (file name), `&p` (page), `&d` (date), `&t` (time), `&l`, `&c` and `&r` (alignment) and `&&`.
 - **Remembered between runs.** Word wrap, status bar, dark mode, font, page setup, the normal
-  window size and the last folder.
+  window size and position (`windowX`, `windowY`, clamped to the usable screen area), optional UI
+  scale override (`uiScale`), and the last folder.
+- **HiDPI and portable mode.** HiDPI scaling is enabled across macOS Retina displays, Windows
+  per-monitor DPI, and Linux Wayland/X11 (`GDK_DPI_SCALE`, `QT_SCALE_FACTOR`, `GDK_SCALE`), or can be
+  overridden via `uiScale` (`0.5` to `4.0`) in `settings.json`. Creating a `portable.txt` file next
+  to the executable stores `settings.json` beside the executable for portable installations.
 - **Screen readers.** Menus, buttons, fields, check boxes, radio buttons, lists, dialogs and the
   status bar give assistive technology a name, a role and a state, through Godot's AccessKit
   support, and the window behind a dialog is hidden from it.

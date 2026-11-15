@@ -12,12 +12,27 @@ var maximize_toggles := 0
 ## How many times the window was asked to minimize.
 var minimizes := 0
 var size := Vector2(500, 400)
+var position := Vector2i(80, 60)
+var tracks_position := false
 var drags := 0
 var resizes: Array[int] = []
 
 
 func current_size() -> Vector2:
 	return size
+
+
+func has_position() -> bool:
+	return tracks_position
+
+
+func current_position() -> Vector2i:
+	return position
+
+
+func set_position(pos: Vector2i) -> void:
+	position = pos
+	tracks_position = true
 
 
 func is_maximized() -> bool:

@@ -21,8 +21,60 @@ func _init(allowed: String = "", box_width: float = 0.0) -> void:
 	caret_blink = true
 	select_all_on_focus = false
 	deselect_on_focus_loss_enabled = false
+	gui_input.connect(_intercept)
 	text_changed.connect(_on_text_changed)
 	_apply()
+
+
+func _intercept(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed:
+		return
+	var key := event as InputEventKey
+	var command := key.ctrl_pressed or key.meta_pressed
+	if command and not key.alt_pressed and not key.shift_pressed:
+		match key.keycode:
+			KEY_A:
+				select_all()
+				accept_event()
+			KEY_Z:
+				menu_option(MENU_UNDO)
+				accept_event()
+			KEY_C, KEY_INSERT:
+				if has_selection():
+					Clipboard.set_text(get_selected_text())
+				accept_event()
+			KEY_X:
+				if has_selection() and editable:
+					Clipboard.set_text(get_selected_text())
+					delete_text(get_selection_from_column(), get_selection_to_column())
+				accept_event()
+			KEY_V:
+				_paste_clipboard()
+				accept_event()
+	elif not command and not key.alt_pressed and key.shift_pressed:
+		match key.keycode:
+			KEY_INSERT:
+				_paste_clipboard()
+				accept_event()
+			KEY_DELETE:
+				if has_selection() and editable:
+					Clipboard.set_text(get_selected_text())
+					delete_text(get_selection_from_column(), get_selection_to_column())
+				accept_event()
+	elif not command and key.alt_pressed and not key.shift_pressed and key.keycode == KEY_BACKSPACE:
+		menu_option(MENU_UNDO)
+		accept_event()
+
+
+func _paste_clipboard() -> void:
+	if not editable:
+		return
+	var pasted := Clipboard.get_text().replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+	if pasted.is_empty():
+		return
+	if has_selection():
+		delete_text(get_selection_from_column(), get_selection_to_column())
+	insert_text_at_caret(pasted)
 
 
 func xp_theme_changed() -> void:

@@ -5,6 +5,7 @@ extends Control
 
 const NO_MENU := NotepadViewModel.NO_MENU
 const SYSTEM_MENU := NotepadViewModel.SYSTEM_MENU
+const CONTEXT_MENU := NotepadViewModel.CONTEXT_MENU
 
 ## Where the title bar's icon, which opens the window menu, ends.
 const _ICON_RIGHT := 28.0
@@ -27,6 +28,7 @@ var _menu_was := NO_MENU
 var _modal_was := false
 var _find_was := false
 var _dark_was := false
+var _context_menu_pos := Vector2.ZERO
 var _edges: Array[Control] = []
 
 
@@ -87,10 +89,12 @@ func menus() -> Array[XpMenu]:
 	return NotepadMenus.build(vm)
 
 
-## The items of menu [param index]: one of the menu bar, or the window menu.
+## The items of menu [param index]: one of the menu bar, the window menu, or the context menu.
 func items_of(index: int) -> Array[XpMenuItem]:
 	if index == SYSTEM_MENU:
 		return NotepadMenus.build_system_menu(vm)
+	if index == CONTEXT_MENU:
+		return NotepadMenus.build_context_menu(vm)
 	return menus()[index].items
 
 
@@ -292,6 +296,22 @@ func _toggle_window_menu(by_click: bool) -> void:
 		_open_menu_from_keyboard(SYSTEM_MENU)
 
 
+## Opens the editor's right-click context menu at [param pos], clamped inside the window.
+func open_context_menu(pos: Vector2, by_click: bool) -> void:
+	vm.refresh_clipboard()
+	var items := NotepadMenus.build_context_menu(vm)
+	var popup_w := XpMenuLayout.popup_width(items)
+	var popup_h := XpMenuLayout.popup_height(items)
+	var max_x := maxf(XpMetrics.FRAME, size.x - XpMetrics.FRAME - popup_w)
+	var max_y := maxf(_POPUP_TOP, size.y - XpMetrics.FRAME - popup_h)
+	_context_menu_pos = Vector2(clampf(pos.x, XpMetrics.FRAME, max_x), clampf(pos.y, _POPUP_TOP, max_y))
+	if by_click:
+		_highlight = -1
+		vm.open_menu_at(CONTEXT_MENU, true)
+	else:
+		_open_menu_from_keyboard(CONTEXT_MENU)
+
+
 func _close_menu() -> void:
 	_highlight = -1
 	vm.close_menu()
@@ -335,6 +355,8 @@ func _on_menu_hovered(index: int) -> void:
 
 ## The left edge of the popup under menu [param index], in window coordinates.
 func _menu_left(index: int) -> float:
+	if index == CONTEXT_MENU:
+		return _context_menu_pos.x
 	var left := XpMetrics.FRAME
 	if index == SYSTEM_MENU:
 		return left
@@ -345,6 +367,8 @@ func _menu_left(index: int) -> float:
 
 
 func _menu_top(index: int) -> float:
+	if index == CONTEXT_MENU:
+		return _context_menu_pos.y
 	return _BAR_TOP if index == SYSTEM_MENU else _POPUP_TOP
 
 
@@ -434,11 +458,42 @@ func _input(event: InputEvent) -> void:
 	if _alt_held:
 		_alt_used = true
 
+	# Alt+F4 exits the application, as listed in the window menu.
+	if key.alt_pressed and key.keycode == KEY_F4 and not key.ctrl_pressed and not key.shift_pressed:
+		_close_menu()
+		vm.request_exit()
+		get_viewport().set_input_as_handled()
+		return
+
 	# Alt+Space is the window menu, from the text or from a menu that is open.
 	if _alt_held and key.keycode == KEY_SPACE and not key.ctrl_pressed:
 		vm.set_menu_cue(true)
 		_toggle_window_menu(false)
 		get_viewport().set_input_as_handled()
+		return
+
+	# F10 toggles the menu bar keyboard cue (or closes an open menu); Shift+F10 or Menu opens
+	# the editor context menu.
+	if key.keycode == KEY_F10 and not key.ctrl_pressed and not key.alt_pressed:
+		if key.shift_pressed:
+			if document_has_focus():
+				vm.set_menu_cue(true)
+				open_context_menu(editor.position + Vector2(16, 16), false)
+				get_viewport().set_input_as_handled()
+			return
+		if vm.open_menu() != NO_MENU:
+			_close_menu()
+			vm.set_menu_cue(false)
+		else:
+			vm.set_menu_cue(not vm.menu_cue())
+		get_viewport().set_input_as_handled()
+		return
+
+	if key.keycode == KEY_MENU and not key.ctrl_pressed and not key.alt_pressed and not key.shift_pressed:
+		if document_has_focus():
+			vm.set_menu_cue(true)
+			open_context_menu(editor.position + Vector2(16, 16), false)
+			get_viewport().set_input_as_handled()
 		return
 
 	var open_index := vm.open_menu()
@@ -543,11 +598,13 @@ func _handle_menu_key(key: InputEventKey, open_index: int) -> void:
 		KEY_UP:
 			_move_highlight(items, -1)
 		KEY_RIGHT:
-			# From the window menu, Right goes to the first menu of the bar.
-			_open_menu_from_keyboard(0 if open_index == SYSTEM_MENU else (open_index + 1) % all.size())
+			if open_index != CONTEXT_MENU:
+				# From the window menu, Right goes to the first menu of the bar.
+				_open_menu_from_keyboard(0 if open_index == SYSTEM_MENU else (open_index + 1) % all.size())
 		KEY_LEFT:
-			_open_menu_from_keyboard(
-				all.size() - 1 if open_index == SYSTEM_MENU else (open_index - 1 + all.size()) % all.size())
+			if open_index != CONTEXT_MENU:
+				_open_menu_from_keyboard(
+					all.size() - 1 if open_index == SYSTEM_MENU else (open_index - 1 + all.size()) % all.size())
 		KEY_ENTER, KEY_KP_ENTER:
 			if _highlight >= 0:
 				_activate(items[_highlight])
@@ -560,20 +617,25 @@ func _handle_menu_key(key: InputEventKey, open_index: int) -> void:
 				if not item.is_separator and item.enabled and MenuLabel.parse(item.label).mnemonic() == letter:
 					_activate(item)
 					return
-			var menu_index := _menu_index_for(letter)
-			if menu_index >= 0:
-				_open_menu_from_keyboard(menu_index)
+			if open_index != CONTEXT_MENU:
+				var menu_index := _menu_index_for(letter)
+				if menu_index >= 0:
+					_open_menu_from_keyboard(menu_index)
 
 
-## Clicks outside an open menu close it. Clicks on the menu bar go to its labels.
+## Clicks outside an open menu close it. Clicks on the menu bar go to its labels. Right-clicks
+## inside the editor open the editor context menu.
 func _on_pointer_down(event: InputEventMouseButton) -> void:
 	XpDraw.keyboard_active = false
 	if vm.menu_cue():
 		vm.set_menu_cue(false)
+	var position := event.position
 	var open_index := vm.open_menu()
 	if open_index == NO_MENU:
+		if event.button_index == MOUSE_BUTTON_RIGHT and vm.modal() == null and _is_in_editor_text(position):
+			open_context_menu(position, true)
+			get_viewport().set_input_as_handled()
 		return
-	var position := event.position
 	# The title bar and the menu bar belong to their own handlers, which open, switch and close
 	# menus themselves.
 	if position.y >= _BAR_TOP and position.y < _POPUP_TOP:
@@ -589,4 +651,23 @@ func _on_pointer_down(event: InputEventMouseButton) -> void:
 		XpMenuLayout.popup_width(items), XpMenuLayout.popup_height(items))
 	if rect.has_point(position):
 		return
+	if event.button_index == MOUSE_BUTTON_RIGHT and vm.modal() == null and _is_in_editor_text(position):
+		open_context_menu(position, true)
+		get_viewport().set_input_as_handled()
+		return
 	_close_menu()
+
+
+func _is_in_editor_text(pos: Vector2) -> bool:
+	if find_dialog != null and find_dialog.get_global_rect().has_point(pos):
+		return false
+	var rect := editor.get_global_rect()
+	if not rect.has_point(pos):
+		return false
+	var vbar := vm.text.get_v_scroll_bar()
+	if vbar.visible and vbar.get_global_rect().has_point(pos):
+		return false
+	var hbar := vm.text.get_h_scroll_bar()
+	if hbar.visible and hbar.get_global_rect().has_point(pos):
+		return false
+	return true
