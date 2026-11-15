@@ -10,3 +10,4 @@ Categories=Utility;TextEditor;
 MimeType=text/plain;
 Keywords=notepad;text;editor;plaintext;
 StartupNotify=true
+StartupWMClass=Notepad

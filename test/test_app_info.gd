@@ -51,3 +51,35 @@ func test_the_windows_installer_script_defaults_to_this_version() -> void:
 
 func test_the_readme_states_this_version() -> void:
 	assert_contains(_read("README.md"), "Version %s" % AppInfo.version())
+
+
+func test_application_name_is_notepad() -> void:
+	assert_eq(ProjectSettings.get_setting("application/config/name"), "Notepad")
+	assert_eq(_first_match("project.godot", "(?m)^config/name=\"([^\"]*)\"\\s*$"), "Notepad")
+
+
+func test_application_icons_are_configured_for_all_platforms() -> void:
+	assert_eq(ProjectSettings.get_setting("application/config/icon"), "res://icon.svg")
+	assert_eq(
+		ProjectSettings.get_setting("application/config/macos_native_icon"),
+		"res://packaging/macos/AppIcon.icns")
+	assert_eq(
+		ProjectSettings.get_setting("application/config/windows_native_icon"),
+		"res://packaging/windows/app_icon.ico")
+	assert_true(FileAccess.file_exists("res://icon.svg"), "icon.svg exists")
+	assert_true(FileAccess.file_exists("res://packaging/macos/AppIcon.icns"), "macOS AppIcon.icns exists")
+	assert_true(FileAccess.file_exists("res://packaging/windows/app_icon.ico"), "Windows app_icon.ico exists")
+	assert_true(FileAccess.file_exists("res://packaging/icons/com.goshapps.Notepad.svg"), "Linux SVG icon exists")
+	var presets := _read("export_presets.cfg")
+	assert_false(presets.contains("packaging/*"), "export_presets.cfg must not exclude native icons in packaging/")
+	var desktop := _read("packaging/flatpak/com.goshapps.Notepad.desktop")
+	assert_contains(desktop, "Icon=com.goshapps.Notepad")
+	assert_contains(desktop, "StartupWMClass=Notepad")
+	var iss := _read("packaging/windows/xp-notepad.iss")
+	assert_contains(iss, "SetupIconFile=app_icon.ico")
+	assert_contains(iss, "IconFilename: \"{app}\\app_icon.ico\"")
+	var tex := XpIcons.app_icon_texture(32)
+	assert_not_null(tex, "About dialog app icon texture loads")
+	assert_eq(tex.get_width(), 32)
+	assert_eq(tex.get_height(), 32)
+

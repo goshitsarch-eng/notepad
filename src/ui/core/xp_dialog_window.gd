@@ -24,6 +24,7 @@ var _offset := Vector2.ZERO
 var _drag_from := Vector2.ZERO
 var _dragging := false
 var _closable := true
+var _effective_width := 0.0
 
 
 func _init(dialog_title: String = "", width: float = 300.0, closable: bool = true) -> void:
@@ -75,7 +76,7 @@ func xp_theme_changed() -> void:
 
 func _style_title() -> void:
 	_title_label.add_theme_font_override("font", XpFonts.title())
-	_title_label.add_theme_font_size_override("font_size", XpFonts.ui_size())
+	_title_label.add_theme_font_size_override("font_size", XpFonts.title_size())
 	_title_label.add_theme_color_override("font_color", Color.WHITE)
 	_title_label.add_theme_color_override("font_shadow_color", XpColors.title_shadow())
 	_title_label.add_theme_constant_override("shadow_offset_x", 1)
@@ -84,8 +85,9 @@ func _style_title() -> void:
 
 func _get_minimum_size() -> Vector2:
 	var inner := content.get_combined_minimum_size() if content != null else Vector2.ZERO
+	var w := _effective_width if _effective_width > 0.0 else dialog_width
 	# 11px of padding at the sides and above, and 8px above the 4px bottom frame.
-	return Vector2(dialog_width, XpMetrics.DIALOG_TITLE_HEIGHT + 11.0 + inner.y + 8.0 + XpMetrics.FRAME)
+	return Vector2(maxf(w, inner.x + 22.0), XpMetrics.DIALOG_TITLE_HEIGHT + 11.0 + inner.y + 8.0 + XpMetrics.FRAME)
 
 
 func accessibility_info() -> Dictionary:
@@ -120,12 +122,39 @@ func _draw_title_bar() -> void:
 # ---- Placing and dragging ----
 
 ## Centres the dialog in an area of [param area] pixels, then applies the drag. A dialog
-## taller than the window starts with its title bar at the top edge rather than above it.
+## taller than the window starts with its title bar at the top edge rather than above it,
+## and a dialog wider than a small window shrinks its width to fit inside the window.
 func place(area: Vector2) -> void:
+	_effective_width = minf(dialog_width, area.x) if area.x > 0.0 else dialog_width
+	update_minimum_size()
 	size = get_combined_minimum_size()
 	_offset = clamp_offset(_offset, area)
 	var centre := (area - size) / 2.0
 	position = centre + _offset
+
+
+func _find_default_button(node: Node) -> XpButton:
+	if node is XpButton:
+		var btn := node as XpButton
+		if btn.is_default and btn.visible and not btn.disabled:
+			return btn
+	for child in node.get_children():
+		var found := _find_default_button(child)
+		if found != null:
+			return found
+	return null
+
+
+## Presses the dialog's highlighted default button when Enter is pressed on a field or list
+## that does not consume Enter itself.
+func activate_default_button() -> bool:
+	if content == null:
+		return false
+	var btn := _find_default_button(content)
+	if btn == null:
+		return false
+	btn.pressed.emit()
+	return true
 
 
 ## [param offset] limited to the drags that leave the title bar reachable.

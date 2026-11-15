@@ -38,6 +38,7 @@ func _init(view_model: NotepadViewModel, for_replace: bool) -> void:
 	if replace_mode:
 		replace_box = XpTextBox.new()
 		replace_box.accessible_name = "Replace with"
+		replace_box.text_submitted.connect(func(_text: String) -> void: find_next())
 		Ui.expand(replace_box)
 		rows.append(Ui.spacer(0, 6))
 		rows.append(_labeled("Replace with:", replace_box))

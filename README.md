@@ -157,10 +157,10 @@ save or a Find does, takes about 2.1 s and is then kept until the next edit.
 
 ## Known issues
 
-- **Windows and macOS are unverified.** The Windows x64 export was built and its executable checked
-  (a PE file with the right machine type and version information), but it was not run. macOS has a
-  `packaging/macos/AppIcon.icns` and no export preset. The font lists name Windows fonts first and
-  have not been tried there.
+- **Windows is unverified at runtime.** The Windows x64 export was built and its executable checked
+  (a PE file with the right machine type and version information), and `export_presets.cfg` defines
+  export presets for Linux (`x86_64`, `arm64`), Windows (`x64`, `arm64`), and macOS (`universal`,
+  with `packaging/macos/AppIcon.icns`). The application was verified interactively on Linux and macOS.
 - **No screen reader has been tried.** The descriptions are tested as what each control reports;
   how a particular reader presents them is not. For a large document the editor's text is the window
   of lines, so a screen reader is told only those.

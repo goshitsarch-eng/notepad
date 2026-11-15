@@ -3,6 +3,7 @@ extends XpDialogWindow
 ## Help > About Notepad. It names this clone and carries no Microsoft branding.
 
 var request: DialogRequests.AboutRequest
+var icon: Control
 var _ok: XpButton
 
 
@@ -10,10 +11,11 @@ func _init(about_request: DialogRequests.AboutRequest) -> void:
 	super("About Notepad", 330.0)
 	request = about_request
 	close_requested.connect(cancel)
-	var icon := Control.new()
+	icon = Control.new()
 	icon.custom_minimum_size = Vector2(32, 32)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.draw.connect(func() -> void: XpIcons.draw_notepad(icon, Vector2.ZERO, 32.0))
+	icon.draw.connect(func() -> void: XpIcons.draw_app_icon(icon, Vector2.ZERO, 32.0))
 	var details := Ui.vbox([
 		Ui.label("Notepad", true),
 		Ui.spacer(0, 2),

@@ -30,6 +30,7 @@ func _init(font_request: DialogRequests.FontRequest) -> void:
 	family_list.changed.connect(func(index: int) -> void:
 		_family = EditorFont.FAMILIES[index]
 		sample.queue_redraw())
+	family_list.activated.connect(func(_index: int) -> void: submit())
 
 	var style_labels := PackedStringArray()
 	for style in FontFaceStyle.ALL:
@@ -40,6 +41,7 @@ func _init(font_request: DialogRequests.FontRequest) -> void:
 	style_list.changed.connect(func(index: int) -> void:
 		_style = FontFaceStyle.ALL[index]
 		sample.queue_redraw())
+	style_list.activated.connect(func(_index: int) -> void: submit())
 
 	var size_labels := PackedStringArray()
 	for size in EditorFont.SIZES:
@@ -48,6 +50,7 @@ func _init(font_request: DialogRequests.FontRequest) -> void:
 	size_list.accessible_name = "Size"
 	size_list.selected = _size_index(_size)
 	size_list.changed.connect(func(index: int) -> void: _pick_size(float(EditorFont.SIZES[index])))
+	size_list.activated.connect(func(_index: int) -> void: submit())
 
 	size_box = XpTextBox.new("0123456789.")
 	size_box.accessible_name = "Size"
@@ -175,7 +178,7 @@ func focus_target() -> Control:
 func _draw_sample() -> void:
 	var font := EditorFont.new(_family, _size, _style)
 	var face := XpFonts.editor(font)
-	var pixels := XpFonts.editor_size(font)
+	var pixels := mini(XpFonts.editor_size(font), 64)
 	var width := face.get_string_size("AaBbYyZz", HORIZONTAL_ALIGNMENT_LEFT, -1, pixels).x
 	var height := face.get_height(pixels)
 	var box := sample.size

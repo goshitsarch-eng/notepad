@@ -41,7 +41,7 @@ LicenseFile=..\..\LICENSE
 OutputDir={#OutputDir}
 OutputBaseFilename=xp-notepad-{#AppVersion}-windows-{#TargetArch}-setup
 SetupIconFile=app_icon.ico
-UninstallDisplayIcon={app}\xp_notepad.exe
+UninstallDisplayIcon={app}\app_icon.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -58,11 +58,12 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 
 [Files]
 Source: "{#SourceDir}\xp_notepad.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "app_icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\XP Notepad"; Filename: "{app}\xp_notepad.exe"
-Name: "{group}\Uninstall XP Notepad"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\XP Notepad"; Filename: "{app}\xp_notepad.exe"; Tasks: desktopicon
+Name: "{group}\XP Notepad"; Filename: "{app}\xp_notepad.exe"; IconFilename: "{app}\app_icon.ico"
+Name: "{group}\Uninstall XP Notepad"; Filename: "{uninstallexe}"; IconFilename: "{app}\app_icon.ico"
+Name: "{autodesktop}\XP Notepad"; Filename: "{app}\xp_notepad.exe"; IconFilename: "{app}\app_icon.ico"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\xp_notepad.exe"; Description: "Launch XP Notepad"; Flags: nowait postinstall skipifsilent

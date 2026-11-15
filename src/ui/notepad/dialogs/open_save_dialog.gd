@@ -29,6 +29,7 @@ var action_button: XpButton
 var cancel_button: XpButton
 
 var _folder_values: Array[String] = []
+var _name_from_list := false
 
 
 func _init(file_request: DialogRequests.FileRequest, files: FileSystemService) -> void:
@@ -56,6 +57,7 @@ func _init(file_request: DialogRequests.FileRequest, files: FileSystemService) -
 	name_box = XpTextBox.new()
 	name_box.accessible_name = "File name"
 	name_box.text = request.suggested_name
+	name_box.text_changed.connect(func(_new_text: String) -> void: _name_from_list = false)
 	name_box.text_submitted.connect(func(_text: String) -> void: submit())
 	Ui.expand(name_box)
 
@@ -203,6 +205,10 @@ func select_row(index: int) -> void:
 	var entry: DirectoryEntry = entries[index]
 	if not entry.is_directory:
 		name_box.text = entry.name
+		_name_from_list = true
+	elif _name_from_list:
+		name_box.text = ""
+		_name_from_list = false
 
 
 func _entry_named(entry_name: String, want_directory: bool) -> DirectoryEntry:

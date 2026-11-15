@@ -65,12 +65,17 @@ class _ShortcutTable extends Control:
 
 	func _init() -> void:
 		custom_minimum_size = Vector2(0, 240)
+		focus_mode = Control.FOCUS_ALL
 		clip_contents = true
 		_scroll.theme = XpTheme.shared()
 		_scroll.step = 1.0
 		_scroll.value_changed.connect(func(_value: float) -> void: queue_redraw())
 		Ui.anchor(_scroll, Vector4(1, 0, 1, 1), Vector4(-1.0 - XpMetrics.SCROLLBAR, 1, -1, -1))
 		add_child(_scroll)
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:
+			queue_redraw()
 
 	func xp_theme_changed() -> void:
 		queue_redraw()
@@ -84,19 +89,49 @@ class _ShortcutTable extends Control:
 		_scroll.max_value = HelpDialog.SHORTCUTS.size()
 		_scroll.page = _visible_rows()
 
+	func scroll_by_key(keycode: Key) -> bool:
+		_sync_scroll()
+		match keycode:
+			KEY_UP:
+				_scroll.value -= 1
+				return true
+			KEY_DOWN:
+				_scroll.value += 1
+				return true
+			KEY_PAGEUP:
+				_scroll.value -= _visible_rows()
+				return true
+			KEY_PAGEDOWN:
+				_scroll.value += _visible_rows()
+				return true
+			KEY_HOME:
+				_scroll.value = 0
+				return true
+			KEY_END:
+				_scroll.value = _scroll.max_value
+				return true
+		return false
+
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed:
-			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				grab_focus()
+				accept_event()
+			elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 				_scroll.value -= 3
 				accept_event()
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				_scroll.value += 3
 				accept_event()
+		elif event is InputEventKey and event.pressed:
+			if scroll_by_key(event.keycode):
+				accept_event()
 
 	func _draw() -> void:
 		_sync_scroll()
 		draw_rect(Rect2(Vector2.ZERO, size), XpColors.paper())
-		XpDraw.border(self, Rect2(Vector2.ZERO, size), XpColors.edit_border())
+		XpDraw.border(self, Rect2(Vector2.ZERO, size),
+			XpColors.text() if has_focus() else XpColors.edit_border())
 		var top := int(_scroll.value)
 		for offset in range(_visible_rows() + 1):
 			var index := top + offset

@@ -115,7 +115,7 @@ func _apply_state() -> void:
 	if _title_label == null:
 		return
 	_title_label.add_theme_font_override("font", XpFonts.title())
-	_title_label.add_theme_font_size_override("font_size", XpFonts.ui_size())
+	_title_label.add_theme_font_size_override("font_size", XpFonts.title_size())
 	_title_label.add_theme_color_override("font_color",
 		Color.WHITE if active else XpColors.title_inactive_text())
 	_title_label.add_theme_color_override("font_shadow_color",

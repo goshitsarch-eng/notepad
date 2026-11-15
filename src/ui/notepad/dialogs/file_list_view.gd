@@ -30,6 +30,7 @@ var _scroll := VScrollBar.new()
 func _init(list_height: float = 200.0) -> void:
 	_list_height = list_height
 	custom_minimum_size = Vector2(0, list_height + _HEADER_HEIGHT)
+	focus_mode = Control.FOCUS_ALL
 	clip_contents = true
 	_scroll.theme = XpTheme.shared()
 	_scroll.step = 1.0
@@ -59,7 +60,9 @@ func accessibility_info() -> Dictionary:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_ACCESSIBILITY_UPDATE:
+	if what == NOTIFICATION_FOCUS_ENTER or what == NOTIFICATION_FOCUS_EXIT:
+		queue_redraw()
+	elif what == NOTIFICATION_ACCESSIBILITY_UPDATE:
 		XpAccessibility.apply(self, accessibility_info())
 	elif what == NOTIFICATION_ACCESSIBILITY_INVALIDATE:
 		XpAccessibility.release(self)
@@ -95,9 +98,18 @@ func _row_at(y: float) -> int:
 	return row if row >= 0 and row < entries.size() and y >= _HEADER_HEIGHT + 1.0 else -1
 
 
+func _keep_visible(index: int) -> void:
+	var rows := _visible_rows()
+	if index < _scroll.value:
+		_scroll.value = index
+	elif index >= _scroll.value + rows:
+		_scroll.value = index - rows + 1
+
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			grab_focus()
 			var row := _row_at(event.position.y)
 			if row >= 0:
 				# Selected on press, so a single click does not wait out the double click.
@@ -111,6 +123,34 @@ func _gui_input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_scroll.value += 3
 			accept_event()
+	elif event is InputEventKey and event.pressed and not entries.is_empty():
+		var last := entries.size() - 1
+		if event.keycode in [KEY_ENTER, KEY_KP_ENTER]:
+			if selected >= 0 and selected <= last:
+				row_activated.emit(selected)
+				accept_event()
+			return
+		var current := maxi(selected, 0)
+		var target := -1
+		match event.keycode:
+			KEY_DOWN:
+				target = 0 if selected < 0 else mini(current + 1, last)
+			KEY_UP:
+				target = 0 if selected < 0 else maxi(current - 1, 0)
+			KEY_HOME:
+				target = 0
+			KEY_END:
+				target = last
+			KEY_PAGEUP:
+				target = maxi(current - _visible_rows(), 0)
+			KEY_PAGEDOWN:
+				target = mini(current + _visible_rows(), last)
+			_:
+				return
+		if target != selected:
+			_keep_visible(target)
+			row_selected.emit(target)
+		accept_event()
 
 
 static func type_of(entry: DirectoryEntry) -> String:
@@ -137,7 +177,7 @@ func _draw() -> void:
 		"Date Modified", XpColors.text())
 	var body := Rect2(0, _HEADER_HEIGHT, size.x, size.y - _HEADER_HEIGHT)
 	draw_rect(body, XpColors.paper())
-	XpDraw.border(self, body, XpColors.edit_border())
+	XpDraw.border(self, body, XpColors.text() if has_focus() else XpColors.edit_border())
 	if not problem.is_empty():
 		var lines := problem.split("\n")
 		var line_height := XpFonts.ui().get_height(XpFonts.ui_size())

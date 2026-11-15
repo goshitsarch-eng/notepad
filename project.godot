@@ -6,7 +6,7 @@ config_version=5
 
 [application]
 
-config/name="XP Notepad"
+config/name="Notepad"
 config/description="An unofficial Godot recreation of Windows XP Notepad."
 config/version="0.2.0"
 run/main_scene="res://src/main.tscn"

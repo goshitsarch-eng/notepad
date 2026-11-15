@@ -4,6 +4,41 @@ extends RefCounted
 
 enum MessageKind { INFORMATION, WARNING, ERROR }
 
+const _APP_ICON_RESOURCE := preload("res://icon.svg")
+static var _app_icon_cache: Dictionary = {}
+
+
+## The application icon (res://icon.svg), scaled cleanly to [param size] by [param size] pixels
+## for Help > About Notepad.
+static func app_icon_texture(pixel_size: int = 32) -> Texture2D:
+	var target := maxi(16, pixel_size)
+	if _app_icon_cache.has(target):
+		return _app_icon_cache[target]
+	var tex := _APP_ICON_RESOURCE as Texture2D
+	if tex == null:
+		return null
+	var image := tex.get_image()
+	if image == null or image.is_empty():
+		return tex
+	# Crop the outer transparent icon-grid padding so the 32x32 About icon fills its box.
+	if image.get_width() >= 256 and image.get_height() >= 256:
+		image = image.get_region(Rect2i(20, 24, 216, 216))
+	image.resize(target, target, Image.INTERPOLATE_LANCZOS)
+	var scaled := ImageTexture.create_from_image(image)
+	_app_icon_cache[target] = scaled
+	return scaled
+
+
+## Draws the application icon at [param origin] with side length [param size].
+static func draw_app_icon(canvas: CanvasItem, origin: Vector2, size: float = 32.0) -> void:
+	var tex := app_icon_texture(roundi(size))
+	if tex != null:
+		canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		canvas.draw_texture_rect(tex, Rect2(origin, Vector2(size, size)), false)
+		return
+	draw_notepad(canvas, origin, size)
+
+
 
 ## A notepad: a ruled page with a blue binding. Drawn on a 16 by 16 grid, scaled to
 ## [param size].

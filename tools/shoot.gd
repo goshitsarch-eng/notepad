@@ -35,11 +35,14 @@ func _run() -> void:
 	var main: Node = load("res://src/main.tscn").instantiate()
 	root.add_child(main)
 	await _frames(5)
-	if _size != Vector2i.ZERO:
-		root.size = _size
-		await _frames(3)
 	var vm: NotepadViewModel = main.view_model
-	var screen: NotepadScreen = main.screen
+	if vm.window is GodotWindowService:
+		(vm.window as GodotWindowService)._ui_scale_override = 1.0
+	root.content_scale_factor = 1.0
+	root.min_size = Vector2i(
+		int(NotepadSettings.MINIMUM_WINDOW_WIDTH), int(NotepadSettings.MINIMUM_WINDOW_HEIGHT))
+	root.size = _size if _size != Vector2i.ZERO else Vector2i(600, 404)
+	await _frames(3)
 	if not _open.is_empty():
 		vm.text.load_document(FileAccess.get_file_as_string(_open).replace("\r\n", "\n"))
 		await _frames(3)

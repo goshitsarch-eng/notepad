@@ -437,6 +437,9 @@ func _input(event: InputEvent) -> void:
 				and get_tree().get_first_node_in_group("xp_open_list") == null:
 			modal_host.cancel()
 			get_viewport().set_input_as_handled()
+		elif key.pressed and modal_host != null and modal_host.dialog is HelpDialog:
+			if (modal_host.dialog as HelpDialog).table.scroll_by_key(key.keycode):
+				get_viewport().set_input_as_handled()
 		return
 	if key.keycode == KEY_ALT:
 		if key.pressed and not key.echo:
@@ -569,6 +572,23 @@ func _shortcut_input(event: InputEvent) -> void:
 		handled = false
 	if handled:
 		get_viewport().set_input_as_handled()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	if get_tree().get_first_node_in_group("xp_open_list") != null:
+		return
+	var key := event as InputEventKey
+	if key.keycode in [KEY_ENTER, KEY_KP_ENTER] \
+			and not key.alt_pressed and not key.ctrl_pressed and not key.meta_pressed:
+		if vm.modal() != null and modal_host != null and modal_host.dialog != null:
+			if modal_host.dialog.activate_default_button():
+				get_viewport().set_input_as_handled()
+		elif find_dialog != null and _focus_in(find_dialog):
+			if find_dialog.activate_default_button():
+				get_viewport().set_input_as_handled()
+
 
 
 static func _letter_of(key: InputEventKey) -> String:

@@ -8,5 +8,11 @@ args=(--scenario="$1" --out="$2")
 [ -n "${3:-}" ] && args+=(--open="$3")
 [ -n "${4:-}" ] && args+=(--size="$4")
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$(mktemp -d)}"
-exec timeout 120 xvfb-run -a -s "-screen 0 1280x800x24" "$godot_bin" --path . \
-  --rendering-driver opengl3 -s tools/shoot.gd -- "${args[@]}"
+cmd=("$godot_bin" --path . --rendering-driver opengl3 -s tools/shoot.gd -- "${args[@]}")
+if command -v xvfb-run >/dev/null 2>&1; then
+  cmd=(xvfb-run -a -s "-screen 0 1280x800x24" "${cmd[@]}")
+fi
+if command -v timeout >/dev/null 2>&1; then
+  cmd=(timeout 120 "${cmd[@]}")
+fi
+exec "${cmd[@]}"

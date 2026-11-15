@@ -7,6 +7,7 @@ var screen: NotepadScreen
 
 
 func _ready() -> void:
+	_apply_app_icon()
 	var window := get_window()
 	var dependencies := AppDependencies.standard(window)
 	var settings := dependencies.settings.load_settings()
@@ -72,3 +73,14 @@ static func _command_line_options() -> Dictionary:
 ## itself, and the first plain argument of the installed app.
 static func _initial_path() -> String:
 	return _command_line_options()["path"]
+
+
+static func _apply_app_icon() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var icon_tex := load("res://icon.svg") as Texture2D
+	if icon_tex != null:
+		var img := icon_tex.get_image()
+		if img != null and not img.is_empty():
+			DisplayServer.set_icon(img)
+

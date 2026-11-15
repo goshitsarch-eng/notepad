@@ -574,3 +574,150 @@ func test_f20_a_dialog_that_fits_starts_centred_exactly_where_it_did_before() ->
 	assert_almost_eq(centre.x, 300.0, 0.01)
 	assert_almost_eq(centre.y, 202.0, 0.01)
 	await _close(going)
+
+
+# ---- Additional QA audit regression tests ----
+
+func test_font_dialog_accepts_on_enter_from_family_list_and_on_double_click() -> void:
+	await _start()
+	var choosing := await _open(vm.show_font)
+	var dialog := _dialog() as FontDialog
+	if not assert_not_null(dialog):
+		return
+	await Sim.key(tree, KEY_DOWN)
+	await _enter()
+	await _settle(choosing)
+	assert_null(vm.modal(), "Enter on the family list accepts the Font dialog")
+
+	var choosing_again := await _open(vm.show_font)
+	dialog = _dialog() as FontDialog
+	dialog.family_list.activated.emit(0)
+	await _settle(choosing_again)
+	assert_null(vm.modal(), "Double-clicking a family row accepts the Font dialog")
+
+
+func test_find_dialog_accepts_on_enter_from_check_box_and_replace_box() -> void:
+	await _start()
+	rig.type_text("alpha beta alpha")
+	rig.select(0, 0)
+	vm.show_find(false)
+	await wait_frames(3)
+	await _replace_text(screen.find_dialog.find_box, "beta")
+	screen.find_dialog.match_case_box.grab_focus()
+	await wait_frames(1)
+	await _enter()
+	assert_eq(vm.text.get_selected_text(), "beta", "Enter on Match case checkbox runs Find Next")
+	vm.close_find()
+	await wait_frames(2)
+
+	rig.select(0, 0)
+	vm.show_find(true)
+	await wait_frames(3)
+	await _replace_text(screen.find_dialog.find_box, "alpha")
+	screen.find_dialog.replace_box.grab_focus()
+	await wait_frames(1)
+	await _enter()
+	assert_eq(vm.text.get_selected_text(), "alpha", "Enter in Replace with box runs Find Next")
+	vm.close_find()
+
+
+func test_combo_box_takes_keyboard_focus_navigates_with_arrows_and_restores_focus_when_closed() -> void:
+	var combo := _script_combo(true)
+	var picked: Array = []
+	combo.changed.connect(func(index: int) -> void: picked.append(combo.labels[index]))
+	await wait_frames(2)
+	assert_eq(combo.focus_mode, Control.FOCUS_ALL)
+	combo.grab_focus()
+	await wait_frames(1)
+	assert_true(combo.has_focus())
+
+	await Sim.key(tree, KEY_DOWN)
+	await wait_frames(1)
+	assert_eq(combo.selected, 1)
+	assert_eq(picked, ["Greek"])
+
+	await Sim.key(tree, KEY_SPACE)
+	await wait_frames(2)
+	assert_true(combo.is_open())
+	await Sim.key(tree, KEY_ESCAPE)
+	await wait_frames(2)
+	assert_false(combo.is_open())
+	assert_true(combo.has_focus(), "closing combo popup restores focus to the combo box")
+
+
+func test_open_dialog_clicking_folder_after_file_clears_file_name_and_enters_folder() -> void:
+	await _start()
+	rig.file_system.listings["/home/tester"] = [
+		DirectoryEntry.new("docs", "/home/tester/docs", true, 0, 0),
+		DirectoryEntry.new("notes.txt", "/home/tester/notes.txt", false, 12, 0),
+	]
+	rig.file_system.listings["/home/tester/docs"] = []
+	var opening := await _open(vm.open_document)
+	var dialog := _dialog() as OpenSaveDialog
+	if not assert_not_null(dialog):
+		return
+	dialog.select_row(1)
+	assert_eq(dialog.name_box.text, "notes.txt")
+	dialog.select_row(0)
+	assert_eq(dialog.name_box.text, "", "selecting a folder clears a file name chosen from the list")
+	dialog.submit()
+	await wait_frames(2)
+	assert_eq(dialog.directory, "/home/tester/docs")
+	await _close(opening)
+
+
+func test_file_list_view_navigates_with_arrow_keys_and_activates_on_enter() -> void:
+	await _start()
+	rig.file_system.listings["/home/tester"] = [
+		DirectoryEntry.new("docs", "/home/tester/docs", true, 0, 0),
+		DirectoryEntry.new("notes.txt", "/home/tester/notes.txt", false, 12, 0),
+	]
+	rig.file_system.listings["/home/tester/docs"] = []
+	var opening := await _open(vm.open_document)
+	var dialog := _dialog() as OpenSaveDialog
+	if not assert_not_null(dialog):
+		return
+	assert_eq(dialog.list.focus_mode, Control.FOCUS_ALL)
+	dialog.list.grab_focus()
+	await wait_frames(1)
+	await Sim.key(tree, KEY_DOWN)
+	await wait_frames(1)
+	assert_eq(dialog.selected, 0)
+	await Sim.key(tree, KEY_ENTER)
+	await wait_frames(2)
+	assert_eq(dialog.directory, "/home/tester/docs")
+	await _close(opening)
+
+
+func test_help_dialog_scrolls_with_keyboard_navigation_keys() -> void:
+	await _start()
+	var showing := await _open(vm.show_help)
+	var dialog := _dialog() as HelpDialog
+	if not assert_not_null(dialog):
+		return
+	assert_eq(dialog.table._scroll.value, 0.0)
+	await Sim.key(tree, KEY_DOWN)
+	await wait_frames(1)
+	assert_true(dialog.table._scroll.value > 0.0, "Down arrow scrolls Help Topics table")
+	await Sim.key(tree, KEY_END)
+	await wait_frames(1)
+	assert_true(dialog.table._scroll.value >= 10.0, "End jumps to bottom of Help Topics table")
+	await Sim.key(tree, KEY_HOME)
+	await wait_frames(1)
+	assert_eq(dialog.table._scroll.value, 0.0, "Home returns to top of Help Topics table")
+	await _close(showing)
+
+
+func test_dialogs_shrink_horizontally_to_fit_minimum_width_window() -> void:
+	var min_win := Vector2(NotepadSettings.MINIMUM_WINDOW_WIDTH, NotepadSettings.MINIMUM_WINDOW_HEIGHT)
+	await _start(null, min_win)
+	for cmd in [vm.open_document, vm.show_font]:
+		var pending := await _open(cmd)
+		var dialog := _dialog()
+		if assert_not_null(dialog):
+			var frame := dialog.get_global_rect()
+			assert_true(frame.position.x >= 0.0 and frame.end.x <= min_win.x,
+				"%s fits horizontally inside minimum window (%s)" % [dialog.title, frame])
+		await _close(pending)
+		await wait_frames(2)
+

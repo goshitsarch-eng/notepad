@@ -14,12 +14,23 @@ static var _ui: SystemFont
 static var _title: SystemFont
 static var _ui_bold: SystemFont
 static var _editor_cache: Dictionary = {}
+static var _has_tahoma: int = -1
+static var _has_trebuchet: int = -1
 
 
 ## Tahoma 8pt is 11px. Where Tahoma is missing, Liberation Sans is drawn at 95%, which
 ## rounds to 10px.
 static func ui_size() -> int:
-	return 11 if OS.get_name() == "Windows" else roundi(11.0 * 0.95)
+	if _has_tahoma < 0:
+		_has_tahoma = 1 if (OS.get_name() == "Windows" or not OS.get_system_font_path("Tahoma").is_empty()) else 0
+	return 11 if _has_tahoma == 1 else roundi(11.0 * 0.95)
+
+
+## Trebuchet MS 10pt Bold in Luna title bars is 13px (or 12px for fallback sans-serif).
+static func title_size() -> int:
+	if _has_trebuchet < 0:
+		_has_trebuchet = 1 if (OS.get_name() == "Windows" or not OS.get_system_font_path("Trebuchet MS").is_empty()) else 0
+	return 13 if _has_trebuchet == 1 else 12
 
 
 static func ui() -> Font:
