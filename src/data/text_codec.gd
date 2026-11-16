@@ -20,7 +20,28 @@ const _CP1252_HIGH: Array[int] = [
 ## How much of a file is looked at to tell UTF-16 without a byte order mark.
 const _UTF16_SAMPLE_BYTES := 4096
 
+
+## A run of well formed UTF-8 sequences (RFC 3629), matched over bytes read as Latin-1 so each
+## character is one byte. It names the same sequences as [method _utf8_sequence_length]: no
+## overlong forms, no surrogates and nothing beyond U+10FFFF. The quantifiers are possessive,
+## so the match never backtracks and its cost stays linear however long the text is.
+const _WELL_FORMED_UTF8 := "^(?:[\\x{00}-\\x{7F}]++" \
+	+ "|[\\x{C2}-\\x{DF}][\\x{80}-\\x{BF}]" \
+	+ "|\\x{E0}[\\x{A0}-\\x{BF}][\\x{80}-\\x{BF}]" \
+	+ "|[\\x{E1}-\\x{EC}\\x{EE}\\x{EF}][\\x{80}-\\x{BF}]{2}" \
+	+ "|\\x{ED}[\\x{80}-\\x{9F}][\\x{80}-\\x{BF}]" \
+	+ "|\\x{F0}[\\x{90}-\\x{BF}][\\x{80}-\\x{BF}]{2}" \
+	+ "|[\\x{F1}-\\x{F3}][\\x{80}-\\x{BF}]{3}" \
+	+ "|\\x{F4}[\\x{80}-\\x{8F}][\\x{80}-\\x{BF}]{2})*+"
+
 static var _cp1252_reverse: Dictionary = {}
+## How many bytes are scanned at a time when checking UTF-8. Each piece is looked at as a
+## string of four-byte characters, so this bounds the memory the check takes. Tests make it
+## small to cut sequences in every place; below 4 it is taken as 4, so a cut moved back over
+## three continuation bytes still leaves something to scan.
+static var scan_chunk_bytes := 1024 * 1024
+static var _well_formed_utf8: RegEx
+static var _high_byte: RegEx
 
 
 static func _reverse_table() -> Dictionary:
@@ -37,9 +58,16 @@ static func _reverse_table() -> Dictionary:
 ## as in XP, the mark says what the file is.
 static func read_text(bytes: PackedByteArray, encoding: int = FileEncoding.DETECT) -> TextFile:
 	var used := _byte_order_mark(bytes)
+	# Detection calls a file without a mark UTF-8 only once it has checked that it is well
+	# formed, so the decoder need not check it again.
+	var checked := false
 	if used < 0:
-		used = encoding if encoding >= 0 else detect_encoding(bytes)
-	return TextFile.new(decode_text(bytes, used), used)
+		if encoding >= 0:
+			used = encoding
+		else:
+			used = detect_encoding(bytes)
+			checked = used == FileEncoding.UTF8
+	return TextFile.new(decode_text(bytes, used, checked), used)
 
 
 static func detect_encoding(bytes: PackedByteArray) -> int:
@@ -165,8 +193,9 @@ static func _unit_at(bytes: PackedByteArray, position: int, big_endian: bool) ->
 
 
 ## Decodes [param bytes] as [param encoding], skipping a matching byte order mark, and
-## converts CRLF line ends to LF for the editor.
-static func decode_text(bytes: PackedByteArray, encoding: int) -> String:
+## converts CRLF line ends to LF for the editor. [param well_formed] says the bytes are
+## already known to be well formed UTF-8.
+static func decode_text(bytes: PackedByteArray, encoding: int, well_formed: bool = false) -> String:
 	var text: String
 	match encoding:
 		FileEncoding.ANSI:
@@ -176,7 +205,7 @@ static func decode_text(bytes: PackedByteArray, encoding: int) -> String:
 		FileEncoding.UNICODE_BIG_ENDIAN:
 			text = _decode_utf16(bytes, true)
 		_:
-			text = _decode_utf8(bytes)
+			text = _decode_utf8(bytes, well_formed)
 	return text.replace("\r\n", "\n")
 
 
@@ -224,11 +253,11 @@ static func _decode_ansi(bytes: PackedByteArray) -> String:
 	return text
 
 
-static func _decode_utf8(bytes: PackedByteArray) -> String:
+static func _decode_utf8(bytes: PackedByteArray, well_formed: bool = false) -> String:
 	var body := bytes
 	if bytes.size() >= 3 and bytes[0] == 0xEF and bytes[1] == 0xBB and bytes[2] == 0xBF:
 		body = bytes.slice(3)
-	if not _is_valid_utf8(body):
+	if not well_formed and not _is_valid_utf8(body):
 		body = _repair_utf8(body)
 	return _without_nul(body).get_string_from_utf8()
 
@@ -345,10 +374,22 @@ static func _code_points(text: String) -> PackedInt32Array:
 
 
 static func _has_high_byte(bytes: PackedByteArray) -> bool:
-	for index in range(bytes.size()):
-		if bytes[index] >= 0x80:
+	if _high_byte == null:
+		_high_byte = RegEx.create_from_string("[\\x{80}-\\x{FF}]")
+	var size := bytes.size()
+	var chunk := maxi(4, scan_chunk_bytes)
+	for start in range(0, size, chunk):
+		if _high_byte.search(_as_latin1(bytes.slice(start, mini(start + chunk, size)))) != null:
 			return true
 	return false
+
+
+## [param bytes] as a string with one character per byte, of the same number, so the engine's
+## regular expressions can scan bytes. A NUL is made a space first, because the conversion stops
+## at a NUL. That changes neither whether the bytes are well formed UTF-8 nor whether any byte
+## is 0x80 or above.
+static func _as_latin1(bytes: PackedByteArray) -> String:
+	return _without_nul(bytes).get_string_from_ascii()
 
 
 ## The length of the well formed UTF-8 sequence that starts at [param index], or 0 when
@@ -387,13 +428,45 @@ static func _utf8_sequence_length(bytes: PackedByteArray, index: int, size: int)
 	return 0
 
 
+## True when [param bytes] are well formed UTF-8, as [method _utf8_sequence_length] defines it.
+## The engine's regular expressions do the scan, which is many times faster than a loop over the
+## bytes here. The bytes are taken a piece at a time, each cut moved back to the start of a
+## sequence: in well formed text a byte that is not a continuation byte (0x80 to 0xBF) always
+## starts one, and no sequence has more than three continuation bytes. A cut that still lands on
+## a continuation byte follows four of them, which is not well formed, and the next piece then
+## starts with a stray continuation byte and fails, as the whole would.
 static func _is_valid_utf8(bytes: PackedByteArray) -> bool:
+	if _well_formed_utf8 == null:
+		_well_formed_utf8 = RegEx.create_from_string(_WELL_FORMED_UTF8)
+	var size := bytes.size()
+	var chunk := maxi(4, scan_chunk_bytes)
+	var start := 0
+	while start < size:
+		var end := mini(start + chunk, size)
+		var back := 0
+		while end < size and back < 3 and (bytes[end] & 0xC0) == 0x80:
+			end -= 1
+			back += 1
+		var piece := _as_latin1(bytes.slice(start, end))
+		var found := _well_formed_utf8.search(piece)
+		# The pattern also matches nothing, so no match at all means the engine itself failed,
+		# such as on a resource limit. That piece is then walked byte by byte, so a failure is
+		# never taken for a file that is not UTF-8.
+		if found == null:
+			if not _walk_is_valid_utf8(bytes.slice(start, end)):
+				return false
+		elif found.get_end() != piece.length():
+			return false
+		start = end
+	return true
+
+
+## The plain walk over [param bytes] with [method _utf8_sequence_length]: the definition of
+## well formed UTF-8 here, kept for when the regular expression cannot answer.
+static func _walk_is_valid_utf8(bytes: PackedByteArray) -> bool:
 	var size := bytes.size()
 	var index := 0
 	while index < size:
-		if bytes[index] < 0x80:
-			index += 1
-			continue
 		var length := _utf8_sequence_length(bytes, index, size)
 		if length == 0:
 			return false

@@ -58,6 +58,29 @@ func test_hidden_entries_and_files_the_filter_hides_are_left_out() -> void:
 	assert_eq(_names(_service.list_directory(_folder, FileTypeFilter.all_files()).value), ["notes.txt", "photo.png"])
 
 
+func test_links_are_listed_as_what_they_point_to_and_broken_ones_are_left_out() -> void:
+	if OS.get_name() == "Windows":
+		return
+	_make_folder(_folder + "/real")
+	_make_folder(_folder + "/folder.txt")
+	write_text(_folder + "/a.txt", "abc")
+	OS.execute("ln", ["-s", "real", _folder + "/to_folder"])
+	OS.execute("ln", ["-s", "to_folder", _folder + "/to_link"])
+	OS.execute("ln", ["-s", "a.txt", _folder + "/to_file.txt"])
+	OS.execute("ln", ["-s", "missing.txt", _folder + "/broken.txt"])
+	OS.execute("ln", ["-s", "nowhere", _folder + "/broken_folder"])
+
+	var result := _service.list_directory(_folder, FileTypeFilter.text_documents())
+
+	assert_true(result.ok)
+	var entries: Array = result.value
+	assert_eq(_names(entries), ["folder.txt", "real", "to_folder", "to_link", "a.txt", "to_file.txt"])
+	for index in range(4):
+		assert_true((entries[index] as DirectoryEntry).is_directory, "%s is a folder" % entries[index].name)
+	assert_false((entries[5] as DirectoryEntry).is_directory)
+	assert_eq((entries[5] as DirectoryEntry).size, 3, "a link to a file has the file's size")
+
+
 func test_a_folder_with_hundreds_of_entries_lists_completely_and_in_order() -> void:
 	for i in range(400):
 		write_text(_folder + "/file%03d.txt" % i, str(i))
@@ -120,6 +143,9 @@ func test_a_folder_that_can_be_read_but_not_searched_reports_it_instead_of_listi
 	var closed := _folder + "/closed"
 	_make_folder(closed)
 	write_text(closed + "/inside.txt", "i")
+	# The listing still names this a folder, but it cannot be examined either, so it does not
+	# make the folder look listable.
+	_make_folder(closed + "/inner")
 	OS.execute("chmod", ["400", closed])
 	if _is_root() or FileAccess.file_exists(closed + "/inside.txt"):
 		skip("root ignores permissions (running as a user that can search every folder)")

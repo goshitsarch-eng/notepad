@@ -202,3 +202,110 @@ func test_text_with_the_replacement_character_itself_round_trips() -> void:
 	for encoding in [FileEncoding.UNICODE, FileEncoding.UNICODE_BIG_ENDIAN, FileEncoding.UTF8]:
 		var bytes := TextCodec.encode_text("a�b", encoding)
 		assert_eq(TextCodec.read_text(bytes).text, "a�b", "encoding %d" % encoding)
+
+
+# ---- The UTF-8 check ----
+# The check runs on the engine's regular expressions, a piece at a time. It must say exactly
+# what a plain walk over the bytes with _utf8_sequence_length says, wherever the pieces are cut.
+
+## The plain walk: the definition the faster check has to match.
+static func _walk_is_valid_utf8(bytes: PackedByteArray) -> bool:
+	var size := bytes.size()
+	var index := 0
+	while index < size:
+		var length := TextCodec._utf8_sequence_length(bytes, index, size)
+		if length == 0:
+			return false
+		index += length
+	return true
+
+
+func after_each() -> void:
+	TextCodec.scan_chunk_bytes = 1024 * 1024
+
+
+## Every input of one and two bytes, and three- and four-byte inputs over the boundaries of the
+## well formed ranges, with a letter before and after so the sequence is not at the edge.
+func test_the_utf8_check_matches_the_byte_walk_on_every_short_input() -> void:
+	var inputs: Array[PackedByteArray] = []
+	for first in 256:
+		inputs.append(_bytes([first]))
+		for second in 256:
+			inputs.append(_bytes([first, second]))
+	var edges := [0x00, 0x41, 0x7F, 0x80, 0x8F, 0x90, 0x9F, 0xA0, 0xBF, 0xC0, 0xC1, 0xC2, 0xDF, 0xE0,
+		0xED, 0xEF, 0xF0, 0xF4, 0xF5, 0xFF]
+	for lead in range(0xC0, 0x100):
+		for second in edges:
+			for third in edges:
+				inputs.append(_bytes([lead, second, third]))
+				inputs.append(_bytes([0x41, lead, second, third, 0x80, 0x41]))
+	var wrong := 0
+	for input in inputs:
+		if TextCodec._is_valid_utf8(input) != _walk_is_valid_utf8(input):
+			wrong += 1
+			if wrong <= 5:
+				fail("disagrees on %s" % input.hex_encode())
+	assert_eq(wrong, 0, "of %d inputs" % inputs.size())
+
+
+## Random text of whole and broken sequences, checked with the pieces cut every few bytes, so
+## a sequence is split at every place it can be.
+func test_the_utf8_check_matches_the_byte_walk_wherever_the_pieces_are_cut() -> void:
+	var pieces := [[0x41], [0x0A], [0x00], [0xC3, 0xA9], [0xE4, 0xBD, 0xA0], [0xF0, 0x9F, 0x98, 0x80],
+		[0xED, 0xA0, 0x80], [0xC0, 0x80], [0xE0, 0x80, 0x80], [0xF4, 0x90, 0x80, 0x80], [0xF5], [0xFF],
+		[0x80], [0xBF], [0xE4, 0xBD], [0xF0, 0x9F, 0x98]]
+	var random := RandomNumberGenerator.new()
+	random.seed = 20261115
+	var wrong := 0
+	for trial in 6000:
+		var input := PackedByteArray()
+		var whole_only := random.randf() < 0.5
+		for count in random.randi_range(0, 24):
+			var choice := random.randi_range(0, 5 if whole_only else pieces.size() - 1)
+			input.append_array(PackedByteArray(pieces[choice]))
+		var expected := _walk_is_valid_utf8(input)
+		for chunk in [4, 5, 6, 7, 9, 1024 * 1024]:
+			TextCodec.scan_chunk_bytes = chunk
+			if TextCodec._is_valid_utf8(input) != expected:
+				wrong += 1
+				if wrong <= 5:
+					fail("disagrees with pieces of %d on %s" % [chunk, input.hex_encode()])
+	assert_eq(wrong, 0)
+
+
+## A file over a megabyte with a sequence across the first cut is detected and read as UTF-8,
+## and the same file with that sequence broken is read as ANSI.
+func test_a_sequence_across_a_piece_boundary_is_read_whole() -> void:
+	var prefix := "a".repeat(1024 * 1024 - 1).to_utf8_buffer()
+	var good := prefix.duplicate()
+	good.append_array("€ and the rest".to_utf8_buffer())
+	var file := TextCodec.read_text(good)
+	assert_eq(file.encoding, FileEncoding.UTF8)
+	assert_true(file.text.ends_with("€ and the rest"))
+	var broken := prefix.duplicate()
+	broken.append_array(_bytes([0xE2, 0x82, 0x41]))
+	assert_eq(TextCodec.detect_encoding(broken), FileEncoding.ANSI)
+
+
+func test_a_high_byte_is_found_past_the_first_piece_and_after_a_nul() -> void:
+	TextCodec.scan_chunk_bytes = 4
+	assert_false(TextCodec._has_high_byte(_bytes([0x41, 0x00, 0x42, 0x43, 0x44, 0x00, 0x7F])))
+	assert_true(TextCodec._has_high_byte(_bytes([0x41, 0x00, 0x42, 0x43, 0x44, 0x00, 0x80])))
+	assert_true(TextCodec._has_high_byte(_bytes([0xFF])))
+	assert_false(TextCodec._has_high_byte(PackedByteArray()))
+
+
+## Hundreds of kilobytes of dense multi-byte text, which takes the regular expression through
+## many thousands of sequences in one piece, whole and with single bytes broken.
+func test_the_utf8_check_matches_the_byte_walk_on_long_multibyte_text() -> void:
+	var line := "第一行 敏捷的棕色狐狸 これは日本語 안녕하세요 Привет 😀🎉 café ü\n"
+	var whole := line.repeat(4000).to_utf8_buffer()
+	assert_true(whole.size() > 300 * 1024)
+	assert_true(TextCodec._is_valid_utf8(whole))
+	assert_eq(TextCodec.detect_encoding(whole), FileEncoding.UTF8)
+	var random := RandomNumberGenerator.new()
+	random.seed = 7
+	for trial in 12:
+		var broken := whole.duplicate()
+		broken[random.randi_range(0, broken.size() - 1)] = [0x80, 0xBF, 0xC0, 0xF5, 0xFF, 0xE0][trial % 6]
+		assert_eq(TextCodec._is_valid_utf8(broken), _walk_is_valid_utf8(broken), "trial %d" % trial)

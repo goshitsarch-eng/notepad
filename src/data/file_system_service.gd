@@ -34,10 +34,14 @@ func list_directory(directory: String, filter: FileTypeFilter) -> Result:
 	if listing_error != OK:
 		return Result.failure(FileError.from_godot(listing_error, directory))
 	var names: Array[String] = []
+	# Whether the listing itself calls each entry a folder. It reads this from the directory
+	# entry, following links, so it costs no system call for a plain file.
+	var listed_as_folder: Array[bool] = []
 	var name := access.get_next()
 	while not name.is_empty():
 		if not name.begins_with("."):
 			names.append(name)
+			listed_as_folder.append(access.current_is_dir())
 		name = access.get_next()
 	access.list_dir_end()
 
@@ -46,11 +50,15 @@ func list_directory(directory: String, filter: FileTypeFilter) -> Result:
 	var examined := 0
 	var failures := 0
 	var first_failure: FileError = null
-	for entry_name in names:
+	for index in range(names.size()):
+		var entry_name := names[index]
 		var path := directory.path_join(entry_name)
-		var is_folder := DirAccess.dir_exists_absolute(path)
-		# The listing does not say files from folders, but a file the filter hides needs
-		# no further system call.
+		# An entry the listing calls a folder is checked again, because in a folder without
+		# the search permission the listing still says "folder" for an entry that cannot be
+		# opened, and that entry is treated as a file that cannot be examined. Checking only
+		# these spares a call per file, which made large folders slow to show.
+		var is_folder := listed_as_folder[index] and DirAccess.dir_exists_absolute(path)
+		# A file the filter hides needs no further system call.
 		if not is_folder and not filter.matches(entry_name):
 			continue
 		examined += 1
